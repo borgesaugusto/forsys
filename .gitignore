@@ -7,9 +7,10 @@ real_images/
 comparison/
 test/
 in_silico/
+data/
+DLITE/
 test_*
 histogram.png
-test.py
 usage.py
 nm_analysis_timeseries.py
 neuromast_analysis.py
@@ -18,3 +19,7 @@ all_test.py
 time_forceNM.py
 in_silico.py
 *.pyc
+*.png
+bk_*
+se_beto.py
+forsys/tests/

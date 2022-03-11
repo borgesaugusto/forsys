@@ -26,5 +26,5 @@ class Vertex:
             self.ownEdges.append(eid)
             return True
     
-    # def remove_edge(self, eid: int):
-    #     self.ownEdges.remove(eid)
+    def remove_edge(self, eid: int):
+        self.ownEdges.remove(eid)

@@ -10,7 +10,30 @@ import forsys.vertex as fvertex
 import forsys.edge as fedge
 import forsys.cell as fcell
 
-def create_edges(vertices, edges, cells):
+
+def create_edges_new(cells):
+    """
+    Create big edges by locating junctions with more that 2 lines connecting
+    """
+    for _, cell in cells.items():
+        # go over each vertex in a cell
+        print("cell vertices:", [v.id for v in cell.vertices])
+        number_of_connections = [True if len(n.ownEdges) > 2 else False for n in cell.vertices]
+        indices = [i for i in np.where(number_of_connections)[0] if i!=0]
+        newarrs = np.split(cell.vertices, indices)
+
+
+    
+        exit()
+
+
+
+
+
+
+    return new_edges
+
+def create_edges(cells):
     """
     Give virtual edges generated from the lattice
     """
@@ -52,7 +75,7 @@ def create_edges(vertices, edges, cells):
     return newEdges
 
 def generate_mesh(vertices, edges, cells, ne=4):
-    bedges = create_edges(vertices, edges, cells)
+    bedges = create_edges(cells)
     # ldict = {}
     nEdgeArray = []
     alreadySeen = []
@@ -112,6 +135,7 @@ def eid_from_vertex(earr, vbel):
         if len(list(set(earr[j]) & set(vbel))) >= 2:
             return j
     log.warning("No big edge with both vectors")
+    exit()
 
 def get_border_edge(earr, vertices):
     borderEdge = []
@@ -149,6 +173,41 @@ def get_border_from_angles(earr, vertices):
             inBorder.append(eid[1+anglesArr.index(min(anglesArr))])
     return inBorder
 
+def get_border_from_angles_new(earr, vertices):
+    # put the one in the middle
+    inBorder = []
+    for eid in get_border_edge(earr, vertices):
+        # for i in range(1, len(eid) - 1):
+        inBorder.append(eid[int(len(eid)/2)])
+    return inBorder
+
+def get_big_edges_se(frame):
+    """
+    Get the big edges by detecting changes in ground truth of Surface Evolver
+    """
+    new_big_edges = []
+    middle_vertices = []
+
+    for bedge in frame.earr:
+        edges_to_use = frame.get_big_edge_edgesid(bedge)
+        edges_tension = [frame.edges[eid].gt for eid in edges_to_use]
+
+        a = [1 if edges_tension[b] != edges_tension[b+1] else 0 for b in range(0, len(edges_tension)-1)]
+
+        cut_where = np.where(np.array(a).astype(int)==1)[0] + 1
+        new_edges = np.split(bedge, cut_where)
+        for enumber in range(0, len(new_edges)  - 1):
+            new_big_edges.append(list(np.concatenate((new_edges[enumber], [new_edges[enumber+1][0]]))))
+            middle_vertices.append(new_edges[enumber+1][0])
+        new_big_edges.append(list(new_edges[-1]))
+
+    return new_big_edges, middle_vertices
+
+
+
+
+
+
 def new_virtual_edges(inBorder, earr):
     newEarr = []
     for eid in earr:
@@ -166,6 +225,7 @@ def get_virtual_edges(earrN, vertices):
     vseen = []
     virtualEdges = {}
     edges = []
+
     for eid in earrN:
         vuse = []
         if eid[0] not in vseen:
@@ -175,7 +235,7 @@ def get_virtual_edges(earrN, vertices):
         edges.append(virtualEdges[vid])
     edges = set(list(it.chain.from_iterable(edges)))
     edgesNumber = len(edges)
-
+    
     return virtualEdges, edges, edgesNumber
 
 def get_edge_from_earr(edges, element):
@@ -209,4 +269,7 @@ def get_versors(vertices, edges, vid):
 
 
 def angle_between_two_vectors(a, b):
-    return np.arccos(np.dot(a/np.linalg.norm(a), b/np.linalg.norm(b)))
+    # anorm = np.(a, 2)
+    # b = np.round(b, 2)
+    clipped_dot_product = np.clip(np.dot(a/np.linalg.norm(a), b/np.linalg.norm(b)), -1, 1)
+    return np.arccos(clipped_dot_product)

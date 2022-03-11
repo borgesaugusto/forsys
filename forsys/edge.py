@@ -5,11 +5,17 @@ class Edge:
     id: int
     v1: object
     v2: object
+    tension: float=0
+    gt: float=0
 
     def __post_init__(self):
         self.verticesArray = [self.v1, self.v2]
         for v in self.verticesArray:
             v.add_edge(self.id)
+    
+    def __del__(self):
+        for v in self.verticesArray:
+            v.remove_edge(self.id)
 
     def get_vertices_id(self) -> list:
         # return map(lambda x: x.id, [self.v1, self.v2])

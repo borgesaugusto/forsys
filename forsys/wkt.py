@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import os
 
 import forsys.vertex as fvertex
 import forsys.edge as fedge
@@ -122,31 +123,24 @@ def is_vertex_created(v, vertices):
             return vertex.id
     return False
 
-# def create_wkt(latt):
-#     """
-#     Creates a WKT-formated string from a lattice.
-#     """
-#     # POLYGON ((x0 y0, x1 y1, x2 y2))
-#     # go through each vertex in a cell and save the position with round(*, 3)
-#     # final = ""
-#     final = []
-#     df = pd.DataFrame()
-#     cells = latt.getCells()
-#     for cID, cell in cells.items():
-#         string = str()
-#         for vID in cell.get_cell_vertices():
-#             pos = list(map(
-#                             lambda x: round(x, 4),
-#                             (latt.getVertices()[vID].xPos,
-#                              latt.getVertices()[vID].yPos)))
-#             string += str(pos[0])+" "+str(pos[1])+", "
-#         string = string[:-2]
-#         line = "POLYGON (("+string+"))"
-#         final.append(line)
-#         # final += "POLYGON (("+string+"))"+"\n"
-#     df[0] = final
-#     return df[0]
+def create_wkt(cells):
+    """
+    Creates a WKT-formated string from a lattice.
+    POLYGON ((x0 y0, x1 y1, x2 y2))
+    go through each vertex in a cell and save the position with round(*, 3)
+    """
+    final = str()
+    for _, cell in cells.items():
+        string = str()
+        for v in cell.vertices:
+          string += f"{str(v.x)} {str(v.y)}, "
+        string = string[:-2]
+        final += "POLYGON ((" + string+ "))"+"\n"
 
-# def save(wkt, folder="log/",step=0):
-#     """ Save the current state """
-#     return wkt.to_csv(folder+"wkt-"+str(step)+".wkt", index=False, header=None)
+    return final
+
+def save(wkt, folder="log/",step=0):
+    """ Save the current state """
+    with open(os.path.join(folder, str(step)+".wkt"), 'w') as f:
+        f.write(wkt)
+    # return wkt.to_csv(folder+"wkt-"+str(step)+".wkt", index=False, header=None)

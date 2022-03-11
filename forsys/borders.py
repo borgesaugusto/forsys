@@ -7,12 +7,12 @@ def get_versors_area(vertices, edges, cells, vid, metadata):
         elif metadata['area_target'] == 'max':
             areaTarget = get_minmax_area(cells)[1]
         elif metadata['area_target'] == 'ave':
-            areaTarget = np.mean(get_minmax_area(cells))        
+            areaTarget = get_minmax_area(cells)[2]       
         else:
             areaTarget = metadata['area_target']
-    except NameError:
-        print("No area target defined, using average")
-        areaTarget = get_minmax_area()[0]
+    except KeyError:
+        print("***WARNING**** No area target defined, using average")
+        areaTarget = get_minmax_area(cells)[2]
     
     areax = 0
     areay = 0
@@ -20,12 +20,12 @@ def get_versors_area(vertices, edges, cells, vid, metadata):
 
     for cellID in vertices[vid].ownCells:
         cell = cells[cellID]
-        area = cell.get_area()
+        area = abs(cell.get_area())
         deltay = cell.get_next_vertex(vertices[vid]).y - cell.get_previous_vertex(vertices[vid]).y
         deltax = cell.get_next_vertex(vertices[vid]).x - cell.get_previous_vertex(vertices[vid]).x
-        print("Deltas: ", deltax, deltay)
-        print("Deltas: ", deltax, deltay)
-        print("areas", area, areaTarget, area-areaTarget)
+        # print("Deltas: ", deltax, deltay)
+        # print("Deltas: ", deltax, deltay)
+        # print("areas", area, areaTarget, area-areaTarget)
         areax -= (area-areaTarget) * deltay
         areay += (area-areaTarget) * deltax
    
@@ -38,12 +38,13 @@ def get_versors_perimeter(vertices, edges, cells, vid, metadata):
         elif metadata['perimeter_target'] == 'max':
             perimeterTarget = get_minmax_perimeter(cells)[1]
         elif metadata['perimeter_target'] == 'ave':
-            perimeterTarget = np.mean(get_minmax_perimeter(cells))        
+            perimeterTarget = get_minmax_perimeter(cells)[2]
         else:
             perimeterTarget = metadata['perimeter_target']
-    except NameError:
+    except KeyError:
         print("No area target defined, using average")
-        perimeterTarget = get_minmax_perimeter()[0]
+        perimeterTarget = get_minmax_perimeter(cells)[2]
+
     print("Calculating perimeter terms... vID: ", vid, "with perimeter target: ", perimeterTarget)
     perimeterx = 0
     perimetery = 0
@@ -54,6 +55,12 @@ def get_versors_perimeter(vertices, edges, cells, vid, metadata):
         deltaxNext = vertices[vid].x - cell.get_next_vertex(vertices[vid]).x
         deltayPrev = vertices[vid].y - cell.get_previous_vertex(vertices[vid]).y
         deltayNext = vertices[vid].y - cell.get_next_vertex(vertices[vid]).y
+
+        print("Deltas: ", deltaxPrev, deltaxNext)
+        print("Deltas: ", deltaxNext, deltayNext)
+        print("areas", perimeter, perimeterTarget, perimeter-perimeterTarget)
+        print("----------------------------------------------------------------------------------------")
+
         modPrev = np.sqrt(deltaxPrev**2+deltayPrev**2)
         modNext = np.sqrt(deltaxNext**2+deltayNext**2)
         perimeterx += -2*(perimeter-perimeterTarget)*(deltaxPrev/modPrev+deltaxNext/modNext)
@@ -62,15 +69,22 @@ def get_versors_perimeter(vertices, edges, cells, vid, metadata):
     return perimeterx, perimetery
 
 
-    
-def get_minmax_area(cells):
+def list_areas(cells):
     areas = []
     for _, cell in cells.items():
         areas.append(cell.get_area())
-    return min(areas), max(areas)
+    return areas
 
-def get_minmax_perimeter(cells):
+def list_perimeters(cells):
     perim = []
     for _, cell in cells.items():
         perim.append(cell.get_perimeter())
-    return min(perim), max(perim)
+    return perim
+
+def get_minmax_area(cells):
+    areas = list_areas(cells)
+    return np.min(np.abs(areas)), np.max(np.abs(areas)), np.mean(np.abs(areas))
+
+def get_minmax_perimeter(cells):
+    perims = list_perimeters(cells)
+    return min(perims), max(perims), np.mean(perims)

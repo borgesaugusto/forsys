@@ -6,9 +6,9 @@ from sympy import *
 import forsys.virtual_edges as ve
 import forsys.plot as plot
 
-def cmatrix(vertices, edges, cells):
+def cmatrix(vertices, edges, cells, earr):
     init_printing(use_unicode=True)
-    vertices, edges, cells, earr = ve.generate_mesh(vertices, edges, cells, 4)
+    # vertices, edges, cells, earr = ve.generate_mesh(vertices, edges, cells, 4)
     # configuration = Lattice(vertices, edges, cells)
 
     extForces = {}
