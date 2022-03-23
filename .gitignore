@@ -9,6 +9,8 @@ test/
 in_silico/
 data/
 DLITE/
+DLITEBK/
+forsys/tests/
 test_*
 histogram.png
 usage.py
@@ -22,4 +24,3 @@ in_silico.py
 *.png
 bk_*
 se_beto.py
-forsys/tests/
