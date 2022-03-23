@@ -21,7 +21,8 @@ class Frame():
     def __post_init__(self):
         self.big_edge_gt_tension = {}
         self.big_edge_tension = {}
-        self.earr = ve.create_edges(self.cells)
+        # self.earr = ve.create_edges(self.cells)
+        self.earr = ve.create_edges_new(self.vertices, self.cells)
         if self.surface_evolver:
             self.big_edges_list, self.border_vertices = ve.get_big_edges_se(self)
             self.earr = self.big_edges_list
@@ -62,6 +63,15 @@ class Frame():
         return [list(set(self.vertices[big_edge_vertices[vid]].ownEdges) & 
                 set(self.vertices[big_edge_vertices[vid+1]].ownEdges))[0]
                 for vid in range(0, len(big_edge_vertices)-1)]
+
+    def get_tensions(self, with_border=False):
+        df = pd.DataFrame.from_dict(self.big_edge_gt_tension.items()).rename(columns={0: 'id', 1: 'gt'})
+        df['tension'] = self.big_edge_tension.values()
+        if not with_border:
+            # Only return results that don't belong the edges in the border
+            df = df.loc[~df.id.isin(self.external_edges_id)]
+
+        return df
 
     def export_tensions(self, fname, folder="", is_gt=True, with_border=False):
         if is_gt:

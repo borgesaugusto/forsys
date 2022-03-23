@@ -27,7 +27,8 @@ class ForSys():
                                 self.frames[when].big_edges_list,
                                 timeseries=time_series,
                                 at_time=when,
-                                externals_to_use = self.frames[when].border_vertices,
+                                # externals_to_use = self.frames[when].border_vertices,
+                                externals_to_use = 'none',
                                 term=term,
                                 metadata=metadata)
         

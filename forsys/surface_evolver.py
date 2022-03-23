@@ -20,7 +20,7 @@ class SurfaceEvolver:
         edges_temp = self.get_edges()
         
         vertices = {}
-        for _, r in self.get_vertices().iterrows():          
+        for _, r in self.get_vertices().iterrows():
             vertices[int(r.id)] = vertex.Vertex(int(r.id), r.x, r.y)
             
         edges  = {}
@@ -39,6 +39,7 @@ class SurfaceEvolver:
         for vid, v in vertices.items():
             if len(v.ownCells) == 0:
                 vertex_to_delete.append(int(vid))
+
         for i in vertex_to_delete:
             for e in vertices[i].ownEdges.copy():
                 try:

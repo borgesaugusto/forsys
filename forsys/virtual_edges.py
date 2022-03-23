@@ -3,35 +3,46 @@
 import itertools as itertools
 import logging as log
 import numpy as np
-import itertools as it
 from collections import Counter
+
+import scipy.optimize as sco
 
 import forsys.vertex as fvertex
 import forsys.edge as fedge
 import forsys.cell as fcell
 
-
-def create_edges_new(cells):
+def create_edges_new(vertices, cells):
     """
     Create big edges by locating junctions with more that 2 lines connecting
     """
-    for _, cell in cells.items():
-        # go over each vertex in a cell
-        print("cell vertices:", [v.id for v in cell.vertices])
-        number_of_connections = [True if len(n.ownEdges) > 2 else False for n in cell.vertices]
-        indices = [i for i in np.where(number_of_connections)[0] if i!=0]
-        newarrs = np.split(cell.vertices, indices)
+    earr_temp = []
+    for cell in cells.values():
+        # vertices = {v.id: v for v in cell.vertices}
+        cell_vertex_ids = [v.id for v in cell.vertices]
+        number_of_connections = [len(n.ownEdges) > 2 for n in cell.vertices]
 
+        splitted = get_splitted(cell_vertex_ids, number_of_connections)
+        if not number_of_connections[0]:
+            new_vertex_order = np.concatenate((*splitted[1:], splitted[0]))
+            new_number_of_connections = [len(vertices[vid].ownEdges) > 2 for vid in new_vertex_order]
+            splitted = get_splitted(new_vertex_order, new_number_of_connections)
+
+        splitted = splitted[1:]
+        new_edges = [np.append(splitted[ii], splitted[((ii+1)%len(splitted))][0]).flatten().tolist() for ii in range(0, len(splitted))]
 
     
-        exit()
+        earr_temp += new_edges
+    earr = []
+    for e in earr_temp:
+        if e[::-1] not in earr and e not in earr:
+            earr += [e]
 
-
-
-
-
-
-    return new_edges
+    return earr
+    
+def get_splitted(cell_vertex_ids, number_connections):
+    indices = [i for i in np.where(number_connections)[0]]
+    splitted = np.split(cell_vertex_ids, indices)
+    return splitted
 
 def create_edges(cells):
     """
@@ -203,11 +214,6 @@ def get_big_edges_se(frame):
 
     return new_big_edges, middle_vertices
 
-
-
-
-
-
 def new_virtual_edges(inBorder, earr):
     newEarr = []
     for eid in earr:
@@ -225,7 +231,6 @@ def get_virtual_edges(earrN, vertices):
     vseen = []
     virtualEdges = {}
     edges = []
-
     for eid in earrN:
         vuse = []
         if eid[0] not in vseen:
@@ -233,7 +238,7 @@ def get_virtual_edges(earrN, vertices):
     for vid in vseen:
         virtualEdges[vid] = vertices[vid].ownEdges
         edges.append(virtualEdges[vid])
-    edges = set(list(it.chain.from_iterable(edges)))
+    edges = set(list(itertools.chain.from_iterable(edges)))
     edgesNumber = len(edges)
     
     return virtualEdges, edges, edgesNumber
@@ -252,20 +257,87 @@ def get_line_constant_from_bedge(edges, ele):
         edgeLC.append(edges[eid].getLineConstant())
     return edgeLC
 
+def get_circle_params(big_edge, vertices):
+    x = [vertices[vid].x for vid in big_edge]
+    y = [vertices[vid].y for vid in big_edge]
+    
+    def objective_f(c):
+        """ calculate the algebraic distance between the data points and the mean circle centered at c=(xc, yc) """
+        distances = np.sqrt((x - c[0])**2 + (y - c[1])**2)
+        return distances - distances.mean()
+
+    center_2, _ = sco.leastsq(objective_f, (np.mean(x), np.mean(y)))    
+    return center_2[0], center_2[1]
+
+
+
 def get_versors(vertices, edges, vid):
     for eb in vertices[vid].ownEdges:
+        # get versors average of the next two
         edge = edges[eb]
-        deltaX = edge.v1.x - edge.v2.x
-        deltaY = edge.v1.y - edge.v2.y
-        modulus = np.sqrt(deltaX**2 + deltaY**2)
-        if vid == edge.get_vertices_id()[0]:
-            vx = - deltaX/modulus
-            vy = - deltaY/modulus
+        deltaX = edge.v2.x - edge.v1.x
+        deltaY = edge.v2.y - edge.v1.y
+        modulus = np.sqrt(deltaX**2 + deltaY**2)      
+        # check if the edge is in the border, and don't create a lambda if it is
+        other_vertex = list(set(edge.get_vertices_id()) - set([vid]))
+        if len(other_vertex) == 1:
+            border = len(vertices[other_vertex[0]].ownCells) == 1
         else:
+            border = False
+        if vid == edge.get_vertices_id()[0]:
             vx = deltaX/modulus
             vy = deltaY/modulus
+        else:
+            vx = - deltaX/modulus
+            vy = - deltaY/modulus
         # Force versor, to calculate modulus
-        yield (vx, vy, edge.get_vertices_id())
+        yield (vx, vy, edge.get_vertices_id(), border)
+
+def get_border_edges(earr, vertices, edges):
+    border_edges = []
+    for e in earr:      
+        if len(vertices[e[int(len(e)/2)]].ownCells) == 1:
+            border_edges.append(e)
+    return border_edges
+
+
+
+def get_versors_average(vertices, edges, vid):
+    for eb in vertices[vid].ownEdges:
+        edge = edges[eb]
+
+        other_vertex_id = list(set(edge.get_vertices_id()) - set([vid]))
+        
+        if len(other_vertex_id) == 1:
+            border = len(vertices[other_vertex_id[0]].ownCells) == 1
+        else:
+            border = False
+
+        # Next vertex
+        next_edge = edges[list(set(vertices[other_vertex_id[0]].ownEdges) - set([eb]))[0]]
+        
+        vector1 = edge.get_vector()
+
+        # deltaX = edge.v1.x - edge.v2.x
+        # deltaY = edge.v1.y - edge.v2.y
+        # modulus = np.sqrt(deltaX**2 + deltaY**2)
+
+        sign1 = 1
+        sign2 = 1
+        if vid != edge.get_vertices_id()[0]:
+            sign1 = -1
+        if next_edge.get_vertices_id()[0] != other_vertex_id[0]:
+            sign2 = -1
+
+
+        vector2 = next_edge.get_vector()
+
+
+        ret_versor = sign1 * np.array(vector1) + sign2 * np.array(vector2)
+        ret_versor = ret_versor / np.linalg.norm(ret_versor)
+        
+        # yield (ave_versor[0], ave_versor[1], edge.get_vertices_id(), border)
+        yield (ret_versor[0], ret_versor[1], edge.get_vertices_id(), border)
 
 
 def angle_between_two_vectors(a, b):

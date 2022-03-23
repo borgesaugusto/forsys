@@ -14,39 +14,48 @@ def fmatrix(vertices, edges, cells, earr, externals_to_use, term, metadata):
         inBorder = list(np.array(ve.get_border_edge(earr, vertices)).flatten())
         earrN = ve.new_virtual_edges(inBorder, earr)
         virtualDictionary, _, edgesNumber = ve.get_virtual_edges(earrN, vertices)
+        true_earr = earrN
     elif type(externals_to_use) == list:
         inBorder = externals_to_use
         earrN = ve.new_virtual_edges(inBorder, earr)
+        true_earr = earrN
         virtualDictionary, _, _ = ve.get_virtual_edges(earrN, vertices)
     elif externals_to_use == "none":
         earrN = earr
+        inBorder = []
+        border_edges = ve.get_border_edges(earr, vertices, edges)
         virtualDictionary, _, _ = ve.get_virtual_edges(earr, vertices)
+        true_earr = earr.copy()
+        for e in border_edges:
+            true_earr.remove(e)
     else:
         inBorder = ve.get_border_from_angles_new(earr, vertices)
         earrN = ve.new_virtual_edges(inBorder, earr)
+        true_earr = earrN
         virtualDictionary, _, _ = ve.get_virtual_edges(earrN, vertices)
 
     jj = 0
     # mapping from vid to row number
     position_map = {}
+
     for vid in virtualDictionary:
         # exit()
-        position_map[vid] = jj
-        jj += 2
-        row_x, row_y = get_row(vid, earrN, inBorder, vertices, edges, cells, term, metadata)
- 
-        if len(m) == 0:
-            m = Matrix(( [row_x] ))
-            m = m.row_insert(m.shape[0], Matrix(( [row_y] )))
-        else:
-            m = m.row_insert(m.shape[0], Matrix(([row_x])))
-            m = m.row_insert(m.shape[0], Matrix(([row_y])))
+        row_x, row_y = get_row(vid, earrN, inBorder, vertices, edges, cells, true_earr, term, metadata)
+        if not np.all((np.array(row_x) == 0)) or not np.all((np.array(row_y) == 0)):
+            position_map[vid] = jj
+            jj += 2
+            if len(m) == 0:
+                m = Matrix(( [row_x] ))
+                m = m.row_insert(m.shape[0], Matrix(( [row_y] )))
+            else:
+                m = m.row_insert(m.shape[0], Matrix(([row_x])))
+                m = m.row_insert(m.shape[0], Matrix(([row_y])))
+    # return m, earrN, inBorder, position_map
+    return m, true_earr, inBorder, position_map
 
-    return m, earrN, inBorder, position_map
-
-def get_row(vid, earr, border_vertices, vertices, edges, cells, term='ext', metadata={}):
+def get_row(vid, earr, border_vertices, vertices, edges, cells, true_earr, term='ext', metadata={}):
     # create the two rows of the A matrix.
-    arrx, arry = get_vertex_equation(vertices, edges, vid, earr)
+    arrx, arry = get_vertex_equation(vertices, edges, vid, true_earr)
     arrxF, arryF = get_external_term(vertices, edges, cells, vid, border_vertices, term, metadata)
 
     row_x = list(arrx)+list(arrxF)
@@ -72,8 +81,6 @@ def get_external_term(vertices, edges, cells, vid, border_vertices, term='ext', 
             fxVersor = 0
             fyVersor = 0
         else: # term='ext' is the default, also works for term='timeseries-velocity'
-            # bug!! this should sum all the parts... 
-            # Solved ??
             fxVersor = 0
             fyVersor = 0
             for el in ve.get_versors(vertices, edges, vid):
@@ -85,12 +92,35 @@ def get_external_term(vertices, edges, cells, vid, border_vertices, term='ext', 
         arryF[current_border_id * 2 + 1] = round(fyVersor, 3)
     return arrxF, arryF
 
-def get_vertex_equation(vertices, edges, vid, earr):
-    arrx = np.zeros(len(earr))
-    arry = np.zeros(len(earr))
+def get_vertex_equation(vertices, edges, vid, true_earr):
+    arrx = np.zeros(len(true_earr))
+    arry = np.zeros(len(true_earr))
     for el in ve.get_versors(vertices, edges, vid):
-        pos = ve.eid_from_vertex(earr,  el[2])
-        arrx[pos] = round(el[0], 3)
-        arry[pos] = round(el[1], 3)
+        if not el[3] and len(vertices[vid].ownCells) > 2:
+        # if True:
+            pos = ve.eid_from_vertex(true_earr,  el[2])
+            xc_2, yc_2 = ve.get_circle_params(true_earr[pos], vertices)
+            v0 = vertices[vid]
+            ####TODO: Correct the right angle !!
+
+            versor = np.array((- (v0.y - yc_2), (v0.x - xc_2)))
+
+            if el[2][0] != vid:
+                versor = -1 * versor
+
+            if np.sign(el[0]) != np.sign(versor[0]):
+                versor[0] = versor[0] * -1
+            if np.sign(el[1]) != np.sign(versor[1]):
+                versor[1] = versor[1] * -1
+
+
+            versor = versor / np.linalg.norm(versor)
+            # print(pos)
+            # arrx[pos] = round(el[0], 3)
+            # arry[pos] = round(el[1], 3)
+            arrx[pos] = versor[0]
+            arry[pos] = versor[1]
+
+            # print(vid, el)
     return arrx, arry
 

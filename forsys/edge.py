@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import numpy as np
 
 @dataclass 
 class Edge:
@@ -33,3 +34,8 @@ class Edge:
             self.v2 = vnew
         self.verticesArray[who] = vnew
         self.verticesArray[who].add_edge(self.id)
+    
+    def get_vector(self) -> list:
+        vector = [self.v2.x - self.v1.x, self.v2.y - self.v1.y]
+        # norm = np.linalg.norm(vector)
+        return vector

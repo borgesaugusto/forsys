@@ -23,6 +23,7 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
     shapeM = m.shape
     countBorder = int((shapeM[1] - tote) / 2)
 
+
     # m = m.T * m
     print(shapeM, " with ", countBorder, " externals and ", tote, "edges")
     # print("Unkowns: ", tote + countBorder*2)
@@ -53,7 +54,6 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
     # if b_norm != 0:
     #     b = b/b_norm
     #     mprime = mprime/b_norm
-    
     b = m.T * b
     # if b==0, just do NNLS
     if b_norm == 0:
@@ -66,7 +66,6 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
     b = Matrix([np.round(float(val), 3) for val in b])
 
 
-    # pprint(b)
     start = time.time()
 
     print("")
@@ -82,14 +81,12 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
 
 
     # xres, rnorm = scop.nnls(mprime, mp.matrix(b), maxiter=200000)
-    xres, rnorm = scop.nnls(mprime, mp.matrix(bprime), maxiter=200000)
     # xres_bacc, rnorm_bacc = scop.nnls(mprime, mp.matrix(b), maxiter=200000)
     mprime = np.array(mprime).astype(np.float64)
     b = np.array(mp.matrix(b)).astype(np.float64)
 
    
-    xres, rnorm = scop.nnls(mprime, b, maxiter=200000)
-    print("Cost for nnls with b!=0  ->   ", cost_function(xres, mprime, b), rnorm)
+    xres = Matrix(np.linalg.inv(mprime) * Matrix(b))
 
     # if not only_nnls:
     #     bounds = [(0, np.inf)]*len(b)
@@ -101,14 +98,6 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
     #     print("Cost for minimize: ", cost_function(x2.x, mprime, b))
 
     #     xres=x2.x
-
-
-    # res_list = list(np.around(xres, 3))
-    # print("Result: ", [(ii, res_list[ii]) for ii in range(0, len(res_list))])
-    # print("Index wanted:", list(np.around(xres, 3)).index(7.747))
-    # print("\n")
-    # print("Lambda 97:", x2.x[position_map[97]])
-    # pprint(mprime * x2.x - b)
 
     # exit()
 
@@ -126,7 +115,7 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
                         set(vertices[e[vid+1]].ownEdges))[0]
                         for vid in range(0, len(e)-1)]
         for e in edges_to_use:
-            edges[e].tension = xres[i]
+            edges[e].tension = float(xres[i])
     
     if b_norm != 0:
         print("Lagrange multipliers: ", xres[-2], xres[-1])
@@ -136,7 +125,7 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
     forceDict = {}
     for i in range(0, tote):
         if i < tote:
-            val = xres[i]
+            val = float(xres[i])
         forceDict[i] = val
         # for i in range(0)
     i = 0
@@ -159,23 +148,6 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
         forceDict[name2] = val2
         i += 1
 
-    # print("\n \n")
-    # print("check: ")
-    # pprint(mprime * Matrix(xres) - b)
-    # print("----------------")
-    # print("----------------")
-    # condNew = 'NA'
-    # lambdaVal = 'NA'
-    # aux = pd.DataFrame()
-    # aux['condition'] = [condNew]
-    # aux['rnorm'] = [rnorm]
-    # aux['lambda'] = [lambdaVal]
-
-    # print("Forces dictionary: ")
-    # print(forceDict)
-
-    # print("Condition number: ", condNumber, condNew)
-    # return forceDict, aux, xres, earr, (vertices, edges, cells), versorsUsed
     return forceDict, xres, earr, position_map
     # return forceDict, versorsUsed
 
@@ -191,35 +163,36 @@ def cost_function(x, m, b):
     return cost
 
 def add_mean_one(mprime, b, total_edges, total_borders):
+    
     ones = np.ones(total_edges)
     zeros = np.zeros(total_borders*2)
+    additional_zero = np.zeros(1)
     cMatrix = Matrix(np.concatenate((ones, zeros), axis=0))
     mprime = mprime.row_insert(mprime.shape[0], cMatrix.T)
-    # cmatrix forces
-    ones = np.ones(total_borders*2)
-    zeros = np.zeros(total_edges)
-    cMatrix = Matrix(np.concatenate((zeros, ones), axis=0))
-    mprime = mprime.row_insert(mprime.shape[0]+1, cMatrix.T)
-    
     ## Now insert the two corresponding cols for the lagrange multpliers
-    ones = np.ones(total_edges)
-    zeros = np.zeros(total_borders*2 + 2) # +2 comes from the two inserted rows
-    # zeros = np.zeros(countBorder*2 + 1) # +1 comes from the  inserted rows
-    cMatrix = Matrix(np.concatenate((ones, zeros), axis=0))
-    mprime = mprime.col_insert(mprime.shape[1], cMatrix)
-
-    ones = np.ones(total_borders*2)
-    zeros = np.zeros(total_edges)
-    additional_zeros = np.zeros(2) # +2 comes from the two inserted rows
-    cMatrix = Matrix(np.concatenate((zeros, ones, additional_zeros), axis=0))
+    cMatrix = Matrix(np.concatenate((ones, zeros, additional_zero), axis=0))
     mprime = mprime.col_insert(mprime.shape[1], cMatrix)
 
     zeros = Matrix(np.zeros(b.shape[1]))
+    b = b.row_insert(b.shape[0]+1, zeros)
+    b[b.shape[0]-1,b.shape[1]-1] = total_edges
 
-    b = b.row_insert(b.shape[0]+1, zeros)
-    b = b.row_insert(b.shape[0]+1, zeros)
-    
-    b[b.shape[0]-2,b.shape[1]-2] = total_edges
-    b[b.shape[0]-1,b.shape[1]-1] = total_borders*2
+    if total_borders != 0:
+        # cmatrix forces
+        ones = np.ones(total_borders*2)
+        zeros = np.zeros(total_edges)
+        cMatrix = Matrix(np.concatenate((zeros, ones, additional_zero), axis=0))
+        mprime = mprime.row_insert(mprime.shape[0]+1, cMatrix.T)
+        
+        ones = np.ones(total_borders*2)
+        zeros = np.zeros(total_edges)
+        additional_zeros = np.zeros(2) # +2 comes from the two inserted rows
+        cMatrix = Matrix(np.concatenate((zeros, ones, additional_zeros), axis=0))
+        mprime = mprime.col_insert(mprime.shape[1], cMatrix)
+
+        zeros = Matrix(np.zeros(b.shape[1]))
+        b = b.row_insert(b.shape[0]+1, zeros)
+        # b[b.shape[0]-1,b.shape[1]-1] = total_borders*2
+        b[b.shape[0]-1,b.shape[1]-1] = 0
 
     return mprime, b

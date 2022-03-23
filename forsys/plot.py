@@ -162,11 +162,8 @@ def plot_mesh(vertices, edges, cells, step, folder=""):
     # edges = mesh.mesh[step]['edges']
     # cells = mesh.mesh[step]['cells']
 
-    vids = [10, 41, 3, 50, 54, 72, 28, 89, 33, 13, 44, 98, 110, 36, 34, 25, 91, 113, 81]
-
     for v in vertices.values():
-        if v.id in vids:
-            plt.scatter(v.x, v.y, s=5,color="blue")
+        plt.scatter(v.x, v.y, s=5,color="blue")
         # plt.annotate(str(v.id), [v.x, v.y], fontsize=3, color="red")
 
     # for e in edges.values():
@@ -185,14 +182,14 @@ def plot_mesh(vertices, edges, cells, step, folder=""):
     #     plt.annotate(str(e.id), [(e.v1.x +  e.v2.x)/2 , (e.v1.y + e.v2.y)/2], fontsize=3, fontweight="bold")
 
     for c in cells.values():
-        # cm = c.get_cm()
+        cm = c.get_cm()
         # print(c.id, cm)
         cxs = [v.x for v in c.vertices]
         cys = [v.y for v in c.vertices]
 
         plt.fill(cxs, cys, alpha=0.3)
-        # plt.annotate(str(c.id), [cm[0], cm[1]])
-        # plt.scatter(cm[0], cm[1], marker="x", color="red")
+        plt.annotate(str(c.id), [cm[0], cm[1]])
+        plt.scatter(cm[0], cm[1], marker="x", color="red")
 
     # # plt.show()
     # plt.xlim(-50, 60)
