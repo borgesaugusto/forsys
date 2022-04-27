@@ -5,3 +5,5 @@ from . import frames
 from . import plot
 from . import virtual_edges
 from . import auxiliar
+from . import wkt
+from . import skeleton

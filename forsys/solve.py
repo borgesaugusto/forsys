@@ -25,15 +25,13 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
 
 
     # m = m.T * m
-    print(shapeM, " with ", countBorder, " externals and ", tote, "edges")
+    # print(shapeM, " with ", countBorder, " externals and ", tote, "edges")
     # print("Unkowns: ", tote + countBorder*2)
     # print("Equations: ", totv)
 
     mprime = m.T * m
 
     b = Matrix(np.zeros(m.shape[0]))
-
-    print("Accelerations: ")
     if timeseries != None:
         # for vid in versorsUsed.keys():
         for vid in position_map.keys():
@@ -68,10 +66,10 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
 
     start = time.time()
 
-    print("")
-    print("||b||", b_norm)
-    print("")
-    print("NNLS iterating...")
+    # print("")
+    # print("||b||", b_norm)
+    # print("")
+    # print("NNLS iterating...")
     # print(b)
     bprime = np.zeros(len(b))
     bprime[-2] = b[-2]
@@ -104,7 +102,7 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
     # xres, rnorm = scop.nnls(mprime, b, maxiter=100000)
     end = time.time()
     # print("Forsys NNLS finished, took", end-start, " residuals: ", rnorm)
-    print("Forsys LSQ Linear finished, took", end-start)
+    # print("Forsys LSQ Linear finished, took", end-start)
     # pprint(xres)
     # assign the corresponding value to each edge
     #the id is the one from bedge
@@ -117,8 +115,8 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
         for e in edges_to_use:
             edges[e].tension = float(xres[i])
     
-    if b_norm != 0:
-        print("Lagrange multipliers: ", xres[-2], xres[-1])
+    # if b_norm != 0:
+    #     print("Lagrange multipliers: ", xres[-2], xres[-1])
 
     # forces dictionary:
     f = True

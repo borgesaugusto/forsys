@@ -130,140 +130,144 @@ class TimeSeries():
                     mapping[v0.id] = None
 
         # Map vertices in-between 
-        edges0 = t0.earr
-        edges1 = t1.earr
+        # edges0 = t0.earr
+        # edges1 = t1.earr
         
-        edgeMap = {}
-        for edge in edges0:
-            # first and last should be mapped already.
-            # find the edge in the new map with the first and last
-            vfirst = mapping[edge[0]]
-            vlast = mapping[edge[-1]]
+        # edgeMap = {}
+        # for edge in edges0:
+        #     # first and last should be mapped already.
+        #     # find the edge in the new map with the first and last
+        #     vfirst = mapping[edge[0]]
+        #     vlast = mapping[edge[-1]]
 
-            # print("Real at t+1", realVertices1_ids)
-            mask = [True if (e[0] == vfirst and e[-1] == vlast) or (e[0] == vlast and e[-1] == vfirst) 
-                        else False for e in realVertices1_ids]
-            if not np.any(mask):
-                # probably a T1 happened if we didn't lose a vertex, so two vertices
-                # should be interchanged
-                # print("########################")
-                # print("Possible T1, no mask ...")
-                # print("Edge:", edge)
-                # print("First and last (t=0):", edge[0], edge[-1])
-                # print("First and last (t=1):", vfirst, vlast)
-                maskT11 = [True if (e[0] == vfirst or e[-1] == vlast) or
-                                    (e[0] == vlast or e[-1] == vfirst)
-                    else False for e in realVertices1_ids]
+        #     # print("Real at t+1", realVertices1_ids)
+        #     mask = [True if (e[0] == vfirst and e[-1] == vlast) or (e[0] == vlast and e[-1] == vfirst) 
+        #                 else False for e in realVertices1_ids]
+        #     if not np.any(mask):
+        #         # probably a T1 happened if we didn't lose a vertex, so two vertices
+        #         # should be interchanged
+        #         # print("########################")
+        #         # print("Possible T1, no mask ...")
+        #         print("Edge:", edge)
+        #         print("First and last (t=0):", edge[0], edge[-1])
+        #         print("First and last (t=1):", vfirst, vlast)
+        #         maskT11 = [True if (e[0] == vfirst or e[-1] == vlast) or
+        #                             (e[0] == vlast or e[-1] == vfirst)
+        #             else False for e in realVertices1_ids]
 
-                # print("There are ", maskT11.count(True), " trues")
-                # print("New mask: ", maskT11)
+
+        #         print("There are ", maskT11.count(True), " trues")
+        #         print("New mask: ", maskT11)
                 
-                # if there is more than one possible, pick the closest edge(to the 
-                # average edge center)
-                # todo: use least squares with the "line" of the edge? 
-                distancesT1 = {}
-                # for jj in range(0, len(edges1)):
-                #     if maskT11[jj]:
-                #         print("Possible edge: ", edges1[jj])
-                # edge center at t=0
-                xcoords = [t0.vertices[e].x for e in edge]
-                ycoords = [t0.vertices[e].y for e in edge]
-                center0 = [np.mean(xcoords), np.mean(ycoords)]
-                # print("At t=0, edge center is: ", center0)
+        #         # if there is more than one possible, pick the closest edge(to the 
+        #         # average edge center)
+        #         # todo: use least squares with the "line" of the edge? 
+        #         distancesT1 = {}
+        #         # for jj in range(0, len(edges1)):
+        #         #     if maskT11[jj]:
+        #         #         print("Possible edge: ", edges1[jj])
+        #         # edge center at t=0
+        #         xcoords = [t0.vertices[e].x for e in edge]
+        #         ycoords = [t0.vertices[e].y for e in edge]
+        #         center0 = [np.mean(xcoords), np.mean(ycoords)]
+        #         # print("At t=0, edge center is: ", center0)
 
-                for jj in range(0, len(edges1)):
-                    if maskT11[jj]:
-                        #print("Using: ", edge[1], " and ", edges1[jj][1] )
-                        # edge center of this edge
-                        xcoords1 = [t1.vertices[e].x for e in edges1[jj]]
-                        ycoords1 = [t1.vertices[e].y for e in edges1[jj]] 
-                        center1 = [np.mean(xcoords1), np.mean(ycoords1)]
-                        distancesT1[jj] = np.sqrt(
-                                                (center0[0] - center1[0])**2 +
-                                                (center0[1] - center1[1])**2)
-                        # distancesT1[jj] = distance(
-                        #     mesh[0]['vertices'][edge[1]], 
-                        #     mesh[1]['vertices'][edges1[jj][1]])
-                # print(distancesT1)
+        #         for jj in range(0, len(edges1)):
+        #             if maskT11[jj]:
+        #                 # print("Using: ", edge[1], " and ", edges1[jj][1] )
+        #                 # edge center of this edge
+        #                 xcoords1 = [t1.vertices[e].x for e in edges1[jj]]
+        #                 ycoords1 = [t1.vertices[e].y for e in edges1[jj]] 
+        #                 center1 = [np.mean(xcoords1), np.mean(ycoords1)]
+        #                 distancesT1[jj] = np.sqrt(
+        #                                         (center0[0] - center1[0])**2 +
+        #                                         (center0[1] - center1[1])**2)
+        #                 # distancesT1[jj] = distance(
+        #                 #     mesh[0]['vertices'][edge[1]], 
+        #                 #     mesh[1]['vertices'][edges1[jj][1]])
+        #         # print(distancesT1)
                 
-                try:
-                    selectedEdge = edges1[min(distancesT1, key=distancesT1.get)]
-                except ValueError:
-                    print("ValueError", edges1, distancesT1)
-                    # exit()
-                    raise DifferentTissueException()
+        #         try:
+        #             selectedEdge = edges1[min(distancesT1, key=distancesT1.get)]
+        #         except ValueError:
+        #             print("ValueError", edges1, distancesT1)
+
+        #             # asigned a None
                     
-                # print("Selected edge: ", selectedEdge)
-                # print("########################")
-                # exit()
-                # replace the original with the new last
-                mask = [True if (e[0] == selectedEdge[0] and e[-1] == selectedEdge[-1]) or 
-                                (e[0] == selectedEdge[-1] and e[-1] == selectedEdge[0]) 
-                        else False for e in realVertices1_ids]
+        #             exit()
+        #             raise DifferentTissueException()
+                    
+        #         # print("Selected edge: ", selectedEdge)
+        #         # print("########################")
+        #         # exit()
+        #         # replace the original with the new last
+        #         mask = [True if (e[0] == selectedEdge[0] and e[-1] == selectedEdge[-1]) or 
+        #                         (e[0] == selectedEdge[-1] and e[-1] == selectedEdge[0]) 
+        #                 else False for e in realVertices1_ids]
 
-            edgeMap[edges0.index(edge)] = mask.index(True)
-            # edgeMap[edges0.index(edge)] = np.where(realVertices1_ids == [vfirst, vlast])
-            # transform vertex in between
-            newEdge = edges1[edgeMap[edges0.index(edge)]]
-            # print(edge, " maps to ", newEdge)
-            # if edge == [1820, 1821, 1822, 1826, 1830, 1339]:
-            #     exit()
-            # if I have less vertices map what we can, if it's 2 nothing to do
-            diff = len(newEdge) - len(edge)
-            absDiff = abs(diff)
-            if len(newEdge) == 2:
-                # Join everyone to None, except the sides
-                for ii in range(1, len(edge) - 1):
-                    mapping[edge[ii]] = None
-            else:           
-                # define ranges
-                # print("DIff: ", diff)
-                if diff < 0:
-                    if absDiff % 2 == 0:
-                        firsts = range(1, int(absDiff/2) + 1)
-                        middle = range(int(absDiff/2)+1, (len(edge) - 1) - int(absDiff/2))
-                    else:
-                        firsts = range(1, int(absDiff/2) + 2)
-                        middle = range(int(absDiff/2)+2, (len(edge) - 1) - int(absDiff/2))
+        #     edgeMap[edges0.index(edge)] = mask.index(True)
+        #     # edgeMap[edges0.index(edge)] = np.where(realVertices1_ids == [vfirst, vlast])
+        #     # transform vertex in between
+        #     newEdge = edges1[edgeMap[edges0.index(edge)]]
+        #     # print(edge, " maps to ", newEdge)
+        #     # if edge == [1820, 1821, 1822, 1826, 1830, 1339]:
+        #     #     exit()
+        #     # if I have less vertices map what we can, if it's 2 nothing to do
+        #     diff = len(newEdge) - len(edge)
+        #     absDiff = abs(diff)
+        #     if len(newEdge) == 2:
+        #         # Join everyone to None, except the sides
+        #         for ii in range(1, len(edge) - 1):
+        #             mapping[edge[ii]] = None
+        #     else:           
+        #         # define ranges
+        #         # print("DIff: ", diff)
+        #         if diff < 0:
+        #             if absDiff % 2 == 0:
+        #                 firsts = range(1, int(absDiff/2) + 1)
+        #                 middle = range(int(absDiff/2)+1, (len(edge) - 1) - int(absDiff/2))
+        #             else:
+        #                 firsts = range(1, int(absDiff/2) + 2)
+        #                 middle = range(int(absDiff/2)+2, (len(edge) - 1) - int(absDiff/2))
                         
-                    last = range((len(edge) - 1) - int(absDiff/2), len(edge)-1)
-                    # print("newEdge: ", newEdge)
-                    # print("Edge: ", edge)
-                    # print("len(newEdge) < len(edge)")
+        #             last = range((len(edge) - 1) - int(absDiff/2), len(edge)-1)
+        #             # print("newEdge: ", newEdge)
+        #             # print("Edge: ", edge)
+        #             # print("len(newEdge) < len(edge)")
 
-                    # print("Joining: ", list(firsts), "with None")
-                    # print("Joining: ", list(middle), "with the rest")
-                    # print("Joining: ", list(last), "with None")
+        #             # print("Joining: ", list(firsts), "with None")
+        #             # print("Joining: ", list(middle), "with the rest")
+        #             # print("Joining: ", list(last), "with None")
                     
-                    for ii in firsts:
-                        mapping[edge[ii]] = None
+        #             for ii in firsts:
+        #                 mapping[edge[ii]] = None
 
-                    for ii in last:
-                        mapping[edge[ii]] = None
+        #             for ii in last:
+        #                 mapping[edge[ii]] = None
 
-                    for ii in middle:
-                        mapping[edge[ii]] = newEdge[ii-int(absDiff/2)]
-                elif diff > 0:
-                    # print("len(newEdge) > len(edge)")
-                    firsts = range(1, int(absDiff/2))
-                    middle = range(int(absDiff/2), len(edge) - 1 - int(absDiff/2))
-                    lasts = range(len(edge) - 1 - int(absDiff/2), len(edge) - 1)
-                    # ojo!!!
-                    for ii in firsts:
-                        mapping[edge[ii]] = None
+        #             for ii in middle:
+        #                 mapping[edge[ii]] = newEdge[ii-int(absDiff/2)]
+        #         elif diff > 0:
+        #             # print("len(newEdge) > len(edge)")
+        #             firsts = range(1, int(absDiff/2))
+        #             middle = range(int(absDiff/2), len(edge) - 1 - int(absDiff/2))
+        #             lasts = range(len(edge) - 1 - int(absDiff/2), len(edge) - 1)
+        #             # ojo!!!
+        #             for ii in firsts:
+        #                 mapping[edge[ii]] = None
 
-                    for ii in lasts:
-                        mapping[edge[ii]] = None
+        #             for ii in lasts:
+        #                 mapping[edge[ii]] = None
 
 
-                    # print("Mapping in the range: ", middle)
+        #             # print("Mapping in the range: ", middle)
 
-                    for ii in middle:
-                        mapping[edge[ii]] = newEdge[ii]
+        #             for ii in middle:
+        #                 mapping[edge[ii]] = newEdge[ii]
 
-                else:
-                    for ii in range(1, len(edge) - 1):
-                        mapping[edge[ii]] = newEdge[ii]
+        #         else:
+        #             for ii in range(1, len(edge) - 1):
+        #                 mapping[edge[ii]] = newEdge[ii]
                 
 
         return mapping
@@ -315,7 +319,8 @@ class TimeSeries():
 
     def calculate_velocity(self, point: int, initial_time: str) -> list:
         v0 = self.time_series[initial_time].vertices[point]
-        if initial_time == len(self.time_series) - 1 or self.mapping[initial_time][point] == None:
+        # if initial_time == len(self.time_series) - 1 or self.mapping[initial_time][point] == None:
+        if initial_time == len(self.time_series) - 1:
             # last time, use backward
             if self.mapping[initial_time - 1] == None:
                 raise DifferentTissueException()
@@ -339,12 +344,7 @@ class TimeSeries():
             # fictious vertex to give velocity zero
             v1 = fvertex.Vertex(-1, v0.x, v0.y)
         
-        
-        # if self.mapping[initial_time][point] == None:
-        #     # fictious vertex to give velocity zero
-        #     v1 = fvertex.Vertex(-1, v0.x, v0.y)
-        # else:
-        #     v1 = self.mesh[int(initial_time+1)]['vertices'][self.mapping[initial_time][point]]
+
         try:
             ti = self.time_series[int(initial_time)].time
             tf = self.time_series[tt1].time

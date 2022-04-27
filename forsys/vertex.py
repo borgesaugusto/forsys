@@ -20,6 +20,7 @@ class Vertex:
         
     def add_edge(self, eid: int) -> bool:
         if eid in self.ownEdges:
+            print(eid, self.ownEdges)
             print("edge already in vertex")
             return False
         else:

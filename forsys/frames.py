@@ -34,7 +34,8 @@ class Frame():
         # print(self.external)
         # self.external = self.earr
         # add gt values
-        self.assign_gt_tensions_to_big_edges()
+        if len(self.gt) != 0:
+            self.assign_gt_tensions_to_big_edges()
 
     def assign_tensions(self, xresult):
         for i in range(0, len(self.big_edges_list)):

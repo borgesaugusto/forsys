@@ -86,7 +86,8 @@ def create_edges(cells):
     return newEdges
 
 def generate_mesh(vertices, edges, cells, ne=4):
-    bedges = create_edges(cells)
+    # bedges = create_edges(cells)
+    bedges = create_edges_new(vertices, cells)
     # ldict = {}
     nEdgeArray = []
     alreadySeen = []
@@ -119,12 +120,11 @@ def generate_mesh(vertices, edges, cells, ne=4):
                 cells[cid].vertices.remove(v)
                 # cellsToRemove.append(cid)
 
-    for eid, e in edges.items():
-        e.v1.ownEdges.remove(eid)
-        e.v2.ownEdges.remove(eid)
+    # for eid, e in edges.items():
+    #     e.v1.ownEdges.remove(eid)
+    #     e.v2.ownEdges.remove(eid)
     # remove all edges
-    del edges
-
+    edges.clear()
     for vi in vertexToRemove:
         del vertices[vi]
 
@@ -136,8 +136,6 @@ def generate_mesh(vertices, edges, cells, ne=4):
         for n in rango:
             edges[edgesNumber] = fedge.Edge(edgesNumber, vertices[be[n]], vertices[be[n+1]])
             edgesNumber += 1
-
-
     return vertices, edges, cells, nEdgeArray
 
 def eid_from_vertex(earr, vbel):

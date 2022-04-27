@@ -12,11 +12,13 @@ class ForSys():
     frames: dict
 
     cm: bool=True
+    initial_guess: list = field(default_factory=list)
 
     def __post_init__(self):
         # if there is more than 1 time, generate time series
         if len(self.frames) > 1:
-            self.mesh = ts.TimeSeries(self.frames, cm=self.cm)
+            self.mesh = ts.TimeSeries(self.frames, cm=self.cm, 
+                                        initial_guess=self.initial_guess)
             
             self.times_to_use = self.mesh.times_to_use()
 

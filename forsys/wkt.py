@@ -55,7 +55,9 @@ def create_lattice(wkt):
         cellType = {}
         cells[cellsNumber] = fcell.Cell(cellsNumber, cellVertices, cellType)
         cellsNumber += 1
-    vertices, edges, cells = reduce_amount(vertices, edges, cells)
+
+    # vertices, edges, cells = reduce_amount(vertices, edges, cells)
+
     return vertices, edges, cells
 
 
@@ -97,8 +99,8 @@ def reduce_amount(vertices, edges, cells):
                             toReplace = e
                         elif k.id in edges[e].get_vertices_id():
                             toRemove = e
-                    edges[toRemove].v1.ownEdges.remove(toRemove)
-                    edges[toRemove].v2.ownEdges.remove(toRemove)
+                    # edges[toRemove].v1.ownEdges.remove(toRemove)
+                    # edges[toRemove].v2.ownEdges.remove(toRemove)
                     del edges[toRemove]
                     edges[toReplace].replace_vertex(j, k)
                     for c in j.ownCells:

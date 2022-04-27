@@ -11,6 +11,8 @@ data/
 DLITE/
 DLITEBK/
 forsys/tests/
+res_experimental/
+res_experimental_*/
 test_*
 histogram.png
 usage.py
@@ -22,5 +24,10 @@ time_forceNM.py
 in_silico.py
 *.pyc
 *.png
+*.log
 bk_*
 se_beto.py
+time_profile.py
+prim_migration.py
+fig*
+image_reader.py

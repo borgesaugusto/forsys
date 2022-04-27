@@ -38,20 +38,9 @@ def plot_with_force(vertices, edges, cells, step, folder, fd,
 
 
     _, ax = plt.subplots(1,1)
-    # step = str(step).zfill(len(str(nSteps)))
-    # if not os.path.exists(folder + '/plots'):
-    #     os.makedirs(folder + '/plots')
-    # name = folder + "/plots" + "/step_" + step + ".png"
-    # name = folder + "/step_" + step + ".png"
+
     if not os.path.exists(folder):
         os.makedirs(folder)
-    # eTotal = len(edges.items())
-    # for edgeID,edge in edges.items():
-        # v1 = vertices[edge.get_vertices_array()[0]]
-        # v2 = vertices[edge.get_vertices_array()[1]]
-        # plt.plot((edge.v1.x, edge.v2.x),(edge.v1.y, edge.v2.y),c="orange", linewidth=0.5, alpha=0.5)
-       # ax.annotate(edgeID, xy=(middle_point(v1, v2)[0],middle_point(v1, v2)[1]), size=5)
-       # plt.plot(edge.getLineX(),edge.getLineY(),c="#5E300B")
 
     if step != "cellfit":
         # fdWithoutForce = {k: v for k, v in fd.items() if k.startswith('F')}
@@ -92,6 +81,8 @@ def plot_with_force(vertices, edges, cells, step, folder, fd,
     aveForce = np.mean(allValues)
     stdForce = np.std(allValues)
 
+    already_plotted = []
+
     if len(fd) > 0:
         # maxForce = max(fdWithoutForce.values())
         # counter = 0
@@ -123,9 +114,17 @@ def plot_with_force(vertices, edges, cells, step, folder, fd,
                                 plt.plot(   (edge.v1.x, edge.v2.x),
                                             (edge.v1.y, edge.v2.y),
                                             color=color, linewidth=3)
+                                already_plotted.append(edge.id)
                                 # print("Current force is ", force, " maxforce is ", maxForce, " value is ", abs(force/maxForce))
                         except IndexError:
                             pass
+                    
+    for edge in edges.values():
+        if edge.id not in already_plotted:
+            plt.plot(   (edge.v1.x, edge.v2.x),
+                        (edge.v1.y, edge.v2.y),
+                        color="black", linewidth=0.5, alpha=0.6)
+
 
     if step != "cellfit" and plotArrows:
         for name, val in extForces.items():
@@ -138,12 +137,17 @@ def plot_with_force(vertices, edges, cells, step, folder, fd,
                         mFy, color=jet(abs(mfmodulus/maxForce)), zorder=100)
 
     plt.axis('off')
-    ax.set_aspect('equal')  # VER SI HACE FALTA
+    # ax.set_aspect(1)
+    # plt.ylim(500, 1050)
+    # plt.xlim(470, 620)
+    
     # sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=0, vmax=1))
-    sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize())
-    plt.colorbar(sm)
+    # sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize())
+    # plt.colorbar(sm)
     name = os.path.join(folder, str(step) + ".png")
+    # name = os.path.join(folder, str(step) + ".pdf")
     # name = folder + step + ".png"
+    plt.tight_layout()
     plt.savefig(name, dpi=500)
     plt.close()
     # print("Max force used: ", maxForce)
@@ -162,8 +166,8 @@ def plot_mesh(vertices, edges, cells, step, folder=""):
     # edges = mesh.mesh[step]['edges']
     # cells = mesh.mesh[step]['cells']
 
-    for v in vertices.values():
-        plt.scatter(v.x, v.y, s=5,color="blue")
+    # for v in vertices.values():
+    #     plt.scatter(v.x, v.y, s=5,color="blue")
         # plt.annotate(str(v.id), [v.x, v.y], fontsize=3, color="red")
 
     # for e in edges.values():
@@ -187,14 +191,17 @@ def plot_mesh(vertices, edges, cells, step, folder=""):
         cxs = [v.x for v in c.vertices]
         cys = [v.y for v in c.vertices]
 
-        plt.fill(cxs, cys, alpha=0.3)
-        plt.annotate(str(c.id), [cm[0], cm[1]])
-        plt.scatter(cm[0], cm[1], marker="x", color="red")
+        plt.fill(cxs, cys, alpha=0.5)
+        # plt.annotate(str(c.id), [cm[0], cm[1]])
+        # plt.scatter(cm[0], cm[1], marker="x", color="red")
 
     # # plt.show()
     # plt.xlim(-50, 60)
     # plt.ylim(-160, -75)
-    plt.savefig(os.path.join(folder, "mesh_"+str(step)+".png"), dpi=500)
+    plt.axis("off")
+    plt.tight_layout()
+    plt.savefig(os.path.join(folder, str(step)+".png"), dpi=500)
+    # plt.savefig(os.path.join(folder, str(step)+".pdf"), dpi=500)
     plt.clf()
 
 def plot_equilibrium(mesh, step, folder, what="acceleration", normalized=False, cutoff=None):
@@ -252,14 +259,17 @@ def plot_equilibrium(mesh, step, folder, what="acceleration", normalized=False, 
         sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=vmin, vmax=vmax))
         plt.colorbar(sm)
     plt.tight_layout()
+
+    # plt.xlim()
+
     plt.savefig(os.path.join(folder, str(step) + ".png"), dpi=500)
+    # plt.savefig(os.path.join(folder, str(step) + ".pdf"), dpi=500)
     plt.clf()
 
 
-def plot_time_connections(mesh, initial_time, final_time, step=1, folder=''):
-    timerange = np.arange(initial_time, final_time-2, step)
+def plot_time_connections(mesh, initial_time, final_time, folder=''):
+    timerange = np.arange(initial_time, final_time-1, 1)
     for t in timerange:
-        print("Plotting ", t)
         if mesh.mapping[t] != None:
             real_vertices_ids1 = np.array([[x[0]]+[x[-1]] for x in mesh.time_series[t].earr])
             real_vertices_ids2 = np.array([[x[0]]+[x[-1]] for x in mesh.time_series[t+1].earr])
@@ -281,8 +291,30 @@ def plot_time_connections(mesh, initial_time, final_time, step=1, folder=''):
             for e in mesh.time_series[t+1].edges.values():
                 plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="orange")
                 
-            plt.savefig(os.path.join(folder, "points_"+str(t)+".png"), dpi=500)
+            plt.savefig(os.path.join(folder, str(t)+".png"), dpi=500)
             plt.clf()
+
+def plot_time_connections_two_times(mesh, t0, tf, fname, folder=""):
+    for v0 in mesh.time_series[t0].vertices.values():
+        # if v0.id in real_vertices_ids1 or v0.id in mesh.time_series[t0].border_vertices:
+        if True:
+            v1_id = mesh.get_point_id_by_map(v0.id, t0, tf)
+            v1 = mesh.time_series[tf].vertices[v1_id]
+            
+            plt.scatter(v0.x, v0.y, s=5, color="black")
+            plt.scatter(v1.x, v1.y, s=5, color="green")
+
+            deltax = v1.x - v0.x
+            deltay = v1.y - v0.y
+
+            plt.arrow(v0.x, v0.y, deltax, deltay, color="red")
+
+    plt.axis("off")
+    plt.tight_layout()
+    plt.savefig(os.path.join(folder, str(fname)+".pdf"), dpi=500)
+    plt.clf()
+
+
 
 def plot_acceleration_heatmap(mesh, initial_time, final_time, folder='', name='heatmap'):
     t0 = mesh.time_series[initial_time]
@@ -295,14 +327,15 @@ def plot_acceleration_heatmap(mesh, initial_time, final_time, folder='', name='h
     
     save_heatmap(heatmap, folder, initial_time, final_time, name=name)
 
-def plot_velocity_heatmap(mesh, initial_time, final_time, folder='', name='heatmap'):
+def get_velocity_heatmap(mesh, initial_time, final_time, folder='', name='heatmap'):
     t0 = mesh.time_series[initial_time]
     # heatmap = np.zeros((timerange, len(t0['earr'])))
     heatmap = []
     for ii in range(0, len(t0.earr)):
         row = mesh.velocity_per_edge(ii, initial_time, final_time)
         if not np.all(np.isnan(row)):
-            heatmap.append(row) 
+            heatmap.append(row)
+    # return heatmap
     
     save_heatmap(heatmap, folder, initial_time, final_time, name=name)
 
