@@ -14,7 +14,7 @@ class TimeSeries():
     initial_guess: list = field(default_factory=list)
 
     def __post_init__(self):
-        self.cutoff = 0.1
+        self.cutoff = 0.05
         self.accelerations = {}
         self.velocities = {}
         if self.initial_guess == []:
@@ -273,10 +273,9 @@ class TimeSeries():
         return mapping
     
     def find_best(self, v0, pool, found):
-        # cutoff = 0.05
         candidatesObverse = []
         candidatesInverse = []
-        spread = 0.01
+        spread = 0.005
         while len(candidatesObverse) <= 1 and spread < self.cutoff:
             maxspread = spread * self.maxcoord
             for v1 in pool.values():
@@ -286,9 +285,9 @@ class TimeSeries():
                     ycoord = (v1.y - v0.y)**2
                     if xcoord + ycoord < maxspread**2:
                         candidatesObverse.append(v1)
-            spread += 0.01
+            spread += spread
         # print("Inverse ....")
-        spread = 0.01  
+        # spread = 0.01  
         while len(candidatesInverse) <= 1 and spread < self.cutoff:
             for v1 in reversed(pool.values()):
                 # make the map inyective
@@ -297,7 +296,7 @@ class TimeSeries():
                     ycoord = (v1.y - v0.y)**2
                     if xcoord + ycoord < maxspread**2:
                         candidatesInverse.append(v1)
-            spread += 0.01
+            spread += spread
 
         candidates = np.concatenate((candidatesInverse, candidatesObverse))
         # candidates = candidatesObverse
