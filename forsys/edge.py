@@ -13,7 +13,8 @@ class Edge:
         self.verticesArray = [self.v1, self.v2]
         for v in self.verticesArray:
             v.add_edge(self.id)
-    
+        assert self.v1.id != self.v2.id, f"edge {self.id} with the same vertex twice"
+                
     def __del__(self):
         for v in self.verticesArray:
             v.remove_edge(self.id)
@@ -21,6 +22,10 @@ class Edge:
     def get_vertices_id(self) -> list:
         # return map(lambda x: x.id, [self.v1, self.v2])
         return [self.v1.id, self.v2.id]
+
+    def get_other_vertex_id(self, one) -> int:
+        assert one in self.get_vertices_id(), "vertex not in asked edge"
+        return self.v1.id if one == self.v2.id else self.v2.id
 
     def get_vertices_array(self) -> list:
         return [self.v1, self.v2]
