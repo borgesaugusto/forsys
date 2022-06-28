@@ -14,6 +14,7 @@ import forsys.time_series as ts
 import time
 
 def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, externals_to_use='', term='ext', metadata={}):
+    np.seterr(all='raise')
     m, earr, border_vertices, position_map = fmatrix.fmatrix(vertices, edges, cells, earr, externals_to_use, term, metadata)
     # countBorder = len(extForces)
     # totv = m.shape[0]
@@ -60,9 +61,9 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
         only_nnls = False
 
     mprime, b = add_mean_one(mprime, b, tote, countBorder)
-
+    # print(b)
     b = Matrix([np.round(float(val), 3) for val in b])
-
+    # print(b)
 
     start = time.time()
 
@@ -84,7 +85,14 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
     b = np.array(mp.matrix(b)).astype(np.float64)
 
    
-    xres = Matrix(np.linalg.inv(mprime) * Matrix(b))
+    try:
+        xres = Matrix(np.linalg.inv(mprime) * Matrix(b))
+    except np.linalg.LinAlgError:
+        # then try with nnls
+        print("Numerically solving...")
+        xres, _ = scop.nnls(mprime, b, maxiter=100000)
+
+
 
     # if not only_nnls:
     #     bounds = [(0, np.inf)]*len(b)
