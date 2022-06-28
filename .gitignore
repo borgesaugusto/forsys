@@ -13,6 +13,8 @@ DLITEBK/
 forsys/tests/
 res_experimental/
 res_experimental_*/
+prim2/
+prim2.py
 test_*
 histogram.png
 usage.py
