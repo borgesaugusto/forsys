@@ -289,7 +289,9 @@ def plot_time_connections(mesh, initial_time, final_time, folder=''):
                     plt.annotate(str(v.id), [v.x, v.y], fontsize=4, color="green")
 
             for e in mesh.time_series[t+1].edges.values():
-                plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="orange")
+                plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="green", alpha=0.2)
+            for e in mesh.time_series[t].edges.values():
+                plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="black", alpha=0.2)
                 
             plt.savefig(os.path.join(folder, str(t)+".png"), dpi=500)
             plt.clf()
@@ -335,9 +337,9 @@ def get_velocity_heatmap(mesh, initial_time, final_time, folder='', name='heatma
         row = mesh.velocity_per_edge(ii, initial_time, final_time)
         if not np.all(np.isnan(row)):
             heatmap.append(row)
-    # return heatmap
+    return heatmap
     
-    save_heatmap(heatmap, folder, initial_time, final_time, name=name)
+    # save_heatmap(heatmap, folder, initial_time, final_time, name=name)
 
 def save_heatmap(heatmap, folder, initial_time, final_time, name='heatmap'):
     plt.imshow(heatmap)
