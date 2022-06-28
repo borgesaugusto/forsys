@@ -6,12 +6,16 @@ class Cell:
     id: int
     vertices: list
     ctype: dict
+    is_border: bool = False
 
 
     def __post_init__(self):
+        # check for repeated elements
+        # vids = [v.id for v in self.vertices]
+        # assert len(vids) == len(set(vids)), f"There are repeated vertices in cell {self.id}"
         for v in self.vertices:
             v.add_cell(self.id)
-
+        
     def get_cell_vertices(self) -> list:
         return self.vertices
 
@@ -46,3 +50,18 @@ class Cell:
             diffy = i.y - self.get_next_vertex(i).y
             perimeter +=  np.sqrt(diffx**2 + diffy**2)
         return perimeter
+
+    def replace_vertex(self, vold: object, vnew: object):
+        """
+        Replace vertex vold with vnew in the vertices list and
+        add this cell to that vertex. If the vertex is already
+        in the cell, remove it.
+        """
+        vertices_ids = [v.id for v in self.vertices]
+        if vnew.id in vertices_ids:
+            self.vertices.remove(vold)
+        else:
+            self.vertices[vertices_ids.index(vold.id)] = vnew
+            # add cell to vertex
+            vnew.add_cell(self.id)
+        
