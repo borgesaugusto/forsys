@@ -32,11 +32,11 @@ def create_edges_new(vertices, cells):
 
     
         earr_temp += new_edges
+
     earr = []
     for e in earr_temp:
         if e[::-1] not in earr and e not in earr:
             earr += [e]
-
     return earr
     
 def get_splitted(cell_vertex_ids, number_connections):
@@ -127,7 +127,7 @@ def generate_mesh(vertices, edges, cells, ne=4):
     edges.clear()
     for vi in vertexToRemove:
         del vertices[vi]
-
+    #### from here
     edges = {}
     # now join the vertices
     edgesNumber = 0
@@ -136,6 +136,17 @@ def generate_mesh(vertices, edges, cells, ne=4):
         for n in rango:
             edges[edgesNumber] = fedge.Edge(edgesNumber, vertices[be[n]], vertices[be[n+1]])
             edgesNumber += 1
+
+    # if there is an empty cell, may be its an artifact, remove it
+    cells_to_remove = []
+    for c in cells.keys():
+        if len(cells[c].vertices) == 0:
+            cells_to_remove.append(c)
+
+    for c in cells_to_remove:
+        print(f"*** WARNING **** CELL {cells[c].id} remove due to having {len(cells[c].vertices)} vertices")
+        del cells[c]
+            
     return vertices, edges, cells, nEdgeArray
 
 def eid_from_vertex(earr, vbel):
