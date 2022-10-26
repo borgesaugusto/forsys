@@ -528,3 +528,20 @@ class TimeSeries():
         final_times.append(t+1)
         return final_times
 
+    def get_vertex_position(self, v0, t0, tmax):
+        """"
+        Get the position of vertex from time t0 to tmax
+        """
+        positions_x = []
+        positions_y = []
+        if tmax == -1:
+            range_values = self.time_series.keys()
+        else:
+            range_values = range(t0, tmax)
+        for t in range_values:
+            print(f"Vertex {v0} is now {self.get_point_id_by_map(v0, t0, t)}")
+            v_now = self.time_series[t].vertices[self.get_point_id_by_map(v0, t0, t)]
+            positions_x.append(v_now.x)
+            positions_y.append(v_now.y)
+
+        return positions_x, positions_y
