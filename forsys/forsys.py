@@ -52,3 +52,24 @@ class ForSys():
         df['is_border'] = [False if isinstance(x, int) else True for x in df.index]
         return df
 
+    def get_edge_force(self, v0, v1, t0=-1, tmax=-1):
+        """
+        get lambda value for the edge given two vertices of the edge
+        """
+        edge_force = []
+        if tmax == -1 or t0 == -1:
+            range_values = self.mesh.mapping.keys()
+        else:
+            range_values = range(t0, tmax)
+
+        for t in range_values:
+            current_v0 = self.mesh.get_point_id_by_map(v0, t0, t)
+            current_v1 = self.mesh.get_point_id_by_map(v1, t0, t)
+            for e in self.frames[t].earr:
+                if current_v0 in e and current_v1 in e:
+                    edge_id = self.frames[t].earr.index(e)
+            edge_force.append(self.frames[t].forces[edge_id])
+
+        return edge_force          
+            
+            
