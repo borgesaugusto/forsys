@@ -144,7 +144,7 @@ def plot_with_force(vertices, edges, cells, step, folder, fd,
     # sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=0, vmax=1))
     # sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize())
     # plt.colorbar(sm)
-    name = os.path.join(folder, str(step) + ".png")
+    name = os.path.join(folder, str(step) + ".tiff")
     # name = os.path.join(folder, str(step) + ".pdf")
     # name = folder + step + ".png"
     plt.tight_layout()
@@ -161,29 +161,14 @@ def plot_force(freq, folder=''):
     plt.savefig(str(folder)+"log/forcesHist.png", dpi=300)
     plt.close()
 
-def plot_mesh(vertices, edges, cells, step, folder=""):
-    # vertices = mesh.mesh[step]['vertices']
-    # edges = mesh.mesh[step]['edges']
-    # cells = mesh.mesh[step]['cells']
+def plot_mesh(vertices, edges, cells, step, folder="", xlim=[], ylim=[]):
+    for v in vertices.values():
+        plt.scatter(v.x, v.y, s=2, color="black")
+        plt.annotate(str(v.id), [v.x, v.y], fontsize=2)
 
-    # for v in vertices.values():
-    #     plt.scatter(v.x, v.y, s=5,color="blue")
-        # plt.annotate(str(v.id), [v.x, v.y], fontsize=3, color="red")
-
-    # for e in edges.values():
-    #     # if e.v1.id not in vertices.keys() or e.v2.id not in vertices.keys():
-    #         # print("########################")
-    #         # print("Vertex", e.v1, " or ", e.v2, " missing")
-    #         # print("In edge: ", e)
-    #         # print("########################")
-    #     # earr = [5, 782, 368, 1196, 161, 989, 575, 1403, 3, 783, 369, 1197, 162, 990, 576, 1404, 2, 1414, 586, 1000, 172, 1207, 379, 793, 17]
-    #     # if e.id in earr1:
-    #         # plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="orange")
-    #     plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="red")
-    #     plt.annotate(str(e.id), [(e.v1.x +  e.v2.x)/2 , (e.v1.y + e.v2.y)/2], fontsize=3, fontweight="bold")
-    #     # elif e.id in earr2:
-    #     plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="blue")
-    #     plt.annotate(str(e.id), [(e.v1.x +  e.v2.x)/2 , (e.v1.y + e.v2.y)/2], fontsize=3, fontweight="bold")
+    for e in edges.values():
+        plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="orange", linewidth=0.5)
+        plt.annotate(str(e.id), [(e.v1.x +  e.v2.x)/2 , (e.v1.y + e.v2.y)/2], fontweight="bold", fontsize=1)
 
     for c in cells.values():
         cm = c.get_cm()
@@ -191,16 +176,18 @@ def plot_mesh(vertices, edges, cells, step, folder=""):
         cxs = [v.x for v in c.vertices]
         cys = [v.y for v in c.vertices]
 
-        plt.fill(cxs, cys, alpha=0.5)
-        # plt.annotate(str(c.id), [cm[0], cm[1]])
+        plt.fill(cxs, cys, alpha=0.3)
+        plt.annotate(str(c.id), [cm[0], cm[1]])
         # plt.scatter(cm[0], cm[1], marker="x", color="red")
 
     # # plt.show()
-    # plt.xlim(-50, 60)
-    # plt.ylim(-160, -75)
-    plt.axis("off")
+    if len(xlim) > 0:
+        plt.xlim(xlim[0], xlim[1])
+    if len(ylim) > 0:
+        plt.ylim(ylim[0], ylim[1])
+    # plt.axis("off")
     plt.tight_layout()
-    plt.savefig(os.path.join(folder, str(step)+".png"), dpi=500)
+    plt.savefig(folder, dpi=500)
     # plt.savefig(os.path.join(folder, str(step)+".pdf"), dpi=500)
     plt.clf()
 
