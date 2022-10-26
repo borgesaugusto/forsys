@@ -1,8 +1,8 @@
 from dataclasses import dataclass
-from hashlib import algorithms_available
 import numpy as np
 from PIL import Image
 import cv2
+import itertools as iter
 
 import forsys.vertex as vertex
 import forsys.edge as edge
@@ -13,6 +13,7 @@ import forsys.cell as cell
 class Skeleton:
     fname: str
 
+    mirror_y: bool = False
     def __post_init__(self):
         with Image.open(self.fname).convert("L") as curr_image_file:
             self.img_arr = np.array(curr_image_file)[1:-1, 1:-1]
@@ -31,6 +32,10 @@ class Skeleton:
         self.vertex_id = 0
         self.edge_id = 0
         self.cell_id = 0
+
+        if self.mirror_y:
+            self.max_y = float(max(list(iter.chain.from_iterable(
+                                [list(zip(*c))[1] for c in self.contours]))))
     
     def create_lattice(self):
         self.vertices = {}
@@ -46,6 +51,8 @@ class Skeleton:
             #     continue
             cell_vertices_list = []
             for coords in polygon:
+                if self.mirror_y:
+                    coords[1] = self.max_y - coords[1]
                 vid = self.get_vertex_id_by_position(coords)
 
                 if vid == -1:
@@ -57,8 +64,8 @@ class Skeleton:
                     self.vertex_id += 1
 
                 # add vertex to this cell's list
-                cell_vertices_list.append(self.vertices[vid])            
-
+                cell_vertices_list.append(self.vertices[vid])      
+      
             # join vertices with the edges
             number_of_vertices = len(polygon)
             for n in range(1, number_of_vertices):
@@ -191,7 +198,6 @@ class Skeleton:
             if e.external:
                 external_vertices.append(e.v1.id)
                 external_vertices.append(e.v2.id)
-        # print("Artifact triangular:", candidate_triangular_vertices, external_vertices)
         artifact_vertices = np.setdiff1d(candidate_artifact_vertices, external_vertices)
 
         return artifact_vertices
