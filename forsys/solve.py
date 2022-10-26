@@ -1,4 +1,3 @@
-from turtle import position
 import numpy as np
 import scipy.optimize as scop
 # import matplotlib.pyplot as plt
