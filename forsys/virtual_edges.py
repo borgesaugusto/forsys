@@ -11,6 +11,8 @@ import forsys.vertex as fvertex
 import forsys.edge as fedge
 import forsys.cell as fcell
 
+from  forsys.exceptions import SegmentationArtifactException
+
 def create_edges_new(vertices, cells):
     """
     Create big edges by locating junctions with more that 2 lines connecting
@@ -91,6 +93,7 @@ def generate_mesh(vertices, edges, cells, ne=4):
     # ldict = {}
     nEdgeArray = []
     alreadySeen = []
+    vertices_to_join = []
     edgeRange = range(0, ne)
     # print(bedges)
     for e in bedges:
@@ -106,6 +109,10 @@ def generate_mesh(vertices, edges, cells, ne=4):
         else:
             nEdgeArray.append(e)
             alreadySeen.append(e)
+            # if edge has only 2 vertices, join them 
+            # TODO: Make it work with polygonal vertex model
+            if len(e) == 2 and len(vertices[e[0]].ownCells) < 3 and len(vertices[e[1]].ownCells) < 3 :
+                vertices_to_join.append(e)
     # cellsToRemove = []
     # edgesToRemove = []
     vertexToRemove = []
@@ -146,7 +153,22 @@ def generate_mesh(vertices, edges, cells, ne=4):
     for c in cells_to_remove:
         print(f"*** WARNING **** CELL {cells[c].id} remove due to having {len(cells[c].vertices)} vertices")
         del cells[c]
-            
+    
+    if len(vertices_to_join) > 0:
+        try:
+            vertices, edges, cells = replace_short_edges(vertices_to_join, vertices, edges, cells)
+            # pass
+            # print("Vertices: ", vertices_to_join)
+            # for ve in vertices_to_join:
+            #     print("X: ", [vertices[v].x for v in ve])
+            #     print("Y: ", [vertices[v].y for v in ve])
+            # print("vertices to join: ", vertices_to_join)
+            # print("X, Y", [(vertices[v].x, vertices[v].y) for v in vertices_to_join[1]])
+        except KeyError:
+            raise SegmentationArtifactException()
+
+    # exit()
+
     return vertices, edges, cells, nEdgeArray
 
 def eid_from_vertex(earr, vbel):
@@ -354,3 +376,43 @@ def angle_between_two_vectors(a, b):
     # b = np.round(b, 2)
     clipped_dot_product = np.clip(np.dot(a/np.linalg.norm(a), b/np.linalg.norm(b)), -1, 1)
     return np.arccos(clipped_dot_product)
+
+def replace_short_edges(vertices_to_join, vertices, edges, cells):
+    """ Join the two-vertex edges"""
+    for e in vertices_to_join:
+        x_cm = abs(vertices[e[0]].x + vertices[e[1]].x) / 2
+        y_cm = abs(vertices[e[0]].y + vertices[e[1]].y) / 2
+
+        # find the common edge
+        common_edge = list(set(vertices[e[0]].ownEdges) & set(vertices[e[1]].ownEdges))[0]
+
+        # TODO: Move this to a function
+        new_id = len(vertices)
+        i = 0
+        while vertices.get(new_id) != None:
+            new_id = len(vertices) + i
+            i += 1
+
+        new_vertex = fvertex.Vertex(new_id, x_cm, y_cm)
+        vertices[new_id] = new_vertex
+        # replace vertex in the cells
+        # def replace_vertex(self, vold: object, vnew: object):
+        for cid in vertices[e[0]].ownCells:
+            cells[cid].replace_vertex(vertices[e[0]], new_vertex)
+        for cid in vertices[e[1]].ownCells:
+            cells[cid].replace_vertex(vertices[e[1]], new_vertex)
+
+        # destroy edge
+        del edges[common_edge]
+        # replace vertex in the edges
+        edges[vertices[e[0]].ownEdges[-1]].replace_vertex(vertices[e[0]], new_vertex)
+        edges[vertices[e[0]].ownEdges[-1]].replace_vertex(vertices[e[0]], new_vertex)
+        edges[vertices[e[1]].ownEdges[-1]].replace_vertex(vertices[e[1]], new_vertex)
+        edges[vertices[e[1]].ownEdges[-1]].replace_vertex(vertices[e[1]], new_vertex)
+        
+        # destroy the two previous vertices
+        del vertices[e[0]]
+        del vertices[e[1]]
+
+    return vertices, edges, cells
+
