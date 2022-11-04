@@ -157,22 +157,13 @@ def generate_mesh(vertices, edges, cells, ne=4):
     if len(vertices_to_join) > 0:
         try:
             vertices, edges, cells = replace_short_edges(vertices_to_join, vertices, edges, cells)
-            # pass
-            # print("Vertices: ", vertices_to_join)
-            # for ve in vertices_to_join:
-            #     print("X: ", [vertices[v].x for v in ve])
-            #     print("Y: ", [vertices[v].y for v in ve])
-            # print("vertices to join: ", vertices_to_join)
-            # print("X, Y", [(vertices[v].x, vertices[v].y) for v in vertices_to_join[1]])
         except KeyError:
             raise SegmentationArtifactException()
-
-    # exit()
 
     return vertices, edges, cells, nEdgeArray
 
 def eid_from_vertex(earr, vbel):
-    # ret = []
+    # TODO add correct exception
     for j in range(0, len(earr)):
         if len(list(set(earr[j]) & set(vbel))) >= 2:
             return j
@@ -372,8 +363,6 @@ def get_versors_average(vertices, edges, vid):
 
 
 def angle_between_two_vectors(a, b):
-    # anorm = np.(a, 2)
-    # b = np.round(b, 2)
     clipped_dot_product = np.clip(np.dot(a/np.linalg.norm(a), b/np.linalg.norm(b)), -1, 1)
     return np.arccos(clipped_dot_product)
 
@@ -382,33 +371,25 @@ def replace_short_edges(vertices_to_join, vertices, edges, cells):
     for e in vertices_to_join:
         x_cm = abs(vertices[e[0]].x + vertices[e[1]].x) / 2
         y_cm = abs(vertices[e[0]].y + vertices[e[1]].y) / 2
+        new_id = get_next_vertex_id(vertices)
+        new_vertex = fvertex.Vertex(new_id, x_cm, y_cm)
+        vertices[new_id] = new_vertex
 
         # find the common edge
         common_edge = list(set(vertices[e[0]].ownEdges) & set(vertices[e[1]].ownEdges))[0]
-
-        # TODO: Move this to a function
-        new_id = len(vertices)
-        i = 0
-        while vertices.get(new_id) != None:
-            new_id = len(vertices) + i
-            i += 1
-
-        new_vertex = fvertex.Vertex(new_id, x_cm, y_cm)
-        vertices[new_id] = new_vertex
         # replace vertex in the cells
-        # def replace_vertex(self, vold: object, vnew: object):
-        for cid in vertices[e[0]].ownCells:
+        for _, cid in enumerate(vertices[e[0]].ownCells):
             cells[cid].replace_vertex(vertices[e[0]], new_vertex)
-        for cid in vertices[e[1]].ownCells:
+        for __, cid in enumerate(vertices[e[1]].ownCells):
             cells[cid].replace_vertex(vertices[e[1]], new_vertex)
 
         # destroy edge
         del edges[common_edge]
-        # replace vertex in the edges
-        edges[vertices[e[0]].ownEdges[-1]].replace_vertex(vertices[e[0]], new_vertex)
-        edges[vertices[e[0]].ownEdges[-1]].replace_vertex(vertices[e[0]], new_vertex)
-        edges[vertices[e[1]].ownEdges[-1]].replace_vertex(vertices[e[1]], new_vertex)
-        edges[vertices[e[1]].ownEdges[-1]].replace_vertex(vertices[e[1]], new_vertex)
+        # replace vertex in the edges        
+        for edge_id_to_replace in vertices[e[0]].ownEdges:
+            edges[edge_id_to_replace].replace_vertex(vertices[e[0]], new_vertex)
+        for edge_id_to_replace in vertices[e[1]].ownEdges:
+            edges[edge_id_to_replace].replace_vertex(vertices[e[1]], new_vertex)
         
         # destroy the two previous vertices
         del vertices[e[0]]
@@ -416,3 +397,13 @@ def replace_short_edges(vertices_to_join, vertices, edges, cells):
 
     return vertices, edges, cells
 
+def get_next_vertex_id(vertices):
+    """
+    Get an unused key for adding a new vertex to the vertices dictionary
+    """
+    new_id = len(vertices)
+    i = 0
+    while vertices.get(new_id) != None:
+        new_id = len(vertices) + i
+        i += 1
+    return new_id

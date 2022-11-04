@@ -65,7 +65,7 @@ class Skeleton:
 
                 # add vertex to this cell's list
                 cell_vertices_list.append(self.vertices[vid])      
-      
+
             # join vertices with the edges
             number_of_vertices = len(polygon)
             for n in range(1, number_of_vertices):
@@ -83,17 +83,25 @@ class Skeleton:
            if np.any([len(v.ownCells) == 1 for v in current_cell.vertices]):
                current_cell.is_border = True
         for e in self.edges.values():
-            # if at least one of the vertices have only one cell, this is an external edge
+            # if at least one of the vertices has  only one cell, this is an external edge
+            # if the vertex has only two connections to vertices with 2 cells, it is not
             if len(e.v1.ownCells) == 1 or len(e.v2.ownCells) == 1:
-                e.external = True
+                who_connects_1 = e.v1 if len(e.v1.ownCells) == 1 else e.v2
+
+                vertices_connected = (set(self.edges[who_connects_1.ownEdges[0]].get_vertices_id()) ^ \
+                                        set(self.edges[who_connects_1.ownEdges[1]].get_vertices_id()))
+                vertices_have_two_cells = [len(self.vertices[vertex_id].ownCells) == 2 for vertex_id in vertices_connected]
+                
+                if np.all(vertices_have_two_cells):
+                    e.external = False
+                else:
+                    e.external = True
+                # e.external = True
             else:
                 e.external = False
 
         # get artifacts from the contour and apply T3 transitions to them
         all_artifact_vertices = list(self.get_artifacts())
-        # all_triangle_vertices_remaining = all_triangle_vertices.copy()
-        # max_number_of_triangles = len(all_artifact_vertices) // 3
-        # 5 px of distance maximum
         artifacts = []
         while len(all_artifact_vertices) != 0:
             current_artifact = [all_artifact_vertices[0]]
@@ -144,6 +152,7 @@ class Skeleton:
 
     def do_t3_transition(self, artifact : list):
         # get the mid point and create a vertex there
+        # TODO check possible errors if two artifacts are connected to each other
         ave_x = np.mean([self.vertices[ii].x for ii in artifact])
         ave_y = np.mean([self.vertices[ii].y for ii in artifact])
 
@@ -188,7 +197,8 @@ class Skeleton:
     def get_artifacts(self) -> list:
         candidate_artifact_vertices = []
         for v in self.vertices.values():
-            if len(v.ownEdges) == 3 and len(v.ownCells) == 2:
+            if (len(v.ownEdges) == 3 and len(v.ownCells) == 2) or \
+                (len(v.ownEdges) == 2 and len(v.ownCells) == 1):
                 # this is part of a triangle
                 candidate_artifact_vertices.append(v.id)
 
