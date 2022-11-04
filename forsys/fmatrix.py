@@ -115,12 +115,7 @@ def get_vertex_equation(vertices, edges, vid, true_earr):
 
 
             versor = versor / np.linalg.norm(versor)
-            # print(pos)
-            # arrx[pos] = round(el[0], 3)
-            # arry[pos] = round(el[1], 3)
             arrx[pos] = versor[0]
             arry[pos] = versor[1]
-
-            # print(vid, el)
     return arrx, arry
 

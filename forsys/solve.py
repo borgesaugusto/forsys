@@ -1,33 +1,21 @@
 import numpy as np
 import scipy.optimize as scop
-# import matplotlib.pyplot as plt
-import warnings
 import pandas as pd
 from mpmath import mp
 from sympy import *
 
 import forsys.virtual_edges as eforce
 import forsys.fmatrix as fmatrix
-import forsys.time_series as ts
 
 import time
 
 def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, externals_to_use='', term='ext', metadata={}):
     np.seterr(all='raise')
     m, earr, border_vertices, position_map = fmatrix.fmatrix(vertices, edges, cells, earr, externals_to_use, term, metadata)
-    # countBorder = len(extForces)
-    # totv = m.shape[0]
-    # tote = m.shape[1] - countBorder*2
-    # tote = m.shape[1] - countBorder
     tote = len(earr)
     shapeM = m.shape
     countBorder = int((shapeM[1] - tote) / 2)
 
-
-    # m = m.T * m
-    # print(shapeM, " with ", countBorder, " externals and ", tote, "edges")
-    # print("Unkowns: ", tote + countBorder*2)
-    # print("Equations: ", totv)
 
     mprime = m.T * m
 
@@ -49,9 +37,6 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
 
     # normalize b vector
     b_norm = np.linalg.norm(np.array(b).astype(float))
-    # if b_norm != 0:
-    #     b = b/b_norm
-    #     mprime = mprime/b_norm
     b = m.T * b
     # if b==0, just do NNLS
     if b_norm == 0:
@@ -60,24 +45,12 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
         only_nnls = False
 
     mprime, b = add_mean_one(mprime, b, tote, countBorder)
-    # print(b)
     b = Matrix([np.round(float(val), 3) for val in b])
-    # print(b)
 
-    start = time.time()
-
-    # print("")
-    # print("||b||", b_norm)
-    # print("")
-    # print("NNLS iterating...")
-    # print(b)
     bprime = np.zeros(len(b))
     bprime[-2] = b[-2]
     bprime[-1] = b[-1]
-    # print("After: ")
-    # print(bprime)
-
-
+   
     # xres, rnorm = scop.nnls(mprime, mp.matrix(b), maxiter=200000)
     # xres_bacc, rnorm_bacc = scop.nnls(mprime, mp.matrix(b), maxiter=200000)
     mprime = np.array(mprime).astype(np.float64)
@@ -92,28 +65,6 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
         xres, _ = scop.nnls(mprime, b, maxiter=100000)
 
 
-
-    # if not only_nnls:
-    #     bounds = [(0, np.inf)]*len(b)
-
-    #     x2 = scop.minimize(cost_function, x0=xres, method='L-BFGS-B', args=(mprime, b), bounds=bounds, tol=1e-25)
-    #     # print("Cost for nnls b != 0", cost_function(xres_bacc, mprime, b), rnorm_bacc)
-    #     # print("Cost for lsq_linear", cost_function(sol.x, mprime, b))
-
-    #     print("Cost for minimize: ", cost_function(x2.x, mprime, b))
-
-    #     xres=x2.x
-
-    # exit()
-
-    # xres, rnorm = scop.nnls(mprime, b, maxiter=100000)
-    end = time.time()
-    # print("Forsys NNLS finished, took", end-start, " residuals: ", rnorm)
-    # print("Forsys LSQ Linear finished, took", end-start)
-    # pprint(xres)
-    # assign the corresponding value to each edge
-    #the id is the one from bedge
-    # for e in earr:
     for i in range(0, len(earr)):
         e = earr[i]
         edges_to_use = [list(set(vertices[e[vid]].ownEdges) & 
@@ -122,9 +73,6 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
         for e in edges_to_use:
             edges[e].tension = float(xres[i])
     
-    # if b_norm != 0:
-    #     print("Lagrange multipliers: ", xres[-2], xres[-1])
-
     # forces dictionary:
     f = True
     forceDict = {}
@@ -132,7 +80,6 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
         if i < tote:
             val = float(xres[i])
         forceDict[i] = val
-        # for i in range(0)
     i = 0
 
     extForces = {}
@@ -143,8 +90,6 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
         extForces[vid] = [current_row[index], current_row[int(index+1)]]
 
     for index, _ in extForces.items():
-        # print("x", xres[tote+i])
-        # print("y", xres[tote+i+1])
         name1 = "F"+str(index)+"x"
         name2 = "F"+str(index)+"y"
         val1 = round(xres[tote+i], 3) * extForces[index][0]
@@ -154,7 +99,6 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
         i += 1
 
     return forceDict, xres, earr, position_map
-    # return forceDict, versorsUsed
 
 def log_force(fd):
     df = pd.DataFrame.from_dict(fd, orient='index')
@@ -164,7 +108,6 @@ def log_force(fd):
 
 def cost_function(x, m, b):
     cost = np.sum(np.linalg.norm(np.dot(m, x) - b))
-    # print("cost: ", cost)
     return cost
 
 def add_mean_one(mprime, b, total_edges, total_borders):
@@ -197,7 +140,6 @@ def add_mean_one(mprime, b, total_edges, total_borders):
 
         zeros = Matrix(np.zeros(b.shape[1]))
         b = b.row_insert(b.shape[0]+1, zeros)
-        # b[b.shape[0]-1,b.shape[1]-1] = total_borders*2
         b[b.shape[0]-1,b.shape[1]-1] = 0
 
     return mprime, b

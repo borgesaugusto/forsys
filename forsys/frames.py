@@ -31,8 +31,6 @@ class Frame():
             self.border_vertices = ve.get_border_from_angles_new(self.earr, self.vertices)
 
         self.external_edges_id = [self.earr.index(e) for e in ve.get_border_edge(self.earr, self.vertices)]
-        # print(self.external)
-        # self.external = self.earr
         # add gt values
         if len(self.gt) != 0:
             self.assign_gt_tensions_to_big_edges()
