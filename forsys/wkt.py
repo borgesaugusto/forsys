@@ -48,7 +48,7 @@ def create_lattice(wkt):
             # vertexCellID += 1
             if not (i, j) in edArr and not (j, i) in edArr:
                 # edges[edgesNumber] = e.Edge(edgesNumber, vertices[i], vertices[j])
-                edges[edgesNumber] = fedge.Edge(edgesNumber, vertices[i], vertices[j])
+                edges[edgesNumber] = fedge.SmallEdge(edgesNumber, vertices[i], vertices[j])
                 edArr.append((i, j))
                 edgesNumber += 1
         # cellType = {'typeID':0,'targetArea': 600,'targetPerimeter':100,'areaElasticityConstant':1/2,'perimeterElasticityConstant':0.5/2,'cellHeight':1}

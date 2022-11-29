@@ -209,7 +209,7 @@ class Skeleton:
         v1 = self.vertices[self.get_vertex_id_by_position(polygon[n0])]
         v2 = self.vertices[self.get_vertex_id_by_position(polygon[n1])]
         if not (v1.id, v2.id) in self.edges_added and not (v2.id, v1.id) in self.edges_added:
-            self.edges[self.edge_id] = edge.Edge(self.edge_id, v1, v2)
+            self.edges[self.edge_id] = edge.SmallEdge(self.edge_id, v1, v2)
             self.edge_id += 1
             self.edges_added.append((v1.id, v2.id))
 
