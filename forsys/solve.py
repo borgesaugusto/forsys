@@ -7,8 +7,6 @@ from sympy import *
 import forsys.virtual_edges as eforce
 import forsys.fmatrix as fmatrix
 
-import time
-
 def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, externals_to_use='', term='ext', metadata={}):
     np.seterr(all='raise')
     m, earr, border_vertices, position_map = fmatrix.fmatrix(vertices, edges, cells, earr, externals_to_use, term, metadata)
@@ -39,10 +37,10 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
     b_norm = np.linalg.norm(np.array(b).astype(float))
     b = m.T * b
     # if b==0, just do NNLS
-    if b_norm == 0:
-        only_nnls = True
-    else:
-        only_nnls = False
+    # if b_norm == 0:
+    #     only_nnls = True
+    # else:
+    #     only_nnls = False
 
     mprime, b = add_mean_one(mprime, b, tote, countBorder)
     b = Matrix([np.round(float(val), 3) for val in b])
@@ -59,9 +57,13 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
    
     try:
         xres = Matrix(np.linalg.inv(mprime) * Matrix(b))
+        
+        if np.any([x<0 for x in xres]):
+            print("Numerically solving due to negative values")
+            xres, _ = scop.nnls(mprime, b, maxiter=100000)
     except np.linalg.LinAlgError:
         # then try with nnls
-        print("Numerically solving...")
+        print("Numerically solving due to singular matrix")
         xres, _ = scop.nnls(mprime, b, maxiter=100000)
 
 
