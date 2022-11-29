@@ -1,12 +1,8 @@
 from dataclasses import dataclass, field
 import pandas as pd
-# from forsys import virtual_edges as ve
 import forsys.time_series as ts
-# from  forsys.exceptions import DifferentTissueException
 import forsys.solve as solver
-# import forsys.frames as fframe
-# import forsys.plot as fplot
-# import forsys.surface_evolver as se 
+import forsys.frames as fsframes
 @dataclass
 class ForSys():
     frames: dict
@@ -73,3 +69,51 @@ class ForSys():
         return edge_force          
             
             
+    def remove_outermost_edges(self, frame_number: int, layers: int = 1) -> tuple:
+        if layers == 0:
+            return True
+        elif layers > 1:
+            raise(NotImplementedError)
+        else:
+            # vertex_to_delete = []
+            border_cells_ids = [cell.id for cell in self.frames[0].cells.values() if cell.is_border]
+            for cell_id in border_cells_ids:
+                ### hardcoded remove after!
+                if (self.frames[frame_number].time == 3 and cell_id == 43) \
+                or (self.frames[frame_number].time == 17 and cell_id == 50) \
+                or (self.frames[frame_number].time == 24 and cell_id == 9) \
+                or (self.frames[frame_number].time == 28 and cell_id == 35) \
+                or (self.frames[frame_number].time == 11 and cell_id == 39):
+                    pass
+                else:
+                    self.remove_cell(frame_number, cell_id)            
+                ###
+                # self.remove_cell(frame_number, cell_id)            
+            return self.frames[frame_number].vertices, self.frames[frame_number].edges, self.frames[frame_number].cells
+
+
+    def remove_cell(self, frame_number: int, cell_id: int):
+        vertex_to_delete = []
+        for vertex in self.frames[frame_number].cells[cell_id].vertices:
+            # if all(cid in border_cells_ids for cid in vertex.ownCells):
+            if len(vertex.ownCells) < 2:
+                assert vertex.ownCells[0] == self.frames[frame_number].cells[cell_id].id, "Vertex incorrectly placed in cell"
+                for ii in vertex.ownEdges.copy():
+                    del self.frames[frame_number].edges[ii]
+
+                vertex_to_delete.append(vertex.id)
+                # vertex.ownCells.remove(self.frames[frame_number].cells[cell_id].id)
+                # vertex.remove_cell(cell_id)
+        
+        for vertex_id in list(set(vertex_to_delete)):
+            del self.frames[frame_number].vertices[vertex_id]
+
+        del self.frames[0].cells[cell_id]
+
+        self.frames[frame_number] = fsframes.Frame(self.frames[frame_number].vertices, 
+                                                    self.frames[frame_number].edges, 
+                                                    self.frames[frame_number].cells, 
+                                                    time=self.frames[frame_number].time,
+                                                    gt=self.frames[frame_number].gt,
+                                                    surface_evolver=self.frames[frame_number].surface_evolver)
+        return self.frames[frame_number]
