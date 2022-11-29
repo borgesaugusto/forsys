@@ -16,8 +16,8 @@ def set_up_cell():
     for vid, vertex in enumerate(get_hexagon_vertices()):
         vertices[vid] = fs.vertex.Vertex(vid, vertex[0], vertex[1])
         if vid > 0:
-            edges[vid - 1] = fs.edge.Edge(vid - 1, vertices[vid - 1], vertices[vid])
-    edges[len(edges)] = fs.edge.Edge(len(edges), vertices[0], vertices[vid])
+            edges[vid - 1] = fs.edge.SmallEdge(vid - 1, vertices[vid - 1], vertices[vid])
+    edges[len(edges)] = fs.edge.SmallEdge(len(edges), vertices[0], vertices[vid])
 
 
     cell = fs.cell.Cell(0, list(vertices.values()), {})

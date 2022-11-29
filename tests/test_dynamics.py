@@ -13,25 +13,25 @@ def set_up_mesh():
 
     vertices[0] = fs.vertex.Vertex(0, 0, 1)
     vertices[1] = fs.vertex.Vertex(1, 0, 1)
-    edges[0] = fs.edge.Edge(0, vertices[0], vertices[1])
+    edges[0] = fs.edge.SmallEdge(0, vertices[0], vertices[1])
     cells[0] = fs.cell.Cell(0, vertices.values(), {})
     frames[0] = fs.frames.Frame(vertices.copy(), edges, cells, time=0)
 
     vertices[0] = fs.vertex.Vertex(0, 4, 4)
     vertices[1] = fs.vertex.Vertex(1, 0, 1)
-    edges[0] = fs.edge.Edge(0, vertices[0], vertices[1])
+    edges[0] = fs.edge.SmallEdge(0, vertices[0], vertices[1])
     cells[0] = fs.cell.Cell(0, vertices.values(), {})
     frames[1] = fs.frames.Frame(vertices.copy(), edges, cells, time=1)
 
     vertices[0] = fs.vertex.Vertex(0, 12, 11)
     vertices[1] = fs.vertex.Vertex(1, 0, 1)
-    edges[0] = fs.edge.Edge(0, vertices[0], vertices[1])
+    edges[0] = fs.edge.SmallEdge(0, vertices[0], vertices[1])
     cells[0] =  fs.cell.Cell(0, vertices.values(), {})
     frames[2] = fs.frames.Frame(vertices.copy(), edges, cells, time=2)
     
     vertices[0] = fs.vertex.Vertex(0, 18, 22)
     vertices[1] = fs.vertex.Vertex(1, 0, 1)
-    edges[0] = fs.edge.Edge(0, vertices[0], vertices[1])
+    edges[0] = fs.edge.SmallEdge(0, vertices[0], vertices[1])
     cells[0] = fs.cell.Cell(0, vertices.values(), {})
     frames[3] = fs.frames.Frame(vertices.copy(), edges, cells, time=3)
 
