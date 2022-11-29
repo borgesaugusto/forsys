@@ -1,15 +1,6 @@
 import matplotlib.pyplot as plt
 import os
 import numpy as np
-# import matplotlib.cm as cm
-import matplotlib as mpl
-# import sysvert.forces as forces
-from  forsys.exceptions import DifferentTissueException
-
-
-# import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-import matplotlib.cm as cmx
 
 def middle_point(p,q):
     return [(p.getX()+q.getX())/2,(p.getY()+q.getY())/2]
@@ -144,7 +135,7 @@ def plot_with_force(vertices, edges, cells, step, folder, fd,
     # sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=0, vmax=1))
     # sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize())
     # plt.colorbar(sm)
-    name = os.path.join(folder, str(step) + ".tiff")
+    name = os.path.join(folder, str(step) + ".png")
     # name = os.path.join(folder, str(step) + ".pdf")
     # name = folder + step + ".png"
     plt.tight_layout()
@@ -190,6 +181,7 @@ def plot_mesh(vertices, edges, cells, step, folder="", xlim=[], ylim=[]):
     plt.savefig(folder, dpi=500)
     # plt.savefig(os.path.join(folder, str(step)+".pdf"), dpi=500)
     plt.clf()
+    plt.close()
 
 def plot_equilibrium(mesh, step, folder, what="acceleration", normalized=False, cutoff=None):
     # According to how much acceleration is present, paint the tissue
