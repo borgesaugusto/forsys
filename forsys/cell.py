@@ -16,6 +16,10 @@ class Cell:
         for v in self.vertices:
             v.add_cell(self.id)
         
+    def __del__(self):
+        for v in self.vertices:
+            v.remove_cell(self.id)
+        
     def get_cell_vertices(self) -> list:
         return self.vertices
 
@@ -64,4 +68,3 @@ class Cell:
             self.vertices[vertices_ids.index(vold.id)] = vnew
             # add cell to vertex
             vnew.add_cell(self.id)
-        
