@@ -18,6 +18,10 @@ class Vertex:
             self.ownCells.append(cid)
             return True
         
+    def remove_cell(self, cid: int) -> list:
+        self.ownCells.remove(cid)
+        return self.ownCells
+
     def add_edge(self, eid: int) -> bool:
         if eid in self.ownEdges:
             print(eid, self.ownEdges)
