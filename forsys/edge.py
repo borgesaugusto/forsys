@@ -1,15 +1,15 @@
-from dataclasses import dataclass
-import numpy as np
+from dataclasses import dataclass 
 
 @dataclass 
-class Edge:
-    id: int
+class SmallEdge():
+    id: int     
     v1: object
     v2: object
     tension: float=0
     gt: float=0
 
     def __post_init__(self):
+        super().__init__()
         self.verticesArray = [self.v1, self.v2]
         for v in self.verticesArray:
             v.add_edge(self.id)

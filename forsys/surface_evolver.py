@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-import numpy as np
 import pandas as pd
 import os
 import re
@@ -25,7 +24,7 @@ class SurfaceEvolver:
             
         edges  = {}
         for _, r in edges_temp.iterrows():
-            edges[int(r.id)] = edge.Edge(int(r.id), vertices[int(r.id1)], vertices[int(r.id2)])
+            edges[int(r.id)] = edge.SmallEdge(int(r.id), vertices[int(r.id1)], vertices[int(r.id2)])
             edges[int(r.id)].gt = round(edges_temp.loc[edges_temp['id'] == int(r.id)]['force'].iloc[0], 4)
 
         cells = {}

@@ -11,7 +11,7 @@ import forsys.vertex as fvertex
 import forsys.edge as fedge
 import forsys.cell as fcell
 
-from  forsys.exceptions import SegmentationArtifactException
+from  forsys.exceptions import SegmentationArtifactException, BigEdgesBadlyCreated
 
 def create_edges_new(vertices, cells):
     """
@@ -141,7 +141,7 @@ def generate_mesh(vertices, edges, cells, ne=4):
     for be in nEdgeArray:
         rango = range(0, len(be)-1)
         for n in rango:
-            edges[edgesNumber] = fedge.Edge(edgesNumber, vertices[be[n]], vertices[be[n+1]])
+            edges[edgesNumber] = fedge.SmallEdge(edgesNumber, vertices[be[n]], vertices[be[n+1]])
             edgesNumber += 1
 
     # if there is an empty cell, may be its an artifact, remove it
@@ -157,13 +157,6 @@ def generate_mesh(vertices, edges, cells, ne=4):
     if len(vertices_to_join) > 0:
         try:
             vertices, edges, cells = replace_short_edges(vertices_to_join, vertices, edges, cells)
-            # pass
-            # print("Vertices: ", vertices_to_join)
-            # for ve in vertices_to_join:
-            #     print("X: ", [vertices[v].x for v in ve])
-            #     print("Y: ", [vertices[v].y for v in ve])
-            # print("vertices to join: ", vertices_to_join)
-            # print("X, Y", [(vertices[v].x, vertices[v].y) for v in vertices_to_join[1]])
         except KeyError:
             raise SegmentationArtifactException()
 
@@ -176,9 +169,8 @@ def eid_from_vertex(earr, vbel):
     for j in range(0, len(earr)):
         if len(list(set(earr[j]) & set(vbel))) >= 2:
             return j
-    log.warning("No big edge with both vectors")
-    exit()
-
+    raise BigEdgesBadlyCreated()
+    
 def get_border_edge(earr, vertices):
     borderEdge = []
     for eid in earr:
@@ -263,7 +255,6 @@ def get_virtual_edges(earrN, vertices):
     virtualEdges = {}
     edges = []
     for eid in earrN:
-        vuse = []
         if eid[0] not in vseen:
             vseen.append(eid[0])
     for vid in vseen:
@@ -291,13 +282,13 @@ def get_line_constant_from_bedge(edges, ele):
 def get_circle_params(big_edge, vertices):
     x = [vertices[vid].x for vid in big_edge]
     y = [vertices[vid].y for vid in big_edge]
-    
+    # TODO: identificar residuos para ver si excluir
     def objective_f(c):
         """ calculate the algebraic distance between the data points and the mean circle centered at c=(xc, yc) """
         distances = np.sqrt((x - c[0])**2 + (y - c[1])**2)
         return distances - distances.mean()
 
-    center_2, _ = sco.leastsq(objective_f, (np.mean(x), np.mean(y)))    
+    center_2, _ = sco.leastsq(objective_f, (np.mean(x), np.mean(y)))
     return center_2[0], center_2[1]
 
 
