@@ -7,7 +7,7 @@ def middle_point(p,q):
 
 def plot_with_force(vertices, edges, cells, step, folder, fd, 
                         earr, versors=False, maxForce=None, 
-                        minForce=None, normalized=False):
+                        minForce=None, normalized=False, mirror_y=False):
     plt.close()
     plotArrows = True
     jet = plt.get_cmap('jet')
@@ -128,6 +128,8 @@ def plot_with_force(vertices, edges, cells, step, folder, fd,
                         mFy, color=jet(abs(mfmodulus/maxForce)), zorder=100)
 
     plt.axis('off')
+    if mirror_y:
+        plt.gca().invert_yaxis()
     # ax.set_aspect(1)
     # plt.ylim(500, 1050)
     # plt.xlim(470, 620)
@@ -140,6 +142,7 @@ def plot_with_force(vertices, edges, cells, step, folder, fd,
     # name = folder + step + ".png"
     plt.tight_layout()
     plt.savefig(name, dpi=500)
+    # plt.savefig(name)
     plt.close()
     # print("Max force used: ", maxForce)
     # Now the histogram
@@ -152,7 +155,7 @@ def plot_force(freq, folder=''):
     plt.savefig(str(folder)+"log/forcesHist.png", dpi=300)
     plt.close()
 
-def plot_mesh(vertices, edges, cells, step, folder="", xlim=[], ylim=[]):
+def plot_mesh(vertices, edges, cells, step, folder="", xlim=[], ylim=[], mirror_y=False):
     for v in vertices.values():
         plt.scatter(v.x, v.y, s=2, color="black")
         plt.annotate(str(v.id), [v.x, v.y], fontsize=2)
@@ -177,7 +180,10 @@ def plot_mesh(vertices, edges, cells, step, folder="", xlim=[], ylim=[]):
     if len(ylim) > 0:
         plt.ylim(ylim[0], ylim[1])
     # plt.axis("off")
+    if mirror_y:
+        plt.gca().invert_yaxis()
     plt.tight_layout()
+
     plt.savefig(folder, dpi=500)
     # plt.savefig(os.path.join(folder, str(step)+".pdf"), dpi=500)
     plt.clf()
@@ -327,3 +333,27 @@ def save_heatmap(heatmap, folder, initial_time, final_time, name='heatmap'):
     plt.tight_layout()
     plt.savefig(os.path.join(folder, str(name)+"_"+str(initial_time)+".png"), dpi=500)
     plt.clf()
+
+def plot_ablated_edge(frames, step, bedge_index, folder):
+    for v in frames[step].vertices.values():
+        plt.scatter(v.x, v.y, s=2, color="black")
+        plt.annotate(str(v.id), [v.x, v.y], fontsize=2)
+
+    for e in frames[step].edges.values():
+        plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="orange", linewidth=0.5)
+
+    for v in frames[step].earr[bedge_index]:
+        for eid in frames[step].vertices[v].ownEdges:
+            e = frames[step].edges[eid]
+            plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="green", linewidth=1.5)
+
+    for c in frames[step].cells.values():
+        cm = c.get_cm()
+        cxs = [v.x for v in c.vertices]
+        cys = [v.y for v in c.vertices]
+
+        plt.fill(cxs, cys, alpha=0.3)
+        plt.annotate(str(c.id), [cm[0], cm[1]], fontsize=5)
+
+    plt.savefig(folder, dpi=600)
+    plt.close()
