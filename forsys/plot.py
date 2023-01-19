@@ -1,14 +1,17 @@
 import matplotlib.pyplot as plt
 import os
 import numpy as np
+import forsys.virtual_edges as ve
 
 def middle_point(p,q):
     return [(p.getX()+q.getX())/2,(p.getY()+q.getY())/2]
 
-def plot_with_force(vertices, edges, cells, step, folder, fd, 
+def plot_with_force_custom_fd(vertices, edges, cells, step, folder, fd, 
                         earr, versors=False, maxForce=None, 
-                        minForce=None, normalized=False, mirror_y=False):
+                        minForce=None, normalized=False, mirror_y=False, **kwargs):
     plt.close()
+    if not os.path.exists(folder):
+        os.makedirs(folder)
     plotArrows = True
     jet = plt.get_cmap('jet')
     ## colormap = ["#77ae43", "#aec637", "#ffd200", "#fdb913", "#f26531"]
@@ -75,11 +78,8 @@ def plot_with_force(vertices, edges, cells, step, folder, fd,
     already_plotted = []
 
     if len(fd) > 0:
-        # maxForce = max(fdWithoutForce.values())
-        # counter = 0
         for name, force in fd.items():
             if not isinstance(name, str):
-                # Draw edge in each element of big edge
                 try:
                     current = earr[name]
                 except IndexError:
@@ -93,7 +93,6 @@ def plot_with_force(vertices, edges, cells, step, folder, fd,
                         edge = edges[e]
                         try:
                             if len(set(edge.get_vertices_id()) & set([current[j], current[j+1]])) == 2:
-                                # print("Edge is ", e, " with ", edge.getVerticesBelonging() )
                                 if normalized == "normal":
                                     forceValToPlot = (force - aveForce) / stdForce
                                 elif normalized == "max":
@@ -106,7 +105,6 @@ def plot_with_force(vertices, edges, cells, step, folder, fd,
                                             (edge.v1.y, edge.v2.y),
                                             color=color, linewidth=3)
                                 already_plotted.append(edge.id)
-                                # print("Current force is ", force, " maxforce is ", maxForce, " value is ", abs(force/maxForce))
                         except IndexError:
                             pass
                     
@@ -130,32 +128,121 @@ def plot_with_force(vertices, edges, cells, step, folder, fd,
     plt.axis('off')
     if mirror_y:
         plt.gca().invert_yaxis()
-    # ax.set_aspect(1)
-    # plt.ylim(500, 1050)
-    # plt.xlim(470, 620)
-    
-    # sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=0, vmax=1))
-    # sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize())
-    # plt.colorbar(sm)
+    if kwargs.get("colorbar", False):
+        sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=0, vmax=1))
+        plt.colorbar(sm)
+
     name = os.path.join(folder, str(step) + ".png")
-    # name = os.path.join(folder, str(step) + ".pdf")
-    # name = folder + step + ".png"
+
     plt.tight_layout()
     plt.savefig(name, dpi=500)
-    # plt.savefig(name)
+
     plt.close()
-    # print("Max force used: ", maxForce)
-    # Now the histogram
-    # plot_force(fd.values(), folder)
+
+
+def plot_with_force(frame, folder, step, versors=False, maxForce=None, 
+                        minForce=None, normalized=False, mirror_y=False, **kwargs):
+    plt.close()
+    jet = plt.get_cmap('jet')
+    _, ax = plt.subplots(1,1)
+
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    
+    all_forces = [edge.tension for edge in frame.edges.values() if edge.tension != 0]
+
+    if maxForce == None:
+        maxForce = max(all_forces)
+    if minForce == None:
+        minForce = min(all_forces)
+
+    allValues = all_forces
+    aveForce = np.mean(allValues)
+    stdForce = np.std(allValues)
+
+    for _, edge in frame.edges.items():
+        if edge.tension == 0:
+            plt.plot(   (edge.v1.x, edge.v2.x),
+                        (edge.v1.y, edge.v2.y),
+                        color="black", linewidth=0.5, alpha=0.6)
+        else:
+            if normalized == "normal":
+                forceValToPlot = (edge.tension - aveForce) / stdForce
+            elif normalized == "max":
+                forceValToPlot = edge.tension / maxForce
+            elif normalized == "relative":
+                forceValToPlot = (edge.tension + minForce) / maxForce
+            else:
+                forceValToPlot = edge.tension/maxForce
+            
+            color = jet(forceValToPlot)
+            plt.plot(   (edge.v1.x, edge.v2.x),
+                        (edge.v1.y, edge.v2.y),
+                        color=color, linewidth=3)
+    plt.axis('off')
+    if mirror_y:
+        plt.gca().invert_yaxis()
+    
+    if kwargs.get("colorbar", False):
+        sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=0, vmax=1))
+        plt.colorbar(sm)
+    
+    name = os.path.join(folder, str(step) + ".png")
+    plt.tight_layout()
+    plt.savefig(name, dpi=500)
+    plt.close()
+
+
+def plot_difference(frame, folder, step, **kwargs):
+    plt.close()
+    jet = plt.get_cmap('jet')
+    _, ax = plt.subplots(1,1)
+
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    
+    all_myosin = [edge.gt for edge in frame.edges.values()]
+    all_myosin_max = max(all_myosin)
+
+    # all_forces = [abs(edge.tension - edge.gt) / all_myosin_max
+    #                     for edge in frame.edges.values() if edge.tension != 0]
+
+    for _, edge in frame.edges.items():
+        difference_to_plot = abs(edge.tension - edge.gt) / all_myosin_max
+        if difference_to_plot == 0:
+            plt.plot(   (edge.v1.x, edge.v2.x),
+                        (edge.v1.y, edge.v2.y),
+                        color="black", linewidth=0.5, alpha=0.6)      
+            
+        else:
+            color = jet(difference_to_plot)
+            plt.plot(   (edge.v1.x, edge.v2.x),
+                        (edge.v1.y, edge.v2.y),
+                        color=color, linewidth=3)
+    plt.axis('off')
+    if kwargs.get("mirror_y", False):
+        plt.gca().invert_yaxis()
+    
+    if kwargs.get("colorbar", False):
+        sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=0, vmax=1))
+        plt.colorbar(sm)
+    
+    name = os.path.join(folder, str(step) + ".png")
+    plt.tight_layout()
+    plt.savefig(name, dpi=500)
+    plt.close()
 
 def plot_force(freq, folder=''):
     plt.hist(freq, bins=25, density=True)
     plt.xlabel("Forces [ a. u ]")
     plt.ylabel("Frequency")
-    plt.savefig(str(folder)+"log/forcesHist.png", dpi=300)
+    plt.savefig(str(folder)+"log/forcesHist.png", dpi=500)
     plt.close()
 
-def plot_mesh(vertices, edges, cells, step, folder="", xlim=[], ylim=[], mirror_y=False):
+def plot_mesh(vertices, edges, cells, name="0", folder=".", xlim=[], ylim=[], mirror_y=False):
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    to_save = os.path.join(folder, name)
     for v in vertices.values():
         plt.scatter(v.x, v.y, s=2, color="black")
         plt.annotate(str(v.id), [v.x, v.y], fontsize=2)
@@ -184,7 +271,7 @@ def plot_mesh(vertices, edges, cells, step, folder="", xlim=[], ylim=[], mirror_
         plt.gca().invert_yaxis()
     plt.tight_layout()
 
-    plt.savefig(folder, dpi=500)
+    plt.savefig(to_save, dpi=500)
     # plt.savefig(os.path.join(folder, str(step)+".pdf"), dpi=500)
     plt.clf()
     plt.close()
@@ -256,8 +343,8 @@ def plot_time_connections(mesh, initial_time, final_time, folder=''):
     timerange = np.arange(initial_time, final_time-1, 1)
     for t in timerange:
         if mesh.mapping[t] != None:
-            real_vertices_ids1 = np.array([[x[0]]+[x[-1]] for x in mesh.time_series[t].earr])
-            real_vertices_ids2 = np.array([[x[0]]+[x[-1]] for x in mesh.time_series[t+1].earr])
+            real_vertices_ids1 = np.array([[x[0]]+[x[-1]] for x in mesh.time_series[t].big_edges_list])
+            real_vertices_ids2 = np.array([[x[0]]+[x[-1]] for x in mesh.time_series[t+1].big_edges_list])
             for v in mesh.time_series[t].vertices.values():
                 if v.id in real_vertices_ids1 or v.id in mesh.time_series[t].border_vertices:
                     plt.scatter(v.x, v.y, s=5,color="black")
@@ -357,3 +444,76 @@ def plot_ablated_edge(frames, step, bedge_index, folder):
 
     plt.savefig(folder, dpi=600)
     plt.close()
+
+
+def plot_residues(frame, folder, normalized=False, maxForce=None, 
+                    minForce=None, mirror_y=False):
+    plt.close()
+    jet = plt.get_cmap('jet')
+    _, ax = plt.subplots(1,1)
+
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    
+    all_forces = [edge.tension for edge in frame.edges.values() if edge.tension != 0]
+
+    if maxForce == None:
+        maxForce = max(all_forces)
+    if minForce == None:
+        minForce = min(all_forces)
+
+    allValues = all_forces
+    aveForce = np.mean(allValues)
+    stdForce = np.std(allValues)
+
+    for _, edge in frame.edges.items():
+        if edge.tension == 0:
+            plt.plot(   (edge.v1.x, edge.v2.x),
+                        (edge.v1.y, edge.v2.y),
+                        color="black", linewidth=0.5, alpha=0.6)
+        else:
+            if normalized == "normal":
+                forceValToPlot = (edge.tension - aveForce) / stdForce
+            elif normalized == "max":
+                forceValToPlot = edge.tension / maxForce
+            else:
+                forceValToPlot = edge.tension/maxForce
+            
+            color = jet(forceValToPlot)
+            plt.plot(   (edge.v1.x, edge.v2.x),
+                        (edge.v1.y, edge.v2.y),
+                        color=color, linewidth=3)
+    
+    tj_vertices = list(set([big_edge[0] for big_edge in frame.big_edges_list]))
+
+    for vid in tj_vertices:
+        # yield (vx, vy, edge.get_vertices_id(), border, edge.id)
+        force_difference = np.array([0, 0]).astype(np.float64)
+        for versor in ve.get_versors(frame.vertices, frame.edges, vid):
+            try:
+                calculated_force_vector = [frame.edges[versor[4]].tension * versor[0], 
+                                            frame.edges[versor[4]].tension * versor[1]]
+                original_force_vector = [frame.edges[versor[4]].gt * versor[0],
+                                        frame.edges[versor[4]].gt * versor[1]]
+            except KeyError:
+                raise("Missing tension or ground truth")
+            
+            force_difference += np.array(calculated_force_vector) - \
+                                np.array(original_force_vector)
+
+
+
+        # print(f"In {[frame.vertices[vid].x, frame.vertices[vid].y]} residual vector is {force_difference}")
+
+        plt.arrow(frame.vertices[vid].x, frame.vertices[vid].y, force_difference[0],
+                    force_difference[0], color="black", zorder=100)
+
+    plt.axis('off')
+    if mirror_y:
+        plt.gca().invert_yaxis()
+    
+    name = os.path.join(folder, str(frame.time) + ".png")
+    plt.tight_layout()
+    plt.savefig(name, dpi=500)
+    plt.close()
+    
