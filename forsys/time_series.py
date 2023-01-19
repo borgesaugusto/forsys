@@ -17,7 +17,7 @@ class TimeSeries():
         self.cutoff = 0.05
         self.accelerations = {}
         self.velocities = {}
-        if self.initial_guess == []:
+        if not self.initial_guess:
             # self.initial_guess = [{} for _ in range(0, len(self.mesh))]
             self.initial_guess = {k: {} for k in self.time_series.keys()}
 
@@ -70,8 +70,8 @@ class TimeSeries():
                 v.y -= self.cm_coords[1][1]    
 
         # Only use the real vertices
-        realVertices0_ids = np.array([[x[0]]+[x[-1]] for x in t0.earr])
-        realVertices1_ids = np.array([[x[0]]+[x[-1]] for x in t1.earr])
+        realVertices0_ids = np.array([[x[0]]+[x[-1]] for x in t0.big_edges_list])
+        realVertices1_ids = np.array([[x[0]]+[x[-1]] for x in t1.big_edges_list])
 
         externalVertices0_ids = np.array(t0.border_vertices)
         externalVertices1_ids = np.array(t1.border_vertices)
@@ -201,18 +201,18 @@ class TimeSeries():
 
     def whole_tissue_acceleration(self, initial_time: int) -> dict:
         t0 = self.time_series[initial_time]
-        for ev in t0.earr:
+        for ev in t0.big_edges_list:
             acc0 = self.calculate_acceleration(ev[0], initial_time)
             acc1 = self.calculate_acceleration(ev[-1], initial_time)
-            self.accelerations[t0.earr.index(ev)] = np.linalg.norm(acc0) + np.linalg.norm(acc1)
+            self.accelerations[t0.big_edges_list.index(ev)] = np.linalg.norm(acc0) + np.linalg.norm(acc1)
         return self.accelerations
 
     def whole_tissue_velocity(self, initial_time: int) -> dict:
         t0 = self.time_series[initial_time]
-        for ev in t0.earr:
+        for ev in t0.big_edges_list:
             vel0 = self.calculate_velocity(ev[0], initial_time)
             vel1 = self.calculate_velocity(ev[-1], initial_time)
-            self.velocities[t0.earr.index(ev)] = np.linalg.norm(vel0) + np.linalg.norm(vel1)
+            self.velocities[t0.big_edges_list.index(ev)] = np.linalg.norm(vel0) + np.linalg.norm(vel1)
         return self.velocities
 
 
@@ -291,7 +291,7 @@ class TimeSeries():
         """ Return the acceleration of the earrid in the given timeframe"""
         t0 = self.time_series[initial_time]
 
-        earr = t0.earr[earrid]
+        earr = t0.big_edges_list[earrid]
         timerange = np.arange(initial_time, final_time, 1)
         row = []
         for ii in timerange:
@@ -314,7 +314,7 @@ class TimeSeries():
         """ Return the acceleration of the earrid in the given timeframe"""
         t0 = self.time_series[initial_time]
 
-        earr = t0.earr[earrid]
+        earr = t0.big_edges_list[earrid]
         timerange = np.arange(initial_time, final_time, 1)
         row = []
         for ii in timerange:

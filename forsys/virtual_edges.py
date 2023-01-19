@@ -46,46 +46,6 @@ def get_splitted(cell_vertex_ids, number_connections):
     splitted = np.split(cell_vertex_ids, indices)
     return splitted
 
-def create_edges(cells):
-    """
-    Give virtual edges generated from the lattice
-    """
-    newEdges = []
-    # print("Cells: ", len(cells))
-    for _, cell in cells.items():
-        vertexInEdge = []
-        # print(cID, cell.get_cell_vertices())
-        for v in cell.vertices:
-            # find the first junction to iterate
-            # vertex = vertices[vID]
-            if len(v.ownEdges) > 2:
-                start = cell.vertices.index(v)
-                goArr = cell.vertices[start:]+cell.vertices[:start]+[cell.vertices[start]]
-                # goArr = cell.vertices[start:]+cell.vertices[:start]+[cell.vertices[start]]
-                # goArr = cell.get_cell_vertices()[start:]+cell.get_cell_vertices()[:start]+[cell.get_cell_vertices()[start]]
-                # goArr = cell.get_cell_vertices()[:start]+cell.get_cell_vertices()[start:-1]+[cell.get_cell_vertices()[-1]]
-                break
-        try:
-            if len(goArr) != len(cell.vertices)+1:
-                print("ERROR: Different goArr size than cell: %d goArr vs %d cell_vertices in"
-                            % (len(goArr),len(cell.vertices)))
-                # print("goArr is: ", goArr )
-                # print("goArr is: ", cell.get_cell_vertices())
-                print("#########################")
-
-            for v in goArr:
-                if len(v.ownEdges) < 3:
-                    vertexInEdge.append(v.id)
-                else:
-                    if len(vertexInEdge) != 0:
-                        vertexInEdge.append(v.id)
-                        # Check if that edge is already there
-                        if not (vertexInEdge in newEdges) and not(vertexInEdge[::-1] in newEdges):
-                            newEdges.append(vertexInEdge)
-                    vertexInEdge = [v.id]
-        except NameError:
-            print("cell with no neighbour")
-    return newEdges
 
 def generate_mesh(vertices, edges, cells, ne=4):
     # bedges = create_edges(cells)
@@ -113,8 +73,7 @@ def generate_mesh(vertices, edges, cells, ne=4):
             # TODO: Make it work with polygonal vertex model
             if len(e) == 2 and len(vertices[e[0]].ownCells) < 3 and len(vertices[e[1]].ownCells) < 3 :
                 vertices_to_join.append(e)
-    # cellsToRemove = []
-    # edgesToRemove = []
+
     vertexToRemove = []
     for vID, v in vertices.items():
         if not vID in list(itertools.chain.from_iterable(nEdgeArray)):
@@ -127,9 +86,6 @@ def generate_mesh(vertices, edges, cells, ne=4):
                 cells[cid].vertices.remove(v)
                 # cellsToRemove.append(cid)
 
-    # for eid, e in edges.items():
-    #     e.v1.ownEdges.remove(eid)
-    #     e.v2.ownEdges.remove(eid)
     # remove all edges
     edges.clear()
     for vi in vertexToRemove:
@@ -237,7 +193,7 @@ def get_big_edges_se(frame):
 
     return new_big_edges, middle_vertices
 
-def new_virtual_edges(inBorder, earr):
+def non_border_big_edges(inBorder, earr):
     newEarr = []
     for eid in earr:
         border = False
@@ -261,9 +217,8 @@ def get_virtual_edges(earrN, vertices):
         virtualEdges[vid] = vertices[vid].ownEdges
         edges.append(virtualEdges[vid])
     edges = set(list(itertools.chain.from_iterable(edges)))
-    edgesNumber = len(edges)
     
-    return virtualEdges, edges, edgesNumber
+    return virtualEdges, edges
 
 def get_edge_from_earr(edges, element):
     for eid, eobj in edges.items():
@@ -313,7 +268,7 @@ def get_versors(vertices, edges, vid):
             vx = - deltaX/modulus
             vy = - deltaY/modulus
         # Force versor, to calculate modulus
-        yield (vx, vy, edge.get_vertices_id(), border)
+        yield (vx, vy, edge.get_vertices_id(), border, edge.id)
 
 def get_border_edges(earr, vertices, edges):
     border_edges = []
