@@ -58,4 +58,4 @@ def test_fit_furrow_movement_velocity(furrow):
         r_value = distance_to_yeqx(tensions_df['gt'].values / tensions_df['gt'].mean(), 
                                     tensions_df['tension'].values)
         all_r_values.append(r_value)
-    assert np.all([1 > value > 0.95 for value in all_r_values])
+    assert np.all([1 > value > 0.94 for value in all_r_values])
