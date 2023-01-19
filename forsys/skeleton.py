@@ -42,13 +42,12 @@ class Skeleton:
         self.edges = {}
         self.cells = {}
 
+        self.coords_to_key = {}
+
         # create vertices
         self.edges_added = []
-        for polygon in self.contours:
-            # create all vertices
-            # xcoords = [(coords[0] > 0) and (coords[0] < 700) for coords in polygon]
-            # if not np.all(xcoords):
-            #     continue
+        for poly_id, polygon in enumerate(self.contours):
+            # print(f"Currently {poly_id}/{len(self.contours) - 1} polygons processed")
             cell_vertices_list = []
             for coords in polygon:
                 if self.mirror_y:
@@ -57,12 +56,13 @@ class Skeleton:
 
                 if vid == -1:
                     vid = self.vertex_id
-
                     self.vertices[vid] = vertex.Vertex(int(vid), 
                                                         coords[0], 
                                                         coords[1])
                     self.vertex_id += 1
-
+                
+                    # self.coords_to_key.append(tuple(coords))
+                    self.coords_to_key[tuple(coords)] = vid 
                 # add vertex to this cell's list
                 cell_vertices_list.append(self.vertices[vid])      
       
@@ -203,8 +203,6 @@ class Skeleton:
         return artifact_vertices
 
 
-
-
     def create_edge(self, n0, n1, polygon):
         v1 = self.vertices[self.get_vertex_id_by_position(polygon[n0])]
         v2 = self.vertices[self.get_vertex_id_by_position(polygon[n1])]
@@ -216,11 +214,20 @@ class Skeleton:
 
     def get_vertex_id_by_position(self, coordinates: list) -> int:
         # Check all vertices to see if we already have one in that position
-        # if the distance is =< than some value, it is the same vertex
-        for _, vertex in self.vertices.items():
-            if abs(coordinates[0] - vertex.x) <= 0 and abs(coordinates[1] - vertex.y) <= 0:
-                return vertex.id
-        return -1
+        # TODO: Improve method, takes 80 % of runtime
+        # vertex_coincides = {k: [v.x, v.y] == list(coordinates) for k, v in self.vertices.items()}
+        # for _, vertex in self.vertices.items():
+        #     if abs(coordinates[0] - vertex.x) <= 0 and abs(coordinates[1] - vertex.y) <= 0:
+        #         return vertex.id
+        # try:
+        #     return list(vertex_coincides.values()).index(True)
+        # except ValueError:
+        #     return -1        
+        # return -1
+        try:
+            return self.coords_to_key[tuple(coordinates)]
+        except KeyError:
+            return -1
     
     def get_new_vid(self) -> int:
         new_vid = max(self.vertices.keys()) + 1
