@@ -8,3 +8,4 @@ from . import auxiliar
 from . import wkt
 from . import skeleton
 from . import exceptions
+from . import myosin
