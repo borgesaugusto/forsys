@@ -7,6 +7,7 @@ class Vertex:
     y: float
     ownEdges: list = field(default_factory=list)
     ownCells: list = field(default_factory=list)
+    own_big_edges: list = field(default_factory=list)
     
     def get_coords(self) -> list:
         return [self.x, self.y]
@@ -33,3 +34,15 @@ class Vertex:
     
     def remove_edge(self, eid: int):
         self.ownEdges.remove(eid)
+
+    def add_big_edge(self, beid: int) -> bool:
+        if beid in self.own_big_edges:
+            print(beid, self.own_big_edges)
+            print("edge already in vertex")
+            return False
+        else:
+            self.own_big_edges.append(beid)
+            return True
+    
+    def remove_big_edge(self, beid: int):
+        self.own_big_edges.remove(beid)
