@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 import pandas as pd
 import forsys.time_series as ts
-import forsys.solve as solver
+import forsys.fmatrix as fmatrix
 import forsys.frames as fsframes
 @dataclass
 class ForSys():
@@ -17,24 +17,25 @@ class ForSys():
                                         initial_guess=self.initial_guess)
             
             self.times_to_use = self.mesh.times_to_use()
+        else:
+            self.mesh = {}
+        
+        self.matrices = {}
+        self.results = {}
 
-    def solve(self, when: int, term: str, time_series:dict = None, metadata:dict = {}) -> None:
-        res = solver.equations(self.frames[when].vertices, 
-                                self.frames[when].edges, 
-                                self.frames[when].cells,
-                                self.frames[when].big_edges_list,
-                                timeseries=time_series,
-                                at_time=when,
+    
+    def build_matrix(self, when: int = 0, term: str = "none", metadata:dict = {}):
+        # TODO: add matrix caching
+        self.matrices[when] = fmatrix.ForceMatrix(self.frames[when],
                                 # externals_to_use = self.frames[when].border_vertices,
                                 externals_to_use = 'none',
                                 term=term,
-                                metadata=metadata)
-        
-        self.frames[when].forces = res[0]
-        self.frames[when].earr = res[2]
-        self.frames[when].position_map = res[3]
-        # self.frames[when].versors = res[3]
+                                metadata=metadata,
+                                timeseries=self.mesh)
 
+    def solve(self, when: int = 0, **kwargs) -> None:
+        self.results[when] = self.matrices[when].solve(self.mesh, **kwargs)
+        self.frames[when].forces = self.results[when]
         self.frames[when].assign_tensions_to_big_edges()
         
     def get_accelerations():

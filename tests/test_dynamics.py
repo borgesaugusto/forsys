@@ -15,25 +15,25 @@ def set_up_mesh():
     vertices[1] = fs.vertex.Vertex(1, 0, 1)
     edges[0] = fs.edge.SmallEdge(0, vertices[0], vertices[1])
     cells[0] = fs.cell.Cell(0, vertices.values(), {})
-    frames[0] = fs.frames.Frame(vertices.copy(), edges, cells, time=0)
+    frames[0] = fs.frames.Frame(0, vertices.copy(), edges, cells, time=0)
 
     vertices[0] = fs.vertex.Vertex(0, 4, 4)
     vertices[1] = fs.vertex.Vertex(1, 0, 1)
     edges[0] = fs.edge.SmallEdge(0, vertices[0], vertices[1])
     cells[0] = fs.cell.Cell(0, vertices.values(), {})
-    frames[1] = fs.frames.Frame(vertices.copy(), edges, cells, time=1)
+    frames[1] = fs.frames.Frame(1, vertices.copy(), edges, cells, time=1)
 
     vertices[0] = fs.vertex.Vertex(0, 12, 11)
     vertices[1] = fs.vertex.Vertex(1, 0, 1)
     edges[0] = fs.edge.SmallEdge(0, vertices[0], vertices[1])
     cells[0] =  fs.cell.Cell(0, vertices.values(), {})
-    frames[2] = fs.frames.Frame(vertices.copy(), edges, cells, time=2)
+    frames[2] = fs.frames.Frame(2, vertices.copy(), edges, cells, time=2)
     
     vertices[0] = fs.vertex.Vertex(0, 18, 22)
     vertices[1] = fs.vertex.Vertex(1, 0, 1)
     edges[0] = fs.edge.SmallEdge(0, vertices[0], vertices[1])
     cells[0] = fs.cell.Cell(0, vertices.values(), {})
-    frames[3] = fs.frames.Frame(vertices.copy(), edges, cells, time=3)
+    frames[3] = fs.frames.Frame(3, vertices.copy(), edges, cells, time=3)
 
     forsys = fs.ForSys(frames, cm=False)
     forsys.mesh.mapping = {0: {0: 0, 1:1}, 2: {0: 0, 1:1}, 1: {0: 0, 1:1}}
