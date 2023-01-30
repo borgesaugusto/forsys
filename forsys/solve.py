@@ -7,20 +7,30 @@ from sympy import *
 import forsys.virtual_edges as eforce
 import forsys.fmatrix as fmatrix
 
-def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, externals_to_use='', term='ext', metadata={}):
+def equations(frame, timeseries=None, at_time=None, externals_to_use='', term='ext', metadata={}):
     np.seterr(all='raise')
-    m, earr, border_vertices, position_map = fmatrix.fmatrix(vertices, edges, cells, earr, externals_to_use, term, metadata)
-    tote = len(earr)
-    shapeM = m.shape
-    countBorder = int((shapeM[1] - tote) / 2)
+    force_matrix = fmatrix.ForceMatrix(frame, externals_to_use, term, metadata)
+    # tote = len(frame.big_edges_list)
+    
+    if externals_to_use == 'all':
+        ...
+    elif externals_to_use == 'ext':
+        ...
+    else:
+        edges_to_use = frame.internal_big_edges
 
+    tote = len(edges_to_use)
+    shapeM = force_matrix.matrix.shape
+    if externals_to_use:
+        countBorder = int((shapeM[1] - tote) / 2)
+    else:
+        countBorder = 0
 
-    mprime = m.T * m
-
-    b = Matrix(np.zeros(m.shape[0]))
+    # pprint(m)
+    b = Matrix(np.zeros(shapeM[0]))
     if timeseries != None:
         # for vid in versorsUsed.keys():
-        for vid in position_map.keys():
+        for vid in force_matrix.map_vid_to_row.keys():
             if term == "timeseries-velocity":
                 value = timeseries.calculate_velocity(vid, at_time)
             else: # term == "timeseries-acceleration" is the default
@@ -28,14 +38,15 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
                 if np.any(np.isnan(value)):
                     value = [0, 0]
             # print(vid, value)
-            j = position_map[vid]
+            j = force_matrix.map_vid_to_row[vid]
             b[j] = value[0]
             b[j+1] = value[1]
 
 
     # normalize b vector
-    b_norm = np.linalg.norm(np.array(b).astype(float))
-    b = m.T * b
+    # b_norm = np.linalg.norm(np.array(b).astype(float))
+    mprime = force_matrix.matrix.T * force_matrix.matrix
+    b = force_matrix.matrix.T * b
     # if b==0, just do NNLS
     # if b_norm == 0:
     #     only_nnls = True
@@ -58,22 +69,22 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
     try:
         xres = Matrix(np.linalg.inv(mprime) * Matrix(b))
         
-        if np.any([x<0 for x in xres]):
-            print("Numerically solving due to negative values")
-            xres, _ = scop.nnls(mprime, b, maxiter=100000)
+        # if np.any([x<0 for x in xres]):
+        #     print("Numerically solving due to negative values")
+        #     xres, _ = scop.nnls(mprime, b, maxiter=100000)
     except np.linalg.LinAlgError:
         # then try with nnls
         print("Numerically solving due to singular matrix")
         xres, _ = scop.nnls(mprime, b, maxiter=100000)
 
 
-    for i in range(0, len(earr)):
-        e = earr[i]
-        edges_to_use = [list(set(vertices[e[vid]].ownEdges) & 
-                        set(vertices[e[vid+1]].ownEdges))[0]
-                        for vid in range(0, len(e)-1)]
+    for index, element in enumerate(frame.big_edges_list):
+        # e = earr[i]
+        edges_to_use = [list(set(frame.vertices[element[vid]].ownEdges) & 
+                        set(frame.vertices[element[vid+1]].ownEdges))[0]
+                        for vid in range(0, len(element)-1)]
         for e in edges_to_use:
-            edges[e].tension = float(xres[i])
+            frame.edges[e].tension = float(xres[index])
     
     # forces dictionary:
     f = True
@@ -84,23 +95,26 @@ def equations(vertices, edges, cells, earr, timeseries=None, at_time=None, exter
         forceDict[i] = val
     i = 0
 
-    extForces = {}
-    for vid in border_vertices:
-        current_border_id = np.where(np.array(border_vertices).astype(int) == vid)[0]
-        current_row = m.row(position_map[vid])
-        index = int(tote+current_border_id*2)
-        extForces[vid] = [current_row[index], current_row[int(index+1)]]
+    if type(externals_to_use) == list or \
+        externals_to_use == "all" or \
+        externals_to_use == "ext":
+        extForces = {}
+        for vid in frame.externals_to_use:
+            current_border_id = np.where(np.array(frame.border_vertices).astype(int) == vid)[0]
+            current_row = force_matrix.matrix.row(force_matrix.map_vid_to_row[vid])
+            index = int(tote+current_border_id*2)
+            extForces[vid] = [current_row[index], current_row[int(index+1)]]
 
-    for index, _ in extForces.items():
-        name1 = "F"+str(index)+"x"
-        name2 = "F"+str(index)+"y"
-        val1 = round(xres[tote+i], 3) * extForces[index][0]
-        val2 = round(xres[tote+i+1], 3) * extForces[index][1]
-        forceDict[name1] = val1
-        forceDict[name2] = val2
-        i += 1
+        for index, _ in extForces.items():
+            name1 = "F"+str(index)+"x"
+            name2 = "F"+str(index)+"y"
+            val1 = round(xres[tote+i], 3) * extForces[index][0]
+            val2 = round(xres[tote+i+1], 3) * extForces[index][1]
+            forceDict[name1] = val1
+            forceDict[name2] = val2
+            i += 1
 
-    return forceDict, xres, earr, position_map
+    return forceDict, xres, force_matrix.map_vid_to_row
 
 def log_force(fd):
     df = pd.DataFrame.from_dict(fd, orient='index')
@@ -112,8 +126,7 @@ def cost_function(x, m, b):
     cost = np.sum(np.linalg.norm(np.dot(m, x) - b))
     return cost
 
-def add_mean_one(mprime, b, total_edges, total_borders):
-    
+def add_mean_one(mprime, b, total_edges, total_borders): 
     ones = np.ones(total_edges)
     zeros = np.zeros(total_borders*2)
     additional_zero = np.zeros(1)

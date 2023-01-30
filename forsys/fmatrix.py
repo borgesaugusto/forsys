@@ -1,5 +1,5 @@
 import numpy as np
-from sympy import *
+from sympy import Matrix
 from dataclasses import dataclass, field
 from typing import Union
 from mpmath import mp
@@ -20,7 +20,6 @@ class ForceMatrix:
         self.map_vid_to_row = {}
         if type(self.externals_to_use) == str:
             if self.externals_to_use == 'all':
-                print("Experimental function, may not work properly")
                 # self.externals_to_use = list(np.array(ve.get_border_edge(self.frame.big_edges_list, 
                 #                                                         self.frame.vertices)).flatten())
                 raise(NotImplemented)
@@ -42,14 +41,12 @@ class ForceMatrix:
     def fmatrix(self):
         position_index = 0
         self.matrix = Matrix(())
-        # for vid in self.frame.vertices.keys():
         tj_vertices = list(set([big_edge[0] for big_edge in self.big_edges_to_use]))
         for vid in tj_vertices:
             row_x, row_y = self.get_row(vid)
             non_zero_x = np.count_nonzero(row_x)
             non_zero_y = np.count_nonzero(row_y)
             if non_zero_x >= 3 and non_zero_y >= 3:
-            # if not np.all(np.array(row_x) == 0) or not np.all(np.array(row_y) == 0):
                 self.map_vid_to_row[vid] = position_index
                 position_index += 2
                 if len(self.matrix) == 0:
@@ -118,30 +115,43 @@ class ForceMatrix:
     def get_vertex_equation(self, vid):
         arrx = np.zeros(len(self.big_edges_to_use))
         arry = np.zeros(len(self.big_edges_to_use))
-        for el in ve.get_versors(self.frame.vertices, self.frame.edges, vid):
-            # if not el[3] and len(frame.vertices[vid].ownCells) >= 2:
-            if not el[3] and len(self.frame.vertices[vid].ownCells) > 2:
-            # if len(self.frame.vertices[vid].ownEdges) > 2:
-            # if True:
-                pos = ve.eid_from_vertex(self.big_edges_to_use, el[2])
-                xc_2, yc_2 = ve.get_circle_params(self.big_edges_to_use[pos], 
-                                                    self.frame.vertices)
-                v0 = self.frame.vertices[vid]
-                ####TODO: Correct the right angle !!
-        
-                versor = np.array((- (v0.y - yc_2), (v0.x - xc_2)))
-
-                if el[2][0] != vid:
-                    versor = -1 * versor
-
-                if np.sign(el[0]) != np.sign(versor[0]):
-                    versor[0] = versor[0] * -1
-                if np.sign(el[1]) != np.sign(versor[1]):
-                    versor[1] = versor[1] * -1
-
-                versor = versor / np.linalg.norm(versor)
+        vertex = self.frame.vertices[vid]
+        vertex_big_edges = [self.frame.big_edges[beid] for beid in vertex.own_big_edges]
+        for big_edge in vertex_big_edges:
+            if not big_edge.external and len(vertex.ownCells) > 2:
+                pos = ve.eid_from_vertex(self.big_edges_to_use, big_edge.get_vertices_ids())
+                versor = big_edge.get_versor_from_vertex(vid)
+    
                 arrx[pos] = versor[0]
                 arry[pos] = versor[1]
+
+        return arrx, arry
+
+
+        # for el in ve.get_versors(self.frame.vertices, self.frame.edges, vid):
+        #     # if not el[3] and len(frame.vertices[vid].ownCells) >= 2:
+        #     if not el[3] and len(self.frame.vertices[vid].ownCells) > 2:
+        #     # if len(self.frame.vertices[vid].ownEdges) > 2:
+        #     # if True:
+        #         pos = ve.eid_from_vertex(self.big_edges_to_use, el[2])
+        #         xc_2, yc_2 = ve.get_circle_params(self.big_edges_to_use[pos], 
+        #                                             self.frame.vertices)
+        #         v0 = self.frame.vertices[vid]
+        #         ####TODO: Correct the right angle !!
+        
+        #         versor = np.array((- (v0.y - yc_2), (v0.x - xc_2)))
+
+        #         if el[2][0] != vid:
+        #             versor = -1 * versor
+
+        #         if np.sign(el[0]) != np.sign(versor[0]):
+        #             versor[0] = versor[0] * -1
+        #         if np.sign(el[1]) != np.sign(versor[1]):
+        #             versor[1] = versor[1] * -1
+
+        #         versor = versor / np.linalg.norm(versor)
+        #         arrx[pos] = versor[0]
+        #         arry[pos] = versor[1]
         return arrx, arry
 
     def solve(self, timeseries=None, **kwargs):
