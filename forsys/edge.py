@@ -131,4 +131,5 @@ class BigEdge:
 
         v1 = self.get_vertex_object_by_id(next_vid)
         versor = [v1.x - v0.x, v1.y - v0.y]
-        return np.sign(versor)
+        signs = np.sign(versor) 
+        return [1.0 if sign == 0 else sign for sign in signs]

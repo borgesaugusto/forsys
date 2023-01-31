@@ -89,6 +89,8 @@ class Frame():
         
         for big_edge_id, big_edge in enumerate(big_edges_to_use):
             big_edge.gt = gt_tensions[big_edge_id]
+            for edge_id in big_edge.edges:
+                self.edges[edge_id].gt = big_edge.gt
 
     def assign_tensions_to_big_edges(self):
         # construct the big edges and average the tensions that were obtained
