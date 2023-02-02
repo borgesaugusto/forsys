@@ -96,11 +96,15 @@ class BigEdge:
         center_2, _ = sco.leastsq(objective_f, (np.mean(self.xs), np.mean(self.ys)))
         return center_2[0], center_2[1]
 
-    def get_versor_from_vertex(self, vid) -> list:
+    def get_versor_from_vertex(self, vid, method="edge", cell=None) -> list:
         vobject = self.get_vertex_object_by_id(vid)
-
-        xc, yc = self.get_circle_parameters()
-
+        if method == "edge":
+            xc, yc = self.get_circle_parameters()
+        elif method == "cell" and cell:
+            xc, yc = cell.center_x, cell.center_y
+        else:
+            raise Exception("Method for versor doesn't exist or cell missing")
+        
         versor = np.array((- (vobject.y - yc), (vobject.x - xc)))
         versor = versor / np.linalg.norm(versor)
         # correct for the sign

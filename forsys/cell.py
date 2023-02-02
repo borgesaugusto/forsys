@@ -13,8 +13,13 @@ class Cell:
         # check for repeated elements
         # vids = [v.id for v in self.vertices]
         # assert len(vids) == len(set(vids)), f"There are repeated vertices in cell {self.id}"
+        self.center_x = None
+        self.center_y = None
+        
         for v in self.vertices:
             v.add_cell(self.id)
+
+        self.calculate_circle_center()
         
     def __del__(self):
         for v in self.vertices:
@@ -68,3 +73,18 @@ class Cell:
             self.vertices[vertices_ids.index(vold.id)] = vnew
             # add cell to vertex
             vnew.add_cell(self.id)
+
+    def calculate_circle_center(self):
+        import scipy.optimize as sco
+        xs = [v.x for v in self.vertices]
+        ys = [v.y for v in self.vertices]
+
+        def objective_f(c):
+            """ calculate the algebraic distance between the data points and the mean circle centered at c=(xc, yc) """
+            distances = np.sqrt((xs - c[0]) ** 2 + (ys - c[1]) ** 2)
+            return distances - distances.mean()
+
+        center_2, _ = sco.leastsq(objective_f, (np.mean(xs), np.mean(ys)))
+        self.center_x = center_2[0]
+        self.center_y = center_2[1]
+        return center_2[0], center_2[1]
