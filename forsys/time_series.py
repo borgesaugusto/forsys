@@ -14,7 +14,7 @@ class TimeSeries():
     initial_guess: list = field(default_factory=list)
 
     def __post_init__(self):
-        self.cutoff = 0.05
+        self.cutoff = 0.1
         self.accelerations = {}
         self.velocities = {}
         if not self.initial_guess:
@@ -83,10 +83,10 @@ class TimeSeries():
         evertices1 = {key: value for key, value in t1.vertices.items() if key in externalVertices1_ids.flatten()}
 
         # should we use all coordinates ?
-        xcoords0 = [v.x for v in evertices0.values()]
-        ycoords0 = [v.y for v in evertices0.values()]
-        xcoords1 = [v.x for v in evertices1.values()]
-        ycoords1 = [v.y for v in evertices1.values()]
+        xcoords0 = [v.x for v in rvertices0.values()]
+        ycoords0 = [v.y for v in rvertices0.values()]
+        xcoords1 = [v.x for v in rvertices1.values()]
+        ycoords1 = [v.y for v in rvertices1.values()]
         # self.maxcoord = max(xcoords0+ycoords0+xcoords1+ycoords1)
         if len(xcoords0) > 0:
             minx = min(xcoords0+xcoords1)

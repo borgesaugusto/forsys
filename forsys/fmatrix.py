@@ -127,33 +127,6 @@ class ForceMatrix:
 
         return arrx, arry
 
-
-        # for el in ve.get_versors(self.frame.vertices, self.frame.edges, vid):
-        #     # if not el[3] and len(frame.vertices[vid].ownCells) >= 2:
-        #     if not el[3] and len(self.frame.vertices[vid].ownCells) > 2:
-        #     # if len(self.frame.vertices[vid].ownEdges) > 2:
-        #     # if True:
-        #         pos = ve.eid_from_vertex(self.big_edges_to_use, el[2])
-        #         xc_2, yc_2 = ve.get_circle_params(self.big_edges_to_use[pos], 
-        #                                             self.frame.vertices)
-        #         v0 = self.frame.vertices[vid]
-        #         ####TODO: Correct the right angle !!
-        
-        #         versor = np.array((- (v0.y - yc_2), (v0.x - xc_2)))
-
-        #         if el[2][0] != vid:
-        #             versor = -1 * versor
-
-        #         if np.sign(el[0]) != np.sign(versor[0]):
-        #             versor[0] = versor[0] * -1
-        #         if np.sign(el[1]) != np.sign(versor[1]):
-        #             versor[1] = versor[1] * -1
-
-        #         versor = versor / np.linalg.norm(versor)
-        #         arrx[pos] = versor[0]
-        #         arry[pos] = versor[1]
-        return arrx, arry
-
     def solve(self, timeseries=None, **kwargs):
         np.seterr(all='raise')
         tote = len(self.big_edges_to_use)
@@ -165,7 +138,7 @@ class ForceMatrix:
             countBorder = 0
 
         b = Matrix(np.zeros(shapeM[0]))
-        b_matrix = kwargs.get("b_matrix", "none")
+        b_matrix = kwargs.get("b_matrix", None)
         if timeseries and  (b_matrix == "velocity" or b_matrix == "acceleration"):
             for vid in self.map_vid_to_row.keys():
                 if b_matrix == "velocity":
@@ -178,43 +151,40 @@ class ForceMatrix:
                 b[j] = value[0]
                 b[j+1] = value[1]
 
-
-        # normalize b vector
-        # b_norm = np.linalg.norm(np.array(b).astype(float))
-        mprime = self.matrix.T * self.matrix
-        b = self.matrix.T * b
-        # if b==0, just do NNLS
-        # if b_norm == 0:
-        #     only_nnls = True
-        # else:
-        #     only_nnls = False
-
-        mprime, b = self.add_mean_one(mprime, b, tote, countBorder)
+        if kwargs.get("method", None) == "fix_stress":
+            mprime, b, removed_index = self.fix_one_stress(b)
+        else:
+            mprime, b = self.add_mean_one(b)
+            removed_index = None
         b = Matrix([np.round(float(val), 3) for val in b])
 
         bprime = np.zeros(len(b))
         bprime[-2] = b[-2]
         bprime[-1] = b[-1]
     
-        # xres, rnorm = scop.nnls(mprime, mp.matrix(b), maxiter=200000)
-        # xres_bacc, rnorm_bacc = scop.nnls(mprime, mp.matrix(b), maxiter=200000)
+
         mprime = np.array(mprime).astype(np.float64)
         b = np.array(mp.matrix(b)).astype(np.float64)
 
         try:
             xres = Matrix(np.linalg.inv(mprime) * Matrix(b))
             
-            if np.any([x<0 for x in xres]) and not kwargs.get("allow_negatives", True):
+            if np.any([x<0 for x in xres[:-1]]) and not kwargs.get("allow_negatives", True):
                 print("Numerically solving due to negative values")
+                negative_edges = [self.big_edges_to_use[x_id] for x_id, x_val in enumerate(xres[:-1]) if x_val < 0]
+                print(f"Negatives edges: ", negative_edges)
                 xres, _ = scop.nnls(mprime, b, maxiter=100000)
+                xres = Matrix(xres)
         except np.linalg.LinAlgError:
             # then try with nnls
             print("Numerically solving due to singular matrix")
             xres, _ = scop.nnls(mprime, b, maxiter=100000)
-
-
+            xres = Matrix(xres)
+        # big_edges_solved = [element for index, element in enumerate(self.big_edges_to_use)
+        #                         if index != removed_index]
+        if removed_index is not None:
+            xres = xres.row_insert(removed_index, Matrix([1]))
         for index, element in enumerate(self.big_edges_to_use):
-            # e = earr[i]
             edges_to_use = [list(set(self.frame.vertices[element[vid]].ownEdges) & 
                             set(self.frame.vertices[element[vid+1]].ownEdges))[0]
                             for vid in range(0, len(element)-1)]
@@ -251,8 +221,11 @@ class ForceMatrix:
 
         return self.force_dictionary
 
-    @staticmethod
-    def add_mean_one(mprime, b, total_edges, total_borders): 
+    def add_mean_one(self, b): 
+        mprime = self.matrix.T * self.matrix
+        b = self.matrix.T * b
+        total_edges = len(self.big_edges_to_use)
+        total_borders = len(self.externals_to_use)
         ones = np.ones(total_edges)
         zeros = np.zeros(total_borders*2)
         additional_zero = np.zeros(1)
@@ -284,3 +257,20 @@ class ForceMatrix:
             b[b.shape[0]-1,b.shape[1]-1] = 0
 
         return mprime, b
+
+    def fix_one_stress(self, b, column_to_fix=None, value_to_fix_to=1):
+        # Replace column with the most connections
+        if not column_to_fix:
+            non_zero_count = [np.count_nonzero(self.matrix.col(col_id)) 
+                            for col_id in range(0, self.matrix.shape[1])]
+            max_index = np.argmax(non_zero_count)
+            b = b - value_to_fix_to * self.matrix.col(max_index)
+            self.matrix.col_del(max_index)
+        else:
+            raise(NotImplementedError)
+        
+        mprime = self.matrix.T * self.matrix
+        b = self.matrix.T * b
+
+        return mprime, b, max_index
+
