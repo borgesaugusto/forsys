@@ -143,6 +143,13 @@ class Frame():
             
         return df.to_csv(os.path.join(folder, fname), index=False)
 
-    # def get_triple_junctions(self):
-        # tj_vertices = list(set([big_edge[0] for big_edge in self.big_edges_to_use]))
-        # tjs = [big_edge for big_edge in self.big_edges]
+    def get_big_edge_by_cells(self, c1_id: int, c2_id: int) -> fedge.BigEdge:
+        cell_1 = self.cells[c1_id]
+        cell_2 = self.cells[c2_id]
+    
+        c1_vertices = [v.id for v in cell_1.vertices if len(v.ownEdges) < 3]
+        c2_vertices = [v.id for v in cell_2.vertices if len(v.ownEdges) < 3]
+        vertices_in_common = np.intersect1d(c1_vertices, 
+                                            c2_vertices)
+        shared_edge = list(set([edge for vid in vertices_in_common for edge in self.vertices[vid].own_big_edges]))
+        return self.big_edges[shared_edge[0]]
