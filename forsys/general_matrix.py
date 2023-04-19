@@ -1,11 +1,8 @@
 import numpy as np
 from sympy import Matrix
 from dataclasses import dataclass, field
-from typing import Union
 from mpmath import mp
 import scipy.optimize as scop
-
-import forsys.virtual_edges as ve
 
 
 @dataclass
@@ -93,13 +90,10 @@ class GeneralMatrix:
             non_zero_count = [np.count_nonzero(self.lhs_matrix.col(col_id)) 
                             for col_id in range(0, self.lhs_matrix.shape[1])]
             max_index = np.argmax(non_zero_count)
-            b = b - value_to_fix_to * self.lhs_matrix.col(max_index)
+            self.rhs_matrix = self.rhs_matrix - value_to_fix_to * self.lhs_matrix.col(max_index)
             self.lhs_matrix.col_del(max_index)
         else:
             raise(NotImplementedError)
-        
-        # mprime = self.matrix.T * self.matrix
-        # b = self.matrix.T * b
 
         return self.lhs_matrix, self.rhs_matrix, max_index
     
@@ -109,3 +103,4 @@ class GeneralMatrix:
         least_squares_rhs_matrix = Matrix(lhs_matrix).T * Matrix(rhs_matrix)
 
         return least_squares_lhs_matrix, least_squares_rhs_matrix
+
