@@ -517,3 +517,64 @@ def plot_residues(frame, folder, normalized=False, maxForce=None,
     plt.savefig(name, dpi=500)
     plt.close()
     
+def plot_stress_tensor(frame, folder, fname, grid=5, radius=1, **kwargs):
+    # sigmas, bins_centers
+    frame.calculate_stress_tensor(grid, radius)
+    plt.close()
+    _, ax = plt.subplots(1,1)
+
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    
+    for _, edge in frame.edges.items():
+        plt.plot(   (edge.v1.x, edge.v2.x),
+                    (edge.v1.y, edge.v2.y),
+                    color="black", linewidth=0.5, alpha=0.6)
+
+    external_scale = kwargs.get("tensor_scale", 1)
+    try:
+        scale_factor = (external_scale/10) * min(frame.stress_tensor[1][0][0] - frame.stress_tensor[1][0][1],
+                                                frame.stress_tensor[1][1][0] - frame.stress_tensor[1][1][1])
+    except IndexError:
+        scale_factor = (external_scale/10) * 0.1 * min(frame.stress_tensor[1][0][0],
+                                                       frame.stress_tensor[1][1][0] )
+
+    _, _, bin_edges = frame.stress_tensor
+    
+    for xline in bin_edges[0]:
+        plt.axvline(xline, ls="--", color="gray", alpha=0.3)
+    for yline in bin_edges[1]:
+        plt.axhline(yline, ls="--", color="gray", alpha=0.3)
+
+
+    for positions, eigensystem in frame.principal_stress.items():
+        component1 = scale_factor * eigensystem[0][0] * eigensystem[1][:, 0]
+        component2 = scale_factor * eigensystem[0][1] * eigensystem[1][:, 1]
+        
+        axis_1_x = [positions[0] - component1[0], positions[0], positions[0] + component1[0]]
+        axis_1_y = [positions[1] - component1[1], positions[1], positions[1] + component1[1]]
+        axis_2_x = [positions[0] - component2[0], positions[0], positions[0] + component2[0]]
+        axis_2_y = [positions[1] - component2[1], positions[1], positions[1] + component2[1]]
+
+        plt.plot(axis_1_x, axis_1_y, color="green", linewidth=2)
+        plt.plot(axis_2_x, axis_2_y, color="green", linewidth=2)
+
+
+
+        # points_y = [positions[1], positions[1], positions[1] + component1[0]]
+
+
+        # plt.arrow(positions[0], positions[1], component1[0], component1[1], color="green")
+        # plt.arrow(positions[0], positions[1], component2[0], component2[1], color="green")
+
+
+    # plt.axis('off')
+    
+    if kwargs.get("mirror_y", None):
+        plt.gca().invert_yaxis()
+    
+
+    name = os.path.join(folder, str(fname))
+    plt.tight_layout()
+    plt.savefig(name, dpi=500)
+    plt.close()
