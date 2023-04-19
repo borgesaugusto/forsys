@@ -29,8 +29,8 @@ def furrow():
     yield forsys
 
 def test_fit_initial_furrow(furrow):
-    furrow.build_matrix(when=0)
-    furrow.solve(when=0)
+    furrow.build_force_matrix(when=0)
+    furrow.solve_stress(when=0)
 
     tensions_df = furrow.frames[0].get_tensions()
 
@@ -40,8 +40,8 @@ def test_fit_initial_furrow(furrow):
 
 def test_fit_last_furrow(furrow):
     last_frame = len(furrow.frames) - 1
-    furrow.build_matrix(when=last_frame)
-    furrow.solve(when=last_frame)
+    furrow.build_force_matrix(when=last_frame)
+    furrow.solve_stress(when=last_frame)
     
     tensions_df = furrow.frames[last_frame].get_tensions()
 
@@ -52,8 +52,8 @@ def test_fit_last_furrow(furrow):
 def test_fit_furrow_movement_velocity(furrow):
     all_r_values = []
     for ii in furrow.frames.keys():
-        furrow.build_matrix(when=ii)
-        furrow.solve(when=ii, b_matrix="velocity")
+        furrow.build_force_matrix(when=ii)
+        furrow.solve_stress(when=ii, b_matrix="velocity")
         tensions_df = furrow.frames[ii].get_tensions()
         r_value = distance_to_yeqx(tensions_df['gt'].values / tensions_df['gt'].mean(), 
                                     tensions_df['tension'].values)

@@ -21,32 +21,32 @@ class Frame():
 
     surface_evolver: bool=False
 
+    stress_tensor: dict = field(default_factory=dict)
+
     def __post_init__(self):
         self.big_edge_gt_tension = {}
         self.big_edge_tension = {}
         self.big_edges = {}
-        # self.earr = ve.create_edges(self.cells)
+
         self.big_edges_list = fs.virtual_edges.create_edges_new(self.vertices, self.cells)
         # create big edge objects
         for big_edge_id, big_edge in enumerate(self.big_edges_list):
             vertices_objects = [self.vertices[vid] for vid in big_edge]
             self.big_edges[big_edge_id] = fedge.BigEdge(big_edge_id, vertices_objects)
 
-        # if self.surface_evolver:
-            # self.big_edges_list, self.border_vertices = fs.virtual_edges.get_big_edges_se(self)
-            # self.earr = self.big_edges_list
-        # else:
-        #     # self.big_edges_list = self.earr
-            # self.border_vertices = fs.virtual_edges.get_border_from_angles_new(self.big_edges_list, 
-            #                                                     self.vertices)
-
         self.external_edges_id = [self.big_edges_list.index(e) 
                                     for e in fs.virtual_edges.get_border_edge(self.big_edges_list, 
                                                                 self.vertices)]
-        self.internal_big_edges = [edge for eid, edge in enumerate(self.big_edges_list) 
+        
+        self.internal_big_edges_vertices = [edge for eid, edge in enumerate(self.big_edges_list) 
+                                        if eid not in self.external_edges_id and 
+                                        (len(self.vertices[edge[0]].ownCells) > 2 or  
+                                        len(self.vertices[edge[-1]].ownCells) > 2)]
+        self.internal_big_edges = [self.big_edges[eid] for eid, edge in enumerate(self.big_edges_list) 
                                     if eid not in self.external_edges_id and 
                                     (len(self.vertices[edge[0]].ownCells) > 2 or  
                                     len(self.vertices[edge[-1]].ownCells) > 2)]
+        # self.internal_big_edges = []
 
         self.border_vertices = self.get_external_edges()
         # add gt values
@@ -111,6 +111,11 @@ class Frame():
             for small_edge_id in edges_to_use:
                 self.edges[small_edge_id].gt = ground_truth[edge_id]
 
+    def assign_pressures(self, pressures):
+        for cid, cell in self.cells.items():
+            key_to_use = list(self.cells.keys()).index(cid)
+            cell.pressure = pressures[key_to_use]
+
     def get_big_edge_edgesid(self, big_edge_vertices):
         # TODO legacy function to-remove
         # e = self.big_edges_list[beid]
@@ -128,6 +133,16 @@ class Frame():
             df = df.loc[~df.id.isin(self.get_external_edges_ids())]
 
         return df
+
+    def get_pressures(self):
+        pressure_df = pd.DataFrame.from_dict({cid: cell.gt_pressure for cid, cell in self.cells.items()}.items()).rename(columns={0: id, 1: "gt_pressure"})
+        inferred_pressures = [cell.pressure for cell in self.cells.values()]
+        pressure_df["pressures"] = inferred_pressures
+
+        # pressure_df["gt_pressure"] = pressure_df["gt_pressure"] / pressure_df["gt_pressure"].mean()
+        # pressure_df["pressures"] = pressure_df["pressures"] / pressure_df["pressures"].mean()
+
+        return pressure_df
 
     def export_tensions(self, fname, folder="", is_gt=True, with_border=False):
         if is_gt:
@@ -153,3 +168,16 @@ class Frame():
                                             c2_vertices)
         shared_edge = list(set([edge for vid in vertices_in_common for edge in self.vertices[vid].own_big_edges]))
         return self.big_edges[shared_edge[0]]
+
+    def calculate_stress_tensor(self, coarsing=5, radius=1):
+        self.stress_tensor = fs.stress_tensor.stress_tensor(self, coarsing, radius)
+
+        self.principal_stress = {}
+
+        for row in range(len(self.stress_tensor[1][0])):
+            for column in range(len(self.stress_tensor[1][1])):
+                principal_component = np.linalg.eig(self.stress_tensor[0][f"{row}{column}"])
+                self.principal_stress[(self.stress_tensor[1][0][row], 
+                                            self.stress_tensor[1][1][column])] = principal_component
+
+

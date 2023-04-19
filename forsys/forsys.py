@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 import forsys.time_series as ts
 import forsys.fmatrix as fmatrix
+import forsys.pmatrix as pmatrix
 import forsys.frames as fsframes
 @dataclass
 class ForSys():
@@ -20,23 +21,36 @@ class ForSys():
         else:
             self.mesh = {}
         
-        self.matrices = {}
-        self.results = {}
+        self.force_matrices = {}
+        self.pressure_matrices = {}
+        self.forces = {k: None for k in range(len(self.frames))}
+        self.pressures = {k: None for k in range(len(self.frames))}
 
     
-    def build_matrix(self, when: int = 0, term: str = "none", metadata:dict = {}):
+    def build_force_matrix(self, when: int = 0, term: str = "none", metadata:dict = {}):
         # TODO: add matrix caching
-        self.matrices[when] = fmatrix.ForceMatrix(self.frames[when],
+        self.force_matrices[when] = fmatrix.ForceMatrix(self.frames[when],
                                 # externals_to_use = self.frames[when].border_vertices,
                                 externals_to_use = 'none',
                                 term=term,
                                 metadata=metadata,
                                 timeseries=self.mesh)
 
-    def solve(self, when: int = 0, **kwargs) -> None:
-        self.results[when] = self.matrices[when].solve(self.mesh, **kwargs)
-        self.frames[when].forces = self.results[when]
+    def build_pressure_matrix(self, when: int = 0):
+        # TODO: add matrix caching
+        self.pressure_matrices[when] = pmatrix.PressureMatrix(self.frames[when],
+                                                              timeseries=self.mesh)
+        
+
+    def solve_stress(self, when: int = 0, **kwargs) -> None:
+        self.forces[when] = self.force_matrices[when].solve(self.mesh, **kwargs)
+        self.frames[when].forces = self.forces[when]
         self.frames[when].assign_tensions_to_big_edges()
+        
+    def solve_pressure(self, when: int=0, **kwargs):
+        assert type(self.forces[when]) is not None, "Forces must be calculated first"
+        self.pressures = self.pressure_matrices[when].solve_system(**kwargs)
+        self.frames[when].assign_pressures(self.pressures)
         
     def get_accelerations():
         raise(NotImplementedError)

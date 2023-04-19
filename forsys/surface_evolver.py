@@ -30,7 +30,8 @@ class SurfaceEvolver:
         cells = {}
         for _, r in self.get_cells().iterrows():
             vlist = [edges[abs(e)].v1 if e > 0 else edges[abs(e)].v2 for e in r.edges]
-            cells[int(r.id)] = cell.Cell(int(r.id), vlist, {})
+            gt_pressure = round(r["pressures"], 4)
+            cells[int(r.id)] = cell.Cell(int(r.id), vlist, gt_pressure=gt_pressure)
 
         # delete all vertices and edges with no cell
         vertex_to_delete = []
@@ -60,17 +61,21 @@ class SurfaceEvolver:
             f.seek(0)
             ini_f = next(index for index, line in enumerate(f) if line.startswith("faces  "))
             fin_f = next(index for index, line in enumerate(f) if line.startswith("bodies  ")) + ini_f
+            f.seek(0)
+            ini_p = next(index for index, line in enumerate(f) if line.startswith("bodies  "))
+            fin_p = next(index for index, line in enumerate(f) if line.startswith("read")) + ini_p
 
         self.index_v = (ini_v, fin_v)
         self.index_e = (ini_e, fin_e)
         self.index_f = (ini_f, fin_f)
+        self.index_pressures = (ini_p, fin_p)
 
-        return self.index_v, self.index_e, self.index_f
+        return self.index_v, self.index_e, self.index_f, self.index_pressures
 
 
     def get_first_last(self):
         try:
-            return self.index_v, self.index_e, self.index_f
+            return self.index_v, self.index_e, self.index_f, self.index_pressures
         except AttributeError:
             return self.calculate_first_last()
     
@@ -80,7 +85,7 @@ class SurfaceEvolver:
         xs = []
         ys = []
 
-        index_v, _, _ = self.get_first_last()
+        index_v, _, _, _ = self.get_first_last()
 
         with open(os.path.join(self.fname), "r") as f:
             lines = f.readlines()
@@ -102,7 +107,7 @@ class SurfaceEvolver:
         id2 = []
         forces = []
 
-        _, index_e, _ = self.get_first_last()
+        _, index_e, _, _ = self.get_first_last()
 
         with open(os.path.join(self.fname), "r") as f:
             lines = f.readlines()
@@ -123,7 +128,9 @@ class SurfaceEvolver:
         ids = []
         edges = []
 
-        _, _, index_f = self.get_first_last()
+        pressure_dict = self.get_pressures()
+
+        _, _, index_f, _ = self.get_first_last()
 
         with open(os.path.join(self.fname), "r") as f:
             lines = f.readlines()
@@ -151,5 +158,18 @@ class SurfaceEvolver:
         
         cells['id'] = ids
         cells['edges'] = edges
+        cells["pressures"] = pressure_dict.values()
 
         return cells
+    
+    def get_pressures(self) -> dict:
+        pressures = {}
+        _, _, _, index_p = self.get_first_last()
+        with open(os.path.join(self.fname), "r") as f:
+            lines = f.readlines()
+
+            for i in range(index_p[0] + 1, index_p[1]):
+                splitted = lines[i].split()
+                pressures[int(splitted[0])] = float(splitted[7])
+        return pressures
+

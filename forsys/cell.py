@@ -5,8 +5,10 @@ import numpy as np
 class Cell:
     id: int
     vertices: list
-    ctype: dict
     is_border: bool = False
+    
+    gt_pressure: float = None
+    pressure: float = None
 
 
     def __post_init__(self):

@@ -65,6 +65,13 @@ class BigEdge:
         self.edges = [list(set(self.vertices[vid].ownEdges) &
                            set(self.vertices[vid + 1].ownEdges))[0]
                       for vid in range(0, len(self.vertices) - 1)]
+        
+        # self.own_cell = list(set([list(set(self.vertices[vid].ownCells) &
+        #                    set(self.vertices[vid + 1].ownCells))[0]
+        #               for vid in range(0, len(self.vertices) - 1)]))[0]
+        # use the cells of the vertex that is in the middle
+        self.own_cells = self.vertices[(len(self.vertices) - 1) // 2].ownCells
+        
         # check if I am external
         vertices_own_cells = [len(vertex.ownCells) < 2 for vertex in self.vertices]
         has_junction_at_extremes = True if len(self.vertices[0].ownCells) > 2 \
@@ -73,14 +80,22 @@ class BigEdge:
             else False
 
     def calculate_curvature(self):
-        dxdt = np.gradient(self.curve[:, 0])
-        dydt = np.gradient(self.curve[:, 1])
-
-        d2xdt2 = np.gradient(dxdt)
-        d2ydt2 = np.gradient(dydt)
-        curvature = np.abs(d2xdt2 * dydt - dxdt * d2ydt2) / (dxdt ** 2 + dydt ** 2) ** 1.5
-
+        dx_dt = np.gradient(self.xs)
+        dy_dt = np.gradient(self.ys)
+        d2x_dt2 = np.gradient(dx_dt)
+        d2y_dt2 = np.gradient(dy_dt)
+        curvature = (d2x_dt2 * dy_dt - dx_dt * d2y_dt2) / ((dx_dt**2 + dy_dt**2)**1.5)
+        
         return curvature
+
+    def calculate_total_curvature(self, normalized=True):
+        curvatures = self.calculate_curvature()
+        ds = np.sqrt(np.diff(self.xs)**2 + np.diff(self.ys)**2)
+        total_curvature = np.sum((curvatures[1:] + curvatures[:-1])/2 * ds)
+        if normalized:
+            curve_length = np.sum(np.sqrt(np.diff(self.xs)**2 + np.diff(self.ys)**2))
+            total_curvature = total_curvature / curve_length
+        return total_curvature
 
     def get_circle_parameters(self):
         import scipy.optimize as sco
@@ -97,6 +112,11 @@ class BigEdge:
         return center_2[0], center_2[1]
 
     def get_versor_from_vertex(self, vid, method="edge", cell=None) -> list:
+        vector = self.get_vector_from_vertex(vid, method, cell)
+        versor = vector / np.linalg.norm(vector)
+        return versor
+    
+    def get_vector_from_vertex(self, vid, method="edge", cell=None) -> list:
         vobject = self.get_vertex_object_by_id(vid)
         if method == "edge":
             xc, yc = self.get_circle_parameters()
@@ -105,14 +125,13 @@ class BigEdge:
         else:
             raise Exception("Method for versor doesn't exist or cell missing")
         
-        versor = np.array((- (vobject.y - yc), (vobject.x - xc)))
-        versor = versor / np.linalg.norm(versor)
+        vector = np.array((- (vobject.y - yc), (vobject.x - xc)))
         # correct for the sign
         correct_sign = self.get_versor_sign(vid)
-        if np.any(np.sign(versor) != correct_sign):
-            correction = correct_sign * np.sign(versor)
-            versor = versor * correction
-        return versor
+        if np.any(np.sign(vector) != correct_sign):
+            correction = correct_sign * np.sign(vector)
+            vector = vector * correction
+        return vector
 
     def get_vertex_object_by_id(self, vid: int) -> object:
         vertex_object = list(filter(lambda x: x.id == vid, self.vertices))

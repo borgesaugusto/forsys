@@ -30,15 +30,16 @@ class ForceMatrix:
             else:
                 # Only solve on the triple junctions
                 self.externals_to_use = []
-                self.big_edges_to_use = self.frame.internal_big_edges
+                # TODO: make it work with the general matrix solver using self.frame.internal_big_edges
+                self.big_edges_to_use = self.frame.internal_big_edges_vertices
 
         # TODO implement bigedge class and map
         # self.map_bigedge_to_column = {}
 
-        self.matrix = self.fmatrix()
+        self.matrix = self._build_matrix()
 
 
-    def fmatrix(self):
+    def _build_matrix(self):
         position_index = 0
         self.matrix = Matrix(())
         tj_vertices = list(set([big_edge[0] for big_edge in self.big_edges_to_use]))
@@ -132,10 +133,6 @@ class ForceMatrix:
         tote = len(self.big_edges_to_use)
 
         shapeM = self.matrix.shape
-        if self.externals_to_use:
-            countBorder = int((shapeM[1] - tote) / 2)
-        else:
-            countBorder = 0
 
         b = Matrix(np.zeros(shapeM[0]))
         b_matrix = kwargs.get("b_matrix", None)
@@ -158,9 +155,9 @@ class ForceMatrix:
             removed_index = None
         b = Matrix([np.round(float(val), 3) for val in b])
 
-        bprime = np.zeros(len(b))
-        bprime[-2] = b[-2]
-        bprime[-1] = b[-1]
+        # bprime = np.zeros(len(b))
+        # bprime[-2] = b[-2]
+        # bprime[-1] = b[-1]
     
 
         mprime = np.array(mprime).astype(np.float64)
