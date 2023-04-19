@@ -25,7 +25,7 @@ def extra_cell():
     yield forsys
 
 def test_fmatrix_three_non_zero(extra_cell):
-    extra_cell.build_matrix()
-    extra_cell.solve()
+    extra_cell.build_force_matrix()
+    extra_cell.solve_stress()
 
     assert not np.any(extra_cell.frames[0].forces == 0)
