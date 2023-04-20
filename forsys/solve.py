@@ -47,6 +47,8 @@ def equations(frame, timeseries=None, at_time=None, externals_to_use='', term='e
     # b_norm = np.linalg.norm(np.array(b).astype(float))
     mprime = force_matrix.matrix.T * force_matrix.matrix
     b = force_matrix.matrix.T * b
+
+    print("sssssssss")
     # if b==0, just do NNLS
     # if b_norm == 0:
     #     only_nnls = True

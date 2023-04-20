@@ -37,6 +37,7 @@ class ForceMatrix:
         # self.map_bigedge_to_column = {}
 
         self.matrix = self._build_matrix()
+        self.rhs = None
 
 
     def _build_matrix(self):
@@ -154,6 +155,8 @@ class ForceMatrix:
             mprime, b = self.add_mean_one(b)
             removed_index = None
         b = Matrix([np.round(float(val), 3) for val in b])
+        rounded_b = np.array(list(b.T), dtype=np.float64).round(4)
+        self.rhs = rounded_b
 
         # bprime = np.zeros(len(b))
         # bprime[-2] = b[-2]
