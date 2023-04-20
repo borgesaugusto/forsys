@@ -85,11 +85,14 @@ def stress_tensor(frame, grid=5, radius=1):
             current_edges_mesh = big_edges.loc[(big_edges["cell1"]).isin(current_cell_mesh["ids"]) |
                                                (big_edges["cell2"].isin(current_cell_mesh["ids"]))]
             
+            tension_xx = 0
+            tension_yy = 0
+            tension_xy = 0
             for _, bedge in current_edges_mesh.iterrows():
                 vector_norm = np.linalg.norm(bedge["vector"])
-                tension_xx = bedge["stress"] * (bedge["vector"][0] * bedge["vector"][0])/vector_norm 
-                tension_yy = bedge["stress"] * (bedge["vector"][1] * bedge["vector"][1])/vector_norm 
-                tension_xy = bedge["stress"] * (bedge["vector"][0] * bedge["vector"][1])/vector_norm 
+                tension_xx += bedge["stress"] * (bedge["vector"][0] * bedge["vector"][0]) / vector_norm 
+                tension_yy += bedge["stress"] * (bedge["vector"][1] * bedge["vector"][1]) / vector_norm 
+                tension_xy += bedge["stress"] * (bedge["vector"][0] * bedge["vector"][1]) / vector_norm 
 
             sigma_xx = (pressure_area_term + tension_xx) / total_area
             sigma_yy = (pressure_area_term + tension_yy) / total_area

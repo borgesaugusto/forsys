@@ -12,7 +12,6 @@ class PressureMatrix(forsys_general_matrix.GeneralMatrix):
     def __init__(self, frame, timeseries):
         super().__init__(frame, timeseries)
         self._build_matrix()
-        pass
 
     def _build_matrix(self):
         # go over each big edge

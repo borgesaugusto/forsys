@@ -139,9 +139,6 @@ class Frame():
         inferred_pressures = [cell.pressure for cell in self.cells.values()]
         pressure_df["pressures"] = inferred_pressures
 
-        # pressure_df["gt_pressure"] = pressure_df["gt_pressure"] / pressure_df["gt_pressure"].mean()
-        # pressure_df["pressures"] = pressure_df["pressures"] / pressure_df["pressures"].mean()
-
         return pressure_df
 
     def export_tensions(self, fname, folder="", is_gt=True, with_border=False):
