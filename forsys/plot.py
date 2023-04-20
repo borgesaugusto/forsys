@@ -140,7 +140,7 @@ def plot_with_force_custom_fd(vertices, edges, cells, step, folder, fd,
     plt.close()
 
 
-def plot_with_force(frame, folder, step, versors=False, maxForce=None, 
+def plot_inference(frame, folder, step, pressure=False, maxForce=None, 
                         minForce=None, normalized=False, mirror_y=False, **kwargs):
     plt.close()
     jet = plt.get_cmap('jet')
@@ -179,6 +179,17 @@ def plot_with_force(frame, folder, step, versors=False, maxForce=None,
             plt.plot(   (edge.v1.x, edge.v2.x),
                         (edge.v1.y, edge.v2.y),
                         color=color, linewidth=3)
+            
+    if pressure:
+        pressures = frame.get_pressures()["pressures"]
+        pressures_cb = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=pressures.min(), vmax=pressures.max()))
+        for _, cell in frame.cells.items():
+            color_to_fill = pressures_cb.to_rgba(float(cell.pressure))
+            all_xs = [v.x for v in cell.get_cell_vertices()]
+            all_ys = [v.y for v in cell.get_cell_vertices()]
+            plt.fill(all_xs, all_ys, color_to_fill, alpha=0.4)
+        plt.colorbar(pressures_cb)
+
     plt.axis('off')
     if mirror_y:
         plt.gca().invert_yaxis()
@@ -539,17 +550,18 @@ def plot_stress_tensor(frame, folder, fname, grid=5, radius=1, **kwargs):
         scale_factor = (external_scale/10) * 0.1 * min(frame.stress_tensor[1][0][0],
                                                        frame.stress_tensor[1][1][0] )
 
-    _, _, bin_edges = frame.stress_tensor
+    # _, _, bin_edges = frame.stress_tensor
     
-    for xline in bin_edges[0]:
-        plt.axvline(xline, ls="--", color="gray", alpha=0.3)
-    for yline in bin_edges[1]:
-        plt.axhline(yline, ls="--", color="gray", alpha=0.3)
+    # for xline in bin_edges[0]:
+    #     plt.axvline(xline, ls="--", color="gray", alpha=0.3)
+    # for yline in bin_edges[1]:
+    #     plt.axhline(yline, ls="--", color="gray", alpha=0.3)
 
 
     for positions, eigensystem in frame.principal_stress.items():
-        component1 = scale_factor * eigensystem[0][0] * eigensystem[1][:, 0]
-        component2 = scale_factor * eigensystem[0][1] * eigensystem[1][:, 1]
+        rescaled_eigenvalues = eigensystem[0] / np.linalg.norm(eigensystem[0])
+        component1 = scale_factor * rescaled_eigenvalues[0] * eigensystem[1][:, 0]
+        component2 = scale_factor * rescaled_eigenvalues[1] * eigensystem[1][:, 1]
         
         axis_1_x = [positions[0] - component1[0], positions[0], positions[0] + component1[0]]
         axis_1_y = [positions[1] - component1[1], positions[1], positions[1] + component1[1]]
