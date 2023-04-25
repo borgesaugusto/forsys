@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import os
 import numpy as np
 import forsys.virtual_edges as ve
@@ -185,9 +186,11 @@ def plot_inference(frame, folder, step, pressure=False, maxForce=None,
         pressures_cb = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=pressures.min(), vmax=pressures.max()))
         for _, cell in frame.cells.items():
             color_to_fill = pressures_cb.to_rgba(float(cell.pressure))
+            color_to_fill = mpl.colors.to_hex(color_to_fill)
             all_xs = [v.x for v in cell.get_cell_vertices()]
             all_ys = [v.y for v in cell.get_cell_vertices()]
             plt.fill(all_xs, all_ys, color_to_fill, alpha=0.4)
+    if kwargs.get("colorbar", False):
         plt.colorbar(pressures_cb)
 
     plt.axis('off')
@@ -198,7 +201,7 @@ def plot_inference(frame, folder, step, pressure=False, maxForce=None,
         sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=0, vmax=1))
         plt.colorbar(sm)
     
-    name = os.path.join(folder, str(step) + ".png")
+    name = os.path.join(folder, str(step))
     plt.tight_layout()
     plt.savefig(name, dpi=500)
     plt.close()
@@ -559,7 +562,11 @@ def plot_stress_tensor(frame, folder, fname, grid=5, radius=1, **kwargs):
 
 
     for positions, eigensystem in frame.principal_stress.items():
-        rescaled_eigenvalues = eigensystem[0] / np.linalg.norm(eigensystem[0])
+        eigen_norm = np.linalg.norm(eigensystem[0])
+        if eigen_norm == 0:
+            rescaled_eigenvalues = [0, 0]
+        else:
+            rescaled_eigenvalues = eigensystem[0] / eigen_norm
         component1 = scale_factor * rescaled_eigenvalues[0] * eigensystem[1][:, 0]
         component2 = scale_factor * rescaled_eigenvalues[1] * eigensystem[1][:, 1]
         
@@ -571,7 +578,8 @@ def plot_stress_tensor(frame, folder, fname, grid=5, radius=1, **kwargs):
         plt.plot(axis_1_x, axis_1_y, color="green", linewidth=2)
         plt.plot(axis_2_x, axis_2_y, color="green", linewidth=2)
 
-
+        # circle = plt.Circle((positions[0],  positions[1]), 11.9 * 3, alpha=0.2, color="green")
+        # ax.add_patch(circle)
 
         # points_y = [positions[1], positions[1], positions[1] + component1[0]]
 
@@ -580,7 +588,7 @@ def plot_stress_tensor(frame, folder, fname, grid=5, radius=1, **kwargs):
         # plt.arrow(positions[0], positions[1], component2[0], component2[1], color="green")
 
 
-    # plt.axis('off')
+    plt.axis('off')
     
     if kwargs.get("mirror_y", None):
         plt.gca().invert_yaxis()
