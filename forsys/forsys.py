@@ -125,10 +125,11 @@ class ForSys():
 
         del self.frames[0].cells[cell_id]
 
-        self.frames[frame_number] = fsframes.Frame(self.frames[frame_number].vertices, 
-                                                    self.frames[frame_number].edges, 
-                                                    self.frames[frame_number].cells, 
-                                                    time=self.frames[frame_number].time,
-                                                    gt=self.frames[frame_number].gt,
-                                                    surface_evolver=self.frames[frame_number].surface_evolver)
+        self.frames[frame_number] = fsframes.Frame(frame_number, 
+                                                   self.frames[frame_number].vertices, 
+                                                   self.frames[frame_number].edges, 
+                                                   self.frames[frame_number].cells, 
+                                                   time=self.frames[frame_number].time,
+                                                   gt=self.frames[frame_number].gt,
+                                                   surface_evolver=self.frames[frame_number].surface_evolver)
         return self.frames[frame_number]
