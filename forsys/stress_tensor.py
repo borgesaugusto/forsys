@@ -31,9 +31,11 @@ def get_big_edges_df(frame):
     bedges_celli = []
     bedges_cellj = []
 
+    bedges_vector = []
+
     bedges_ids = [big_edge.big_edge_id for _, big_edge in frame.big_edges.items()]
     bedges_stress = [big_edge.tension for _, big_edge in frame.big_edges.items()]
-    bedges_vector= [big_edge.get_vector_from_vertex(big_edge.vertices[0].id) for _, big_edge in frame.big_edges.items()]
+    # bedges_vector= [big_edge.get_vector_from_vertex(big_edge.vertices[0].id) for _, big_edge in frame.big_edges.items()]
     for _, big_edge in frame.big_edges.items():
         bedges_celli.append(big_edge.own_cells[0])
         try:
@@ -41,6 +43,11 @@ def get_big_edges_df(frame):
         except IndexError:
             bedges_cellj.append(-1)
 
+        orientation = np.dot(big_edge.xs, np.roll(big_edge.ys,1)) - np.dot(big_edge.ys, np.roll(big_edge.xs, 1))
+        if orientation > 0:
+            bedges_vector.append(big_edge.get_vector_from_vertex(big_edge.vertices[0].id))
+        else:
+            bedges_vector.append(big_edge.get_vector_from_vertex(big_edge.vertices[-1].id))
 
     bedges["ids"] = bedges_ids
     bedges["stress"] = bedges_stress
