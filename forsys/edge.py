@@ -70,7 +70,10 @@ class BigEdge:
         #                    set(self.vertices[vid + 1].ownCells))[0]
         #               for vid in range(0, len(self.vertices) - 1)]))[0]
         # use the cells of the vertex that is in the middle
-        self.own_cells = self.vertices[(len(self.vertices) - 1) // 2].ownCells
+        if len(self.vertices) == 2:
+            self.own_cells = list(set(self.vertices[0].ownCells) & set(self.vertices[1].ownCells))
+        else:
+            self.own_cells = self.vertices[(len(self.vertices) - 1) // 2].ownCells
         
         # check if I am external
         vertices_own_cells = [len(vertex.ownCells) < 2 for vertex in self.vertices]
