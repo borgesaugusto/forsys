@@ -13,13 +13,13 @@ def get_intensities(frame, tiff_path, normalized=True, method="average", **kwarg
 
     for be_id, big_edge in enumerate(big_edges_to_use):
         intensity = []
-        for vid in big_edge:
-            intensity = np.median(get_intensity(im, frame.vertices[vid], layer=1))
-            number_of_connections = len(frame.vertices[vid].ownEdges)
+        for vertex in big_edge.vertices:
+            intensity = np.median(get_intensity(im, vertex, layer=1))
+            number_of_connections = len(vertex.ownEdges)
             # Normalize by the number of edges connected to it
             intensity = intensity / number_of_connections
             if isinstance(kwargs.get("correction", False), float):
-                intensity = intensity + intensity_correction(frame.vertices[vid], kwargs['correction'])
+                intensity = intensity + intensity_correction(vertex, kwargs['correction'])
         try:
             key_to_use = big_edges_to_use.index(big_edge)
         except ValueError:
