@@ -190,8 +190,8 @@ def plot_inference(frame, folder, step, pressure=False, maxForce=None,
             all_xs = [v.x for v in cell.get_cell_vertices()]
             all_ys = [v.y for v in cell.get_cell_vertices()]
             plt.fill(all_xs, all_ys, color_to_fill, alpha=0.4)
-    if kwargs.get("colorbar", False):
-        plt.colorbar(pressures_cb)
+        if kwargs.get("colorbar", False):
+            plt.colorbar(pressures_cb)
 
     plt.axis('off')
     if mirror_y:
