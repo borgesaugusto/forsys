@@ -46,7 +46,9 @@ class Frame():
                                     if eid not in self.external_edges_id and 
                                     (len(self.vertices[edge[0]].ownCells) > 2 or  
                                     len(self.vertices[edge[-1]].ownCells) > 2)]
-        # self.internal_big_edges = []
+        
+        for _, cell in self.cells.items():
+            cell.calculate_neighbors()
 
         self.border_vertices = self.get_external_edges()
         # add gt values
@@ -111,9 +113,10 @@ class Frame():
             for small_edge_id in edges_to_use:
                 self.edges[small_edge_id].gt = ground_truth[edge_id]
 
-    def assign_pressures(self, pressures):
+    def assign_pressures(self, pressures, mapping):
         for cid, cell in self.cells.items():
-            key_to_use = list(self.cells.keys()).index(cid)
+            # key_to_use = list(self.cells.keys()).index(cid)
+            key_to_use = mapping[cid]
             cell.pressure = pressures[key_to_use]
 
     def get_big_edge_edgesid(self, big_edge_vertices):

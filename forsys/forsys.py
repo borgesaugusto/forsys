@@ -50,7 +50,7 @@ class ForSys():
     def solve_pressure(self, when: int=0, **kwargs):
         assert type(self.forces[when]) is not None, "Forces must be calculated first"
         self.pressures = self.pressure_matrices[when].solve_system(**kwargs)
-        self.frames[when].assign_pressures(self.pressures)
+        self.frames[when].assign_pressures(self.pressures, self.pressure_matrices[when].mapping_order)
         
     def get_accelerations():
         raise(NotImplementedError)

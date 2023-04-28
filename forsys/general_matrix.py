@@ -15,6 +15,7 @@ class GeneralMatrix:
         
         self.externals_to_use = []
         self.big_edges_to_use = self.frame.internal_big_edges
+        self.mapping_order = {}
 
         self.lhs_matrix = None
         self.rhs_matrix = None
@@ -61,6 +62,10 @@ class GeneralMatrix:
             xres = xres.row_insert(removed_index, Matrix([1]))
         
         self.solution = xres[:-1]
+        for _, val in self.mapping_order.items():
+            if val in self.removed_columns:
+                self.solution.insert(val, 0)
+
         return self.solution
 
     def add_lagrange_multiplier(self, lhs_matrix, rhs_matrix, constraint: float):

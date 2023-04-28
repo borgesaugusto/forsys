@@ -16,13 +16,28 @@ class PressureMatrix(forsys_general_matrix.GeneralMatrix):
     def _build_matrix(self):
         # go over each big edge
         self.rhs_matrix = np.zeros(len(self.big_edges_to_use))
+
+        self.mapping_order = {value: enumid for enumid, value in enumerate(self.frame.cells.keys())}
+
         for position_id, big_edge in enumerate(self.big_edges_to_use):
             lhs_row, rhs_value =  self.get_row(big_edge)
+            
             self.rhs_matrix[position_id] = rhs_value
             if not self.lhs_matrix:
                 self.lhs_matrix = Matrix(( [lhs_row] ))
             else:
                 self.lhs_matrix = self.lhs_matrix.row_insert(self.lhs_matrix.shape[0], Matrix(([lhs_row])))
+        
+        self.removed_columns = []
+        for column in range(self.lhs_matrix.shape[1]):
+            if np.all([val == 0 for val in self.lhs_matrix.col(column)]):
+                self.removed_columns.append(column)
+
+        ii = 0
+        for element in self.removed_columns:
+            self.lhs_matrix.col_del(element - ii)
+            # self.mapping_order["r_"+str(ii)] = element
+            ii += 1
 
         return self.lhs_matrix, self.rhs_matrix
 
@@ -32,12 +47,16 @@ class PressureMatrix(forsys_general_matrix.GeneralMatrix):
         # arrx = self.get_big_edge_equation(beid)
         total_number_cells = len(self.frame.cells)
         lhs_row = np.zeros(total_number_cells)
+        rhs_value = 0
 
         if len(big_edge.own_cells) > 2:
             raise(NotImplementedError)
         
         c1_position = list(self.frame.cells.keys()).index(big_edge.own_cells[0])
         c2_position = list(self.frame.cells.keys()).index(big_edge.own_cells[1])
+
+        # self.mapping_order[big_edge.own_cells[0]] = c1_position
+        # self.mapping_order[big_edge.own_cells[1]] = c2_position
 
         curvature = big_edge.calculate_total_curvature(normalized=False)
         rhs_value = big_edge.tension * curvature    
