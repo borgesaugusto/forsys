@@ -17,7 +17,8 @@ class Cell:
         # assert len(vids) == len(set(vids)), f"There are repeated vertices in cell {self.id}"
         self.center_x = None
         self.center_y = None
-        
+        self.neighbors = None
+
         for v in self.vertices:
             v.add_cell(self.id)
 
@@ -43,9 +44,6 @@ class Cell:
         """
         x and y are the arrays with Xs and Ys of the vertices
         """
-        x = [i.get_coords()[0] for i in self.vertices]
-        y = [i.get_coords()[1] for i in self.vertices]
-
         return int(np.sign(self.get_area()))
 
     def get_area(self) -> float:
@@ -55,7 +53,6 @@ class Cell:
 
     def get_perimeter(self) -> float:
         perimeter = 0
-        nVertex = len(self.vertices)
         for i in self.vertices:
             diffx = i.x - self.get_next_vertex(i).x
             diffy = i.y - self.get_next_vertex(i).y
@@ -90,3 +87,13 @@ class Cell:
         self.center_x = center_2[0]
         self.center_y = center_2[1]
         return center_2[0], center_2[1]
+
+    def calculate_neighbors(self):
+        current_cells = set()
+        for vertex in self.vertices:
+            [current_cells.add(cell_id) for cell_id in vertex.ownCells]
+        current_cells = list(current_cells)
+        
+        current_cells.remove(self.id)
+        self.neighbors = current_cells
+        return self.neighbors
