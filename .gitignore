@@ -1,5 +1,4 @@
 res/
-data/
 *.pyc
 *.png
 *.log
@@ -7,3 +6,6 @@ data/
 bk_*
 htmlcov
 .vscode/
+.idea/
+built_docs/
+docs/_autosummary
