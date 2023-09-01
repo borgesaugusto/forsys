@@ -1,15 +1,18 @@
 import numpy as np
 import pandas as pd
-
-# from sympy import Matrix
+from typing import Tuple
 
 # TODO Use map() to improve dfs creation
 
-def area_term():
-    # for cid, cells in cells.keys():
-    pass
+def get_cells_df(frame: object) -> pd.DataFrame:
+    """Create a DataFrame with all the information about the cells required
+    to calculate the stress tensor.
 
-def get_cells_df(frame):
+    :param frame: Frame at which to calculate the stress tensor
+    :type frame: object
+    :return: Dataframe with ids, centroid position, area and perimeter of cells in the system 
+    :rtype: pd.DataFrame
+    """
     cells = pd.DataFrame()
     cell_centers_x = [cell.get_cm()[0] for _, cell in frame.cells.items()]
     cell_centers_y = [cell.get_cm()[1] for _, cell in frame.cells.items()]
@@ -25,7 +28,15 @@ def get_cells_df(frame):
 
     return cells
 
-def get_big_edges_df(frame):
+def get_big_edges_df(frame: object) -> pd.DataFrame:
+    """Create a DataFrame with all the information about the edges required
+    to calculate the stress tensor.
+
+    :param frame: Frame at which to calculate the stress tensor
+    :type frame: object
+    :return: Dataframe with ids, edge's stress, and which cells are around it.
+    :rtype: pd.DataFrame
+    """
     bedges = pd.DataFrame()
     
     bedges_celli = []
@@ -57,12 +68,19 @@ def get_big_edges_df(frame):
 
     return bedges
 
+def stress_tensor(frame: object, grid: int = 5, radius: float = 1) -> Tuple:
+    """Calculate stress tensor in the system using Batchelor's formula.
+    Batchelor, G. K. The stress system in a suspension of force-free particles. J. Fluid Mech. 41, 545-570 (1970).
 
-
-def membrane_term():
-    pass
-
-def stress_tensor(frame, grid=5, radius=1):
+    :param frame: Frame object when to calculate the stress tensor.
+    :type frame: object
+    :param grid: Amount of bins to divide the space in, defaults to 5
+    :type grid: int, optional
+    :param radius: Number of average cell radii to perform the summation, defaults to 1
+    :type radius: float, optional
+    :return: Tuple with stress tensor's values, bin positions and grid centers.
+    :rtype: Tuple
+    """
     sigmas = {}
     cells = get_cells_df(frame)
     big_edges = get_big_edges_df(frame)
@@ -74,7 +92,6 @@ def stress_tensor(frame, grid=5, radius=1):
     y_bin_centers = [(y_bins[ii] + y_bins[ii+1]) / 2 for ii in range(len(y_bins) -1)]
     bins_centers = [x_bin_centers, y_bin_centers]
 
-    # min_distance = radius * np.mean([x_bins[1] - x_bins[0], y_bins[1] - y_bins[0]])
     min_distance = radius * np.sqrt(cells["area"].mean() / np.pi)
 
     for row in range(grid):
@@ -86,7 +103,7 @@ def stress_tensor(frame, grid=5, radius=1):
             if total_area == 0:
                 sigmas[f"{row}{column}"] = np.array([[0, 0], [0, 0]], dtype=float)
                 continue
-            # calculate the tensor itself
+
             pressure_area_term = - np.sum([cell["pressure"] * cell["area"] for _, cell in current_cell_mesh.iterrows()])
 
             current_edges_mesh = big_edges.loc[(big_edges["cell1"]).isin(current_cell_mesh["ids"]) |
@@ -107,5 +124,4 @@ def stress_tensor(frame, grid=5, radius=1):
 
             sigmas[f"{row}{column}"] = np.array([[sigma_xx, sigma_xy], [sigma_xy, sigma_yy]], dtype=float)
 
-    ####################
     return sigmas, bins_centers, (x_bins, y_bins)

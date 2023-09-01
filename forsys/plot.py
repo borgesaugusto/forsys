@@ -3,21 +3,46 @@ import matplotlib as mpl
 import os
 import numpy as np
 import forsys.virtual_edges as ve
+import forsys.frames as fframes
+import forsys.time_series as ftimes
+from typing import Union, Tuple
 
-def middle_point(p,q):
-    return [(p.getX()+q.getX())/2,(p.getY()+q.getY())/2]
+# TODO: Return the plot objects and let user handle saving for easier modification of the plots
 
-def plot_with_force_custom_fd(vertices, edges, cells, step, folder, fd, 
-                        earr, versors=False, maxForce=None, 
-                        minForce=None, normalized=False, mirror_y=False, **kwargs):
+def plot_with_force_custom_fd(vertices: dict, edges: dict, step: str, folder: str, fd: dict, 
+                        earr: list, versors: Union[bool, list]=False, maxForce: float=None, 
+                        minForce: float=None, normalized: Union[bool, str]=False, mirror_y: bool=False, **kwargs) -> None:
+    """Generate a plot on a given mesh using a custom force dictionary.
+
+    :param vertices: Vertices in the system
+    :type vertices: dict
+    :param edges: Dicionary of all edges
+    :type edges: dict
+    :param step: Step at which to create the plot. It is used as the file name
+    :type step: int
+    :param folder: Folder to save the plot to
+    :type folder: str
+    :param fd: Custom dictionary of stresses
+    :type fd: dict
+    :param earr: List of big edges in the system
+    :type earr: list
+    :param versors: Versors to plot if necessary. Useful when external stresses are used, defaults to False
+    :type versors: Union[bool, list], optional
+    :param maxForce: Max force to use in the normalization, defaults to None
+    :type maxForce: float, optional
+    :param minForce: Min force in the normalization, defaults to None
+    :type minForce: float, optional
+    :param normalized: "max" normalizes by the maximum force; "normal" normalizes to a 
+    normal distribution centered in zero, defaults to False
+    :type normalized: Union[bool, str], optional
+    :param mirror_y: Plot mirroring the y component, defaults to False
+    :type mirror_y: bool, optional
+    """
     plt.close()
     if not os.path.exists(folder):
         os.makedirs(folder)
     plotArrows = True
     jet = plt.get_cmap('jet')
-    ## colormap = ["#77ae43", "#aec637", "#ffd200", "#fdb913", "#f26531"]
-    ## colormap = ["#1D4D5F", "#14B3C8", "#A3E7DB", "#FD712D", "#EF4538"]
-    # colormap = ["#0571b0", "#92c5de", "#f4a582", "#ca0020"]
 
     # Get external forces vectors:
     extForces = {}
@@ -50,9 +75,6 @@ def plot_with_force_custom_fd(vertices, edges, cells, step, folder, fd,
         # print(vertexID, fd[edgeID])
         mFx = 0
         mFy = 0
-        # plt.scatter(vertex.x,vertex.y, s=2, color="green", zorder=10)
-        # origin = [vertex.x], [vertex.y]
-        # ax.annotate(vertexID, xy=(vertex.getX(),vertex.getY()), size=8)
         versors = False
         if versors != False:
             try:
@@ -141,14 +163,36 @@ def plot_with_force_custom_fd(vertices, edges, cells, step, folder, fd,
     plt.close()
 
 
-def plot_inference(frame, folder, step, pressure=False, maxForce=None, 
-                        minForce=None, normalized=False, mirror_y=False, **kwargs):
+def plot_inference(frame: fframes.Frame, pressure: bool=False, maxForce: float=None, 
+                        minForce:float=None, normalized: Union[bool, str]=False, mirror_y: bool=False, **kwargs) -> Tuple:
+    """Generate a plot of a tissue using the inferred tensions and pressures and return the plot object
+
+    :param frame: Frame to plot
+    :type frame: fframes.Frame
+    # :param folder: Folder to save the plot to
+    # :type folder: str
+    # :param step: Step at which to create the plot. It is used as the file name
+    # :type step: int
+    :param pressure: If True pressures are plotted in the inner space of the cells.
+    :type pressure: bool
+    :param maxForce: Max force to use in the normalization, defaults to None
+    :type maxForce: float, optional
+    :param minForce: Min force in the normalization, defaults to None
+    :type minForce: float, optional
+    :param normalized: "max" normalizes by the maximum force; "normal" normalizes to a 
+    normal distribution centered in zero, defaults to False
+    :type normalized: Union[bool, str], optional
+    :param mirror_y: Plot mirroring the y componenet, defaults to False
+    :type mirror_y: bool, optional
+    :return: Matplotlib plot object
+    :rtype: Tuple
+    """
     plt.close()
     jet = plt.get_cmap('jet')
-    _, ax = plt.subplots(1,1)
+    fig, ax = plt.subplots(1,1)
 
-    if not os.path.exists(folder):
-        os.makedirs(folder)
+    # if not os.path.exists(folder):
+    #     os.makedirs(folder)
     
     all_forces = [edge.tension for edge in frame.edges.values() if edge.tension != 0]
 
@@ -201,13 +245,24 @@ def plot_inference(frame, folder, step, pressure=False, maxForce=None,
         sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=0, vmax=1))
         plt.colorbar(sm)
     
-    name = os.path.join(folder, str(step))
+    # name = os.path.join(folder, str(step))
     plt.tight_layout()
-    plt.savefig(name, dpi=500)
-    plt.close()
+    # plt.savefig(name, dpi=500)
+    # plt.close()
+    return fig, ax
 
 
-def plot_difference(frame, folder, step, **kwargs):
+def plot_difference(frame, folder: str, step: str, **kwargs) -> None:
+    """Plot the difference between ground truth and inferred values in a heatmap.
+    Both the inferred value and the ground truth are required
+
+    :param frame: Frame to use
+    :type frame: _type_
+    :param folder: Folder to save plot
+    :type folder: str
+    :param step: File name of the plot
+    :type step: str
+    """
     plt.close()
     jet = plt.get_cmap('jet')
     _, ax = plt.subplots(1,1)
@@ -217,9 +272,6 @@ def plot_difference(frame, folder, step, **kwargs):
     
     all_myosin = [edge.gt for edge in frame.edges.values()]
     all_myosin_max = max(all_myosin)
-
-    # all_forces = [abs(edge.tension - edge.gt) / all_myosin_max
-    #                     for edge in frame.edges.values() if edge.tension != 0]
 
     for _, edge in frame.edges.items():
         difference_to_plot = abs(edge.tension - edge.gt) / all_myosin_max
@@ -246,14 +298,42 @@ def plot_difference(frame, folder, step, **kwargs):
     plt.savefig(name, dpi=500)
     plt.close()
 
-def plot_force(freq, folder=''):
+def plot_force(freq: list, folder: str ='') -> None:
+    """Plot histogram of the stresses.
+
+    :param freq: List of stress values
+    :type freq: list
+    :param folder: Folder to save the log, defaults to ''
+    :type folder: str, optional
+    """
     plt.hist(freq, bins=25, density=True)
     plt.xlabel("Forces [ a. u ]")
     plt.ylabel("Frequency")
     plt.savefig(str(folder)+"log/forcesHist.png", dpi=500)
     plt.close()
 
-def plot_mesh(vertices, edges, cells, name="0", folder=".", xlim=[], ylim=[], mirror_y=False):
+def plot_mesh(vertices: dict, edges: dict, cells: dict, 
+              name: str="0", folder: str=".", 
+              xlim: list=[], ylim: list=[], mirror_y: bool=False) -> None:
+    """Generate a plot of the mesh. Useful for visualizing IDs of cells, edges and vertices in the system.
+
+    :param vertices: Dictionary of vertices
+    :type vertices: dict
+    :param edges: Dictionary of edges
+    :type edges: dict
+    :param cells: Dictionary of cells
+    :type cells: dict
+    :param name: Name of output plot, defaults to "0"
+    :type name: str, optional
+    :param folder: Path to folder to save the plot, defaults to "."
+    :type folder: str, optional
+    :param xlim: Array of [x_min, x_max] to "zoom" in, defaults to []
+    :type xlim: list, optional
+    :param ylim: Array of [y_min, y_max] to "zoom" in, defaults to []
+    :type ylim: list, optional
+    :param mirror_y: If True the tissue is plotted as a mirror image in the Y axis, defaults to False
+    :type mirror_y: bool, optional
+    """
     if not os.path.exists(folder):
         os.makedirs(folder)
     to_save = os.path.join(folder, name)
@@ -267,26 +347,21 @@ def plot_mesh(vertices, edges, cells, name="0", folder=".", xlim=[], ylim=[], mi
 
     for c in cells.values():
         cm = c.get_cm()
-        # print(c.id, cm)
         cxs = [v.x for v in c.vertices]
         cys = [v.y for v in c.vertices]
 
         plt.fill(cxs, cys, alpha=0.3)
         plt.annotate(str(c.id), [cm[0], cm[1]])
-        # plt.scatter(cm[0], cm[1], marker="x", color="red")
 
-    # # plt.show()
     if len(xlim) > 0:
         plt.xlim(xlim[0], xlim[1])
     if len(ylim) > 0:
         plt.ylim(ylim[0], ylim[1])
-    # plt.axis("off")
     if mirror_y:
         plt.gca().invert_yaxis()
     plt.tight_layout()
 
     plt.savefig(to_save, dpi=500)
-    # plt.savefig(os.path.join(folder, str(step)+".pdf"), dpi=500)
     plt.clf()
     plt.close()
 
@@ -349,11 +424,21 @@ def plot_equilibrium(mesh, step, folder, what="acceleration", normalized=False, 
     # plt.xlim()
 
     plt.savefig(os.path.join(folder, str(step) + ".png"), dpi=500)
-    # plt.savefig(os.path.join(folder, str(step) + ".pdf"), dpi=500)
     plt.clf()
 
 
-def plot_time_connections(mesh, initial_time, final_time, folder=''):
+def plot_time_connections(mesh: ftimes.TimeSeries, initial_time: int, final_time: int, folder: str='') -> None:
+    """Plot time connections among vertices in all the frames between initial and final time
+
+    :param mesh: TimeSeries object with mapping information
+    :type mesh: ftimes.TimeSeries
+    :param initial_time: Initial time
+    :type initial_time: int
+    :param final_time: Final time
+    :type final_time: int
+    :param folder: Path to save the plot, defaults to ''
+    :type folder: str, optional
+    """
     timerange = np.arange(initial_time, final_time-1, 1)
     for t in timerange:
         if mesh.mapping[t] != None:
@@ -369,7 +454,6 @@ def plot_time_connections(mesh, initial_time, final_time, folder=''):
             
 
             for v in mesh.time_series[t+1].vertices.values():
-                # if v.id in cframes[1]['external']:
                 if v.id in real_vertices_ids2 or v.id in mesh.time_series[t+1].border_vertices:
                     plt.scatter(v.x, v.y, s=5, color="green")
                     plt.annotate(str(v.id), [v.x, v.y], fontsize=4, color="green")
@@ -382,9 +466,22 @@ def plot_time_connections(mesh, initial_time, final_time, folder=''):
             plt.savefig(os.path.join(folder, str(t)+".png"), dpi=500)
             plt.clf()
 
-def plot_time_connections_two_times(mesh, t0, tf, fname, folder=""):
+def plot_time_connections_two_times(mesh: ftimes.TimeSeries, t0: int, tf: int, 
+                                    fname: str, folder: str="") -> None:
+    """Create a connection plot among vertices, between only two timepoints
+
+    :param mesh: TimeSeries object with mapping information
+    :type mesh: ftimes.TimeSeries
+    :param t0: initial time
+    :type t0: int
+    :param tf: Final time
+    :type tf: int
+    :param fname: File name to use
+    :type fname: str
+    :param folder: Folder to save the plot to, defaults to ""
+    :type folder: str, optional
+    """
     for v0 in mesh.time_series[t0].vertices.values():
-        # if v0.id in real_vertices_ids1 or v0.id in mesh.time_series[t0].border_vertices:
         if True:
             v1_id = mesh.get_point_id_by_map(v0.id, t0, tf)
             v1 = mesh.time_series[tf].vertices[v1_id]
@@ -404,9 +501,22 @@ def plot_time_connections_two_times(mesh, t0, tf, fname, folder=""):
 
 
 
-def plot_acceleration_heatmap(mesh, initial_time, final_time, folder='', name='heatmap'):
+def plot_acceleration_heatmap(mesh: ftimes.TimeSeries, initial_time: int,
+                              final_time: int, folder: str='', name: str='heatmap') -> None:
+    """Generate an acceleration heatmap for each edge.
+
+    :param mesh: TimeSeries object with mapping information
+    :type mesh: ftimes.TimeSeries
+    :param initial_time: Initial time
+    :type initial_time: int
+    :param final_time: Final time
+    :type final_time: int
+    :param folder: Folder to save plot to, defaults to ''
+    :type folder: str, optional
+    :param name: Filename for the plot, defaults to 'heatmap'
+    :type name: str, optional
+    """
     t0 = mesh.time_series[initial_time]
-    # heatmap = np.zeros((timerange, len(t0['earr'])))
     heatmap = []
     for ii in range(0, len(t0.earr)):
         row = mesh.acceleration_per_edge(ii, initial_time, final_time)
@@ -415,19 +525,40 @@ def plot_acceleration_heatmap(mesh, initial_time, final_time, folder='', name='h
     
     save_heatmap(heatmap, folder, initial_time, final_time, name=name)
 
-def get_velocity_heatmap(mesh, initial_time, final_time, folder='', name='heatmap'):
+def get_velocity_heatmap(mesh: ftimes.TimeSeries, initial_time: int, final_time: int) -> list:
+    """Generate an array with the velocity of each edge tracked through time.
+
+    :param mesh: TimeSeries object with mapping information
+    :type mesh: ftimes.TimeSeries
+    :param initial_time: Initial time
+    :type initial_time: int
+    :param final_time: Final time
+    :type final_time: int
+    :return: Array where each row is the velocity of an edge and each column a different time
+    :rtype: list
+    """
     t0 = mesh.time_series[initial_time]
-    # heatmap = np.zeros((timerange, len(t0['earr'])))
     heatmap = []
     for ii in range(0, len(t0.earr)):
         row = mesh.velocity_per_edge(ii, initial_time, final_time)
         if not np.all(np.isnan(row)):
             heatmap.append(row)
     return heatmap
-    
-    # save_heatmap(heatmap, folder, initial_time, final_time, name=name)
 
-def save_heatmap(heatmap, folder, initial_time, final_time, name='heatmap'):
+def save_heatmap(heatmap: list, folder: str, initial_time: int, final_time:int, name: str='heatmap') -> None:
+    """Save a given heatmap
+
+    :param heatmap: Heatmap array
+    :type heatmap: list
+    :param folder: Folder to save the plot to
+    :type folder: str
+    :param initial_time: Initial time
+    :type initial_time: int
+    :param final_time: Final time
+    :type final_time: int
+    :param name: Name of the plot, defaults to 'heatmap'
+    :type name: str, optional
+    """
     plt.imshow(heatmap)
     plt.colorbar()
     plt.xticks(np.arange(0, final_time - initial_time, 5), np.arange(initial_time, final_time, 5))
@@ -435,7 +566,19 @@ def save_heatmap(heatmap, folder, initial_time, final_time, name='heatmap'):
     plt.savefig(os.path.join(folder, str(name)+"_"+str(initial_time)+".png"), dpi=500)
     plt.clf()
 
-def plot_ablated_edge(frames, step, bedge_index, folder):
+def plot_ablated_edge(frames: dict, step: int, bedge_index: int, folder: str) -> None:
+    """Plot the mesh of the system with the ablated edges in the tissue in a different color.
+
+    :param frames: Dictionary with all the frames
+    :type frames: dict
+    :param step: Step to plot. Must correspond with a time in the frames dictionary
+    :type step: int
+    :param bedge_index: Index of the ablated big edge
+    :type bedge_index: int
+    :param folder: Folder to save the mesh
+    :type folder: str
+    """
+    # TODO: integrate with  plot_mesh() as an option
     for v in frames[step].vertices.values():
         plt.scatter(v.x, v.y, s=2, color="black")
         plt.annotate(str(v.id), [v.x, v.y], fontsize=2)
@@ -460,8 +603,25 @@ def plot_ablated_edge(frames, step, bedge_index, folder):
     plt.close()
 
 
-def plot_residues(frame, folder, normalized=False, maxForce=None, 
-                    minForce=None, mirror_y=False):
+def plot_residues(frame: fframes.Frame, folder: str, normalized: bool=False, maxForce:float=None, 
+                    minForce: float=None, mirror_y: bool=False) -> None:
+    """Plot differences between inferred values and ground truths as residue
+    vectors from each pivot vertex
+
+    :param frame: Frame with all infromation
+    :type frame: fframes.Frame
+    :param folder: Folder to save the plot
+    :type folder: str
+    :param normalized: "max" normalizes by the maximum force; "normal" normalizes to a 
+    normal distribution centered in zero, defaults to False
+    :type normalized: bool, optional
+    :param maxForce:  Maximum force to use in the normalization , defaults to None
+    :type maxForce: float, optional
+    :param minForce:  Minimum force to use in the normalization, defaults to None
+    :type minForce: float, optional
+    :param mirror_y: Plot mirroring the y component, defaults to False
+    :type mirror_y: bool, optional
+    """
     plt.close()
     jet = plt.get_cmap('jet')
     _, ax = plt.subplots(1,1)
@@ -501,7 +661,6 @@ def plot_residues(frame, folder, normalized=False, maxForce=None,
     tj_vertices = list(set([big_edge[0] for big_edge in frame.big_edges_list]))
 
     for vid in tj_vertices:
-        # yield (vx, vy, edge.get_vertices_id(), border, edge.id)
         force_difference = np.array([0, 0]).astype(np.float64)
         for versor in ve.get_versors(frame.vertices, frame.edges, vid):
             try:
@@ -515,10 +674,6 @@ def plot_residues(frame, folder, normalized=False, maxForce=None,
             force_difference += np.array(calculated_force_vector) - \
                                 np.array(original_force_vector)
 
-
-
-        # print(f"In {[frame.vertices[vid].x, frame.vertices[vid].y]} residual vector is {force_difference}")
-
         plt.arrow(frame.vertices[vid].x, frame.vertices[vid].y, force_difference[0],
                     force_difference[0], color="black", zorder=100)
 
@@ -531,8 +686,22 @@ def plot_residues(frame, folder, normalized=False, maxForce=None,
     plt.savefig(name, dpi=500)
     plt.close()
     
-def plot_stress_tensor(frame, folder, fname, grid=5, radius=1, **kwargs):
-    # sigmas, bins_centers
+def plot_stress_tensor(frame: fframes.Frame, folder: str, fname: str, 
+                       grid: int=5, radius: float=1, **kwargs) -> None:
+    """Plot the principal components of the stress tensor on top of a 
+    layout of the mesh
+
+    :param frame: Frame object
+    :type frame: fframes.Frame
+    :param folder: Folder to save the output plot
+    :type folder: str
+    :param fname: Name for the plot
+    :type fname: str
+    :param grid: Number of grid points in each axis, defaults to 5
+    :type grid: int, optional
+    :param radius: Number of average cell radii to use in the integration, defaults to 1
+    :type radius: float, optional
+    """
     frame.calculate_stress_tensor(grid, radius)
     plt.close()
     _, ax = plt.subplots(1,1)
@@ -553,14 +722,6 @@ def plot_stress_tensor(frame, folder, fname, grid=5, radius=1, **kwargs):
         scale_factor = (external_scale/10) * 0.1 * min(frame.stress_tensor[1][0][0],
                                                        frame.stress_tensor[1][1][0] )
 
-    # _, _, bin_edges = frame.stress_tensor
-    
-    # for xline in bin_edges[0]:
-    #     plt.axvline(xline, ls="--", color="gray", alpha=0.3)
-    # for yline in bin_edges[1]:
-    #     plt.axhline(yline, ls="--", color="gray", alpha=0.3)
-
-
     for positions, eigensystem in frame.principal_stress.items():
         eigen_norm = np.linalg.norm(eigensystem[0])
         if eigen_norm == 0:
@@ -577,16 +738,6 @@ def plot_stress_tensor(frame, folder, fname, grid=5, radius=1, **kwargs):
 
         plt.plot(axis_1_x, axis_1_y, color="green", linewidth=2)
         plt.plot(axis_2_x, axis_2_y, color="green", linewidth=2)
-
-        # circle = plt.Circle((positions[0],  positions[1]), 11.9 * 3, alpha=0.2, color="green")
-        # ax.add_patch(circle)
-
-        # points_y = [positions[1], positions[1], positions[1] + component1[0]]
-
-
-        # plt.arrow(positions[0], positions[1], component1[0], component1[1], color="green")
-        # plt.arrow(positions[0], positions[1], component2[0], component2[1], color="green")
-
 
     plt.axis('off')
     

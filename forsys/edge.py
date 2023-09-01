@@ -1,9 +1,23 @@
 from dataclasses import dataclass, field
 import numpy as np
-
+from typing import Tuple
 
 @dataclass
 class SmallEdge:
+    """
+    Class representation for small edges. This are defined as the lines joining two vertices.
+
+    :param id: Unique identifier of the small edge
+    :type id: int
+    :param v1: First vertex of the edge 
+    :type v1: object
+    :param v2: Second vertex of the edge
+    :type v2: object
+    :param tension: Inferred tension in this edge. Defaults to 0
+    :type tension: float
+    :param gt: Ground truth tension of this edge. Defaults to 0
+    :type gt: float
+    """
     id: int
     v1: object
     v2: object
@@ -11,6 +25,8 @@ class SmallEdge:
     gt: float = 0
 
     def __post_init__(self):
+        """ Constructor method
+        """
         self.verticesArray = [self.v1, self.v2]
         for v in self.verticesArray:
             v.add_edge(self.id)
@@ -21,17 +37,44 @@ class SmallEdge:
             v.remove_edge(self.id)
 
     def get_vertices_id(self) -> list:
-        # return map(lambda x: x.id, [self.v1, self.v2])
+        """
+        Get IDs of the vertices that form the edge
+
+        :return: Array with the two IDs of the vertices
+        :rtype: list
+        """
         return [self.v1.id, self.v2.id]
 
-    def get_other_vertex_id(self, one) -> int:
+    def get_other_vertex_id(self, one: int) -> int:
+        """
+        Get the vertex ID of the other vertex in the edge, given one of them
+
+        :param one: ID of the cell to be added
+        :type one: int
+        :return: ID of the vertex
+        :rtype: int
+        """
         assert one in self.get_vertices_id(), "vertex not in asked edge"
         return self.v1.id if one == self.v2.id else self.v2.id
 
     def get_vertices_array(self) -> list:
+        """
+        Get the IDs of the vertices that form the edge
+
+        :return: [id_1, id_2] array for both vertices' IDs
+        :rtype: list
+        """
         return [self.v1, self.v2]
 
-    def replace_vertex(self, vold: object, vnew: object):
+    def replace_vertex(self, vold: object, vnew: object) -> None:
+        """
+        Replace one of the vertices in the edge with a new one
+
+        :param vold: Vertex object to be replaced
+        :type vold: object
+        :param vnew: Vertex object to be added
+        :type vnew: object
+        """
         who = 0 if self.v1.id == vold.id else 1
         self.verticesArray[who].ownEdges.remove(self.id)
         if who == 0:
@@ -42,13 +85,34 @@ class SmallEdge:
         self.verticesArray[who].add_edge(self.id)
 
     def get_vector(self) -> list:
+        """
+        Get the vector connecting the two vertices of the edge.
+
+        :return: Vector in the (0, 0) frame of reference 
+        :rtype: list
+        """
         vector = [self.v2.x - self.v1.x, self.v2.y - self.v1.y]
-        # norm = np.linalg.norm(vector)
         return vector
 
 
 @dataclass
 class BigEdge:
+    """
+    Class representation for big edges. This are defined as a set of SmallEdges.
+    Could be only one small edge in special cases. This allows for curved representations
+    of the cellular membrane.
+
+    :param big_edge_id: Unique identifier of the big edge
+    :type big_edge_id: int
+    :param vertices: List of vertices form the big edge
+    :type vertices: list
+    :param tension: Inferred tension in this edge. Defaults to 0
+    :type tension: float
+    :param gt: Ground truth tension of this edge. Defaults to 0
+    :type gt: float
+    :param external: True if this big edge is external to the tissue
+    :type external: bool
+    """
     big_edge_id: int
     vertices: list
 
@@ -57,6 +121,8 @@ class BigEdge:
     external: bool = False
 
     def __post_init__(self):
+        """ Constructor method
+        """
         for vertex in self.vertices:
             vertex.add_big_edge(self.big_edge_id)
 
@@ -66,23 +132,24 @@ class BigEdge:
                            set(self.vertices[vid + 1].ownEdges))[0]
                       for vid in range(0, len(self.vertices) - 1)]
         
-        # self.own_cell = list(set([list(set(self.vertices[vid].ownCells) &
-        #                    set(self.vertices[vid + 1].ownCells))[0]
-        #               for vid in range(0, len(self.vertices) - 1)]))[0]
-        # use the cells of the vertex that is in the middle
         if len(self.vertices) == 2:
             self.own_cells = list(set(self.vertices[0].ownCells) & set(self.vertices[1].ownCells))
         else:
             self.own_cells = self.vertices[(len(self.vertices) - 1) // 2].ownCells
-        
-        # check if I am external
+
         vertices_own_cells = [len(vertex.ownCells) < 2 for vertex in self.vertices]
         has_junction_at_extremes = True if len(self.vertices[0].ownCells) > 2 \
                                            or len(self.vertices[-1].ownCells) > 2 else False
         self.external = True if np.any(vertices_own_cells) or not has_junction_at_extremes \
             else False
 
-    def calculate_curvature(self):
+    def calculate_curvature(self) -> float:
+        """
+        Get the curvature of the big edge
+
+        :return: Object reference for the next vertex in the ordering
+        :rtype: object
+        """
         dx_dt = np.gradient(self.xs)
         dy_dt = np.gradient(self.ys)
         d2x_dt2 = np.gradient(dx_dt)
@@ -91,7 +158,15 @@ class BigEdge:
         
         return curvature
 
-    def calculate_total_curvature(self, normalized=True):
+    def calculate_total_curvature(self, normalized=True) -> float:
+        """
+        Get the total curvature of the big edge normalized by its length
+
+        :param normalized: Current vertex after which the next is calculated
+        :type normalized: bool
+        :return: Object reference for the next vertex in the ordering
+        :rtype: object
+        """
         curvatures = self.calculate_curvature()
         ds = np.sqrt(np.diff(self.xs)**2 + np.diff(self.ys)**2)
         total_curvature = np.sum((curvatures[1:] + curvatures[:-1])/2 * ds)
@@ -100,26 +175,50 @@ class BigEdge:
             total_curvature = total_curvature / curve_length
         return total_curvature
 
-    def get_circle_parameters(self):
-        import scipy.optimize as sco
-        # x = big_edge.xs
-        # y = big_edge.ys
-        # TODO: identificar residuos para ver si excluir
+    def get_circle_parameters(self) -> Tuple:
+        """
+        Calculate the best circle fit to the big edge
+        Modified from DLITE's implementation: https://github.com/AllenCellModeling/DLITE
 
+        :return: x and y coordiante of the circle's center from a circular fit
+        :rtype: Tuple
+        """
+        import scipy.optimize as sco
         def objective_f(c):
-            """ calculate the algebraic distance between the data points and the mean circle centered at c=(xc, yc) """
+            """ Distance between the vertices and the mean circle centered at c """
             distances = np.sqrt((self.xs - c[0]) ** 2 + (self.ys - c[1]) ** 2)
             return distances - distances.mean()
 
-        center_2, _ = sco.leastsq(objective_f, (np.mean(self.xs), np.mean(self.ys)))
-        return center_2[0], center_2[1]
+        center, _ = sco.leastsq(objective_f, (np.mean(self.xs), np.mean(self.ys)))
+        return center[0], center[1]
 
-    def get_versor_from_vertex(self, vid, method="edge", cell=None) -> list:
+    def get_versor_from_vertex(self, vid: int, method: str = "edge", cell: object = None) -> list:
+        """
+        Get versor corresponding to the vectorial reprensentation of the big erdge
+
+        :param normalized: Current vertex after which the next is calculated
+        :type normalized: bool
+        :return: Object reference for the next vertex in the ordering
+        :rtype: object
+        """
         vector = self.get_vector_from_vertex(vid, method, cell)
         versor = vector / np.linalg.norm(vector)
         return versor
     
-    def get_vector_from_vertex(self, vid, method="edge", cell=None) -> list:
+    def get_vector_from_vertex(self, vid: int, method: str = "edge", cell: object = None) -> list:
+        """
+        Get the vector representation for the big edge
+
+        :param vid: ID of the vertex from where the vector is defined
+        :type vid: int
+        :param method: Method to calculate representation. "edge" gives the circular fit to the edge, 
+        "cell" and passing a cell object gives a circular fit to the given cell.
+        :type method: str
+        :param cell: Object reference of the cell to calculate the curvature if necessary
+        :type cell: object
+        :return: x, y coordinates of the vector
+        :rtype: list
+        """
         vobject = self.get_vertex_object_by_id(vid)
         if method == "edge":
             xc, yc = self.get_circle_parameters()
@@ -129,7 +228,6 @@ class BigEdge:
             raise Exception("Method for versor doesn't exist or cell missing")
         
         vector = np.array((- (vobject.y - yc), (vobject.x - xc)))
-        # correct for the sign
         correct_sign = self.get_versor_sign(vid)
         if np.any(np.sign(vector) != correct_sign):
             correction = correct_sign * np.sign(vector)
@@ -137,14 +235,37 @@ class BigEdge:
         return vector
 
     def get_vertex_object_by_id(self, vid: int) -> object:
+        """
+        Get the vertex object corresponding to the given ID
+
+        :param vid: Current vertex after which the next is calculated
+        :type vid: int
+        :return: Object reference for required vertex
+        :rtype: object
+        """
         vertex_object = list(filter(lambda x: x.id == vid, self.vertices))
         assert len(vertex_object) == 1, "More than one or no vertex with the same ID"
         return vertex_object[0]
 
     def get_vertices_ids(self) -> list:
+        """
+        Get all IDs of the vertices that form the big edge
+
+        :return: Array with all vertices' IDs 
+        :rtype: list
+        """
         return [vertex.id for vertex in self.vertices]
 
-    def get_versor_sign(self, vid: int):
+    def get_versor_sign(self, vid: int) -> list:
+        """
+        Get the correction sign for each
+        componenet of the vector 
+
+        :param vid: Vertex to calculate the sign from
+        :type vid: int
+        :return: Array with the sign corrections
+        :rtype: list
+        """
         all_vertices_ids = self.get_vertices_ids()
         v0 = self.get_vertex_object_by_id(vid)
         # connected to ?

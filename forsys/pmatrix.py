@@ -6,15 +6,30 @@ from dataclasses import dataclass, field
 from typing import Union
 import numpy as np
 from sympy import Matrix
+from typing import Tuple
 
 class PressureMatrix(forsys_general_matrix.GeneralMatrix):
+    """Child class to manage creating of the matrix system of equations
+    to calculate pressure. The corresponding stresses need to be solved already.
+    """
     
-    def __init__(self, frame, timeseries):
+    def __init__(self, frame: object, timeseries: dict):
+        """Constructor method
+
+        :param frame: Frame object from which matrix system is created
+        :type frame: object
+        :param timeseries: Time series dictionary of frames.
+        :type timeseries: dict
+        """
         super().__init__(frame, timeseries)
         self._build_matrix()
 
-    def _build_matrix(self):
-        # go over each big edge
+    def _build_matrix(self) -> Tuple:
+        """Generate the matrix system for pressure inference. 
+
+        :return: Returns LHS matrix and RHS matrix
+        :rtype: Tuple
+        """
         self.rhs_matrix = np.zeros(len(self.big_edges_to_use))
 
         self.mapping_order = {value: enumid for enumid, value in enumerate(self.frame.cells.keys())}
@@ -42,9 +57,15 @@ class PressureMatrix(forsys_general_matrix.GeneralMatrix):
         return self.lhs_matrix, self.rhs_matrix
 
 
-    def get_row(self, big_edge):
-        # create the two rows of the A matrix.
-        # arrx = self.get_big_edge_equation(beid)
+    def get_row(self, big_edge: object) -> Tuple:
+        """Creates the row corresponding to a given big_edge for the LHS matrix 
+        and the RHS one. The stress needs to be already inferred.
+
+        :param big_edge: Object instance of the big edge that this row would correspond
+        :type big_edge: object
+        :return: Returns the left hand side row and the right hand side value.
+        :rtype: Tuple
+        """
         total_number_cells = len(self.frame.cells)
         lhs_row = np.zeros(total_number_cells)
         rhs_value = 0

@@ -1,7 +1,7 @@
 import numpy as np
 from sympy import Matrix
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Union, Tuple
 from mpmath import mp
 import scipy.optimize as scop
 
@@ -10,6 +10,22 @@ import forsys.borders as borders
 
 @dataclass
 class ForceMatrix:
+    """
+    Class to build and solve the force matrix
+
+    :param frame: Frame object from which matrix system is created
+    :type frame: object
+    :param externals_to_use: List of external vertices to use, or method to determine them. 
+    :type externals_to_use: str or list
+    :param term: If externals are incorporated, a term can be added to account for the third
+    force in the balance. area, perimeter, area-perimeter and ext are possible.
+    :type term: str
+    :param frame: Extra parameters required by functions in the class. 
+    :type metadata: dict
+    :param timeseries: Time series dictionary of frames
+    :type timeseries: dict
+    """
+    # TODO: Incorporate stress solution to the GeneralMatrix paradigm
     frame: object
     externals_to_use: Union[str, list]
     term: str
@@ -17,12 +33,14 @@ class ForceMatrix:
     timeseries: dict
 
     def __post_init__(self):
+        """Constructor method
+        """
         self.map_vid_to_row = {}
         if type(self.externals_to_use) == str:
             if self.externals_to_use == 'all':
                 # self.externals_to_use = list(np.array(ve.get_border_edge(self.frame.big_edges_list, 
                 #                                                         self.frame.vertices)).flatten())
-                raise(NotImplemented)
+                raise(NotImplementedError)
             elif self.externals_to_use == 'ext':
                 self.externals_to_use = ve.get_border_from_angles_new(self.frame.big_edges_list, 
                                                                         self.frame.vertices)
@@ -32,15 +50,20 @@ class ForceMatrix:
                 self.externals_to_use = []
                 # TODO: make it work with the general matrix solver using self.frame.internal_big_edges
                 self.big_edges_to_use = self.frame.internal_big_edges_vertices
+        else:
+            raise(NotImplementedError)
 
-        # TODO implement bigedge class and map
-        # self.map_bigedge_to_column = {}
 
         self.matrix = self._build_matrix()
         self.rhs = None
 
 
-    def _build_matrix(self):
+    def _build_matrix(self) -> Matrix:
+        """Build the stress inference matrix row by row
+
+        :return: Stress inference matrix before least squares is applied
+        :rtype: Matrix
+        """
         position_index = 0
         self.matrix = Matrix(())
         tj_vertices = list(set([big_edge[0] for big_edge in self.big_edges_to_use]))
@@ -59,7 +82,14 @@ class ForceMatrix:
                     self.matrix = self.matrix.row_insert(self.matrix.shape[0], Matrix(([row_y])))
         return self.matrix
 
-    def get_row(self, vid):
+    def get_row(self, vid: int) -> Tuple:
+        """Create the general row by appending inference rows to external terms
+
+        :param vid: ID of the vertex for the required row
+        :type vid: int
+        :return: The rows corresponding to the x and y components.
+        :rtype: _type_
+        """
         # create the two rows of the A matrix.
         arrx, arry = self.get_vertex_equation(vid)
         arrxF, arryF = self.get_external_term(vid)
@@ -69,7 +99,15 @@ class ForceMatrix:
 
         return row_x, row_y
         
-    def get_external_term(self, vid):
+    def get_external_term(self, vid: int) -> Tuple:
+        """Get the external forces corresponding to the giving vertex in row form to append
+        to the stress inference matrix
+
+        :param vid: Current vertex ID
+        :type vid: int
+        :return: X and Y component of the external forces for the required vertex
+        :rtype: Tuple
+        """
         arrxF = np.zeros(len(self.externals_to_use)*2)
         arryF = np.zeros(len(self.externals_to_use)*2)
         if vid in self.externals_to_use:
@@ -114,7 +152,14 @@ class ForceMatrix:
             arryF[current_border_id * 2 + 1] = round(fyVersor, 3)
         return arrxF, arryF
 
-    def get_vertex_equation(self, vid):
+    def get_vertex_equation(self, vid: int) -> Tuple:
+        """Generate the stress inference row corresponding to the given vertex ID 
+
+        :param vid: ID of the required vertex's equation
+        :type vid: int
+        :return: X and Y componenet of the stress inference matrix for the required vertex
+        :rtype: Tuple
+        """
         arrx = np.zeros(len(self.big_edges_to_use))
         arry = np.zeros(len(self.big_edges_to_use))
         vertex = self.frame.vertices[vid]
@@ -129,7 +174,14 @@ class ForceMatrix:
 
         return arrx, arry
 
-    def solve(self, timeseries=None, **kwargs):
+    def solve(self, timeseries: Union[str, list] = None, **kwargs) -> dict:
+        """Solve the system of equations. The stress inference matrix must be built beforehand.
+
+        :param timeseries: If a dynamical inference is required, the timeseries must be provided, defaults to None
+        :type timeseries: Union[str, list], optional
+        :return: Dictionary of edges and inferred stress. External forces are included if they were required
+        :rtype: dict
+        """
         np.seterr(all='raise')
         tote = len(self.big_edges_to_use)
 
@@ -158,11 +210,6 @@ class ForceMatrix:
         rounded_b = np.array(list(b.T), dtype=np.float64).round(4)
         self.rhs = rounded_b
 
-        # bprime = np.zeros(len(b))
-        # bprime[-2] = b[-2]
-        # bprime[-1] = b[-1]
-    
-
         mprime = np.array(mprime).astype(np.float64)
         b = np.array(mp.matrix(b)).astype(np.float64)
 
@@ -171,8 +218,8 @@ class ForceMatrix:
             
             if np.any([x<0 for x in xres[:-1]]) and not kwargs.get("allow_negatives", True):
                 print("Numerically solving due to negative values")
-                negative_edges = [self.big_edges_to_use[x_id] for x_id, x_val in enumerate(xres[:-1]) if x_val < 0]
-                print(f"Negatives edges: ", negative_edges)
+                # negative_edges = [self.big_edges_to_use[x_id] for x_id, x_val in enumerate(xres[:-1]) if x_val < 0]
+                # print(f"Negatives edges: ", negative_edges)
                 xres, _ = scop.nnls(mprime, b, maxiter=100000)
                 xres = Matrix(xres)
         except np.linalg.LinAlgError:
@@ -180,8 +227,7 @@ class ForceMatrix:
             print("Numerically solving due to singular matrix")
             xres, _ = scop.nnls(mprime, b, maxiter=100000)
             xres = Matrix(xres)
-        # big_edges_solved = [element for index, element in enumerate(self.big_edges_to_use)
-        #                         if index != removed_index]
+
         if removed_index is not None:
             xres = xres.row_insert(removed_index, Matrix([1]))
         for index, element in enumerate(self.big_edges_to_use):
@@ -191,8 +237,6 @@ class ForceMatrix:
             for e in edges_to_use:
                 self.frame.edges[e].tension = float(xres[index])
         
-        # forces dictionary:
-        f = True
         self.force_dictionary = {}
         for i in range(0, tote):
             if i < tote:
@@ -221,7 +265,15 @@ class ForceMatrix:
 
         return self.force_dictionary
 
-    def add_mean_one(self, b): 
+    def add_mean_one(self, b: Matrix) -> Tuple:
+        """Add the lagrange multiplier required the average of stresses values equal to one.
+
+        :param b: Right hand side matrix. If in a statical modality it is the null column,
+        in dynamcal modality, has the components of the velocity for each edge.
+        :type b: Matrix
+        :return: The new LHS and RHS matrices
+        :rtype: Tuple
+        """
         mprime = self.matrix.T * self.matrix
         b = self.matrix.T * b
         total_edges = len(self.big_edges_to_use)
@@ -258,7 +310,19 @@ class ForceMatrix:
 
         return mprime, b
 
-    def fix_one_stress(self, b, column_to_fix=None, value_to_fix_to=1):
+    def fix_one_stress(self, b: Matrix, column_to_fix: int = None, value_to_fix_to: float = 1) -> Tuple:
+        """Fix one of the stresses values. This is helpful for establishing an scale.
+
+        :param b: Right hand side matrix. Zero in the statical case.
+        :type b: Matrix
+        :param column_to_fix: Column number to be fixed, i.e edge stress. If None uses
+        the vertex with the most connections, defaults to None
+        :type column_to_fix: int, optional
+        :param value_to_fix_to: Value to fix the stress to, defaults to 1
+        :type value_to_fix_to: float, optional
+        :return: New LHS and RHS matrix as well as the index of the fixed stress.
+        :rtype: Tuple
+        """
         # Replace column with the most connections
         if not column_to_fix:
             non_zero_count = [np.count_nonzero(self.matrix.col(col_id)) 

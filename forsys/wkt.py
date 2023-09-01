@@ -7,6 +7,8 @@ import forsys.edge as fedge
 import forsys.cell as fcell
 
 def create_lattice(wkt):
+
+
     """
     Creates the lattice, give a wkt formated file, and returns
     vertex edges and cells as dictionaries to input into Lattice.

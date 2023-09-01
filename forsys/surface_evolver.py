@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import pandas as pd
 import os
 import re
+from typing import Tuple
 
 import forsys.vertex as vertex
 import forsys.edge as edge
@@ -9,13 +10,20 @@ import forsys.cell as cell
 
 @dataclass
 class SurfaceEvolver:
+    """Class interface with SurfaceEvolver-generated files
+    
+    :param fname: Path to the SurfaceEvolver file to read
+    :type fname: str
+    """
     fname: str
 
-    # def __post_init__(self):
-    #   pass
+    def create_lattice(self) -> Tuple:
+        """Create vertices, edges and cells from a Surface Evolver file. 
+        All necessary steps are taken by this call.
 
-    def create_lattice(self):
-        # create all vertex elements
+        :return: Three dictionaries with the vertices, edges and cells respectively   
+        :rtype: Tuple
+        """
         edges_temp = self.get_edges()
         
         vertices = {}
@@ -35,7 +43,6 @@ class SurfaceEvolver:
 
         # delete all vertices and edges with no cell
         vertex_to_delete = []
-        # edge_to_delete = []
         for vid, v in vertices.items():
             if len(v.ownCells) == 0:
                 vertex_to_delete.append(int(vid))
@@ -51,7 +58,14 @@ class SurfaceEvolver:
 
         return vertices, edges, cells
 
-    def calculate_first_last(self):
+    def calculate_first_last(self) -> Tuple:
+        """Calculate starting position of the vertices, edges, cells and pressures
+        definitions in the Surface Evolver file.
+
+        :return: Four tuples with the initial and final line index for the 
+        vertices, edges, cells and pressures respectively.
+        :rtype: Tuple
+        """
         with open(os.path.join(self.fname),"r") as f:
             ini_v = next(index for index, line in enumerate(f) if line.startswith("vertices  "))
             fin_v = next(index for index, line in enumerate(f) if line.startswith("edges  ")) + ini_v
@@ -73,13 +87,26 @@ class SurfaceEvolver:
         return self.index_v, self.index_e, self.index_f, self.index_pressures
 
 
-    def get_first_last(self):
+    def get_first_last(self) -> Tuple:
+        """Get list of line indices for all conditions. If the lines are already known,
+        returns known values. If not, sets them and the returns their values.
+
+        :return: Four tuples with the initial and final line index for the 
+        vertices, edges, cells and pressures respectively.
+        :rtype: Tuple
+        """
         try:
             return self.index_v, self.index_e, self.index_f, self.index_pressures
         except AttributeError:
             return self.calculate_first_last()
     
-    def get_vertices(self):
+    def get_vertices(self) -> pd.DataFrame:
+        """Generate DataFrame with the system's vertices IDs and positions
+
+        :return: Dataframe with three columns: ID, x and y for each vertex in the 
+        system.
+        :rtype: pd.DataFrame
+        """
         vertices = pd.DataFrame()
         ids = []
         xs = []
@@ -100,7 +127,14 @@ class SurfaceEvolver:
 
         return vertices
     
-    def get_edges(self):
+    def get_edges(self) -> pd.DataFrame:
+        """Generate DataFrame with the system's edges IDs, the two vertices that 
+        form them and the ground truth density.
+
+        :return: Dataframe with four columns: ID, vertex 1, vertex 2
+        and ground truth density for each edge.
+        :rtype: pd.DataFrame
+        """
         edges = pd.DataFrame()
         ids = []
         id1 = []
@@ -123,7 +157,14 @@ class SurfaceEvolver:
         edges['force'] = forces
         return edges
 
-    def get_cells(self):
+    def get_cells(self) -> pd.DataFrame:
+        """Generate DataFrame with the system's cells IDs, its edges, 
+        and their ground truth pressures.
+
+        :return: Dataframe with three columns: ID, array of edges from the cell
+        and the ground truth pressure.
+        :rtype: pd.DataFrame
+        """
         cells = pd.DataFrame()
         ids = []
         edges = []
@@ -163,6 +204,11 @@ class SurfaceEvolver:
         return cells
     
     def get_pressures(self) -> dict:
+        """Get the values of the ground truth pressure of the cells
+
+        :return: Ground truth pressure dictionary.
+        :rtype: dict
+        """
         pressures = {}
         _, _, _, index_p = self.get_first_last()
         with open(os.path.join(self.fname), "r") as f:

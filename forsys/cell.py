@@ -1,8 +1,23 @@
 from dataclasses import dataclass
 import numpy as np
+from typing import Tuple
 
 @dataclass 
 class Cell:
+    """
+    Class representation of the cells objects.
+
+    :param id: Unique identifier of the cell
+    :type id: int
+    :param vertices: Vertices that form the cell
+    :type vertices: list
+    :param is_border: True if the cell is in the border , defaults to False
+    :type is_border: float
+    :param gt_pressure: Ground truth pressure of the cell, defaults to None
+    :type gt_pressure: float
+    :param pressure: Inferred pressure of the cell, defaults to None
+    :type pressure: float
+    """
     id: int
     vertices: list
     is_border: bool = False
@@ -12,9 +27,8 @@ class Cell:
 
 
     def __post_init__(self):
-        # check for repeated elements
-        # vids = [v.id for v in self.vertices]
-        # assert len(vids) == len(set(vids)), f"There are repeated vertices in cell {self.id}"
+        """Constructor method
+        """
         self.center_x = None
         self.center_y = None
         self.neighbors = None
@@ -29,29 +43,72 @@ class Cell:
             v.remove_cell(self.id)
         
     def get_cell_vertices(self) -> list:
+        """
+        Get the list of vertices corresponding to the cell
+
+        :return: List of the cell's vertices
+        :rtype: list
+        """
         return self.vertices
 
     def get_next_vertex(self, v: object) -> object:
+        """
+        Get the next vertex from a given one in the cell ordering
+
+        :param v: Current vertex after which the next is calculated
+        :type cid: object
+        :return: Object reference for the next vertex in the ordering
+        :rtype: object
+        """
         return self.vertices[(self.vertices.index(v) + self.get_area_sign()) % len(self.vertices)]
     
     def get_previous_vertex(self, v: object) -> object:
+        """
+        Get the previous vertex from a given one in the cell ordering
+
+        :param v: Current vertex after which the previous is calculated
+        :type cid: object
+        :return: Object reference for the previous vertex in the ordering
+        :rtype: object
+        """
         return self.vertices[(self.vertices.index(v) - self.get_area_sign())% len(self.vertices)]
         
     def get_cm(self) -> list:
+        """
+        Get the centroid of the cell
+
+        :return:[x, y] list with the centroid position
+        :rtype: list
+        """
         return [np.mean([v.x for v in self.vertices]), np.mean([v.y for v in self.vertices])]
 
     def get_area_sign(self) -> int:
         """
-        x and y are the arrays with Xs and Ys of the vertices
+        Get the sign of the area, after the shoelace algorithm
+
+        :return: -1 means the cell is ordered clockwise, +1 counterclockwise.
+        :rtype: int
         """
         return int(np.sign(self.get_area()))
 
     def get_area(self) -> float:
+        """
+        Get the area of cell, using the shoelace formula
+
+        :return: Cell's area
+        :rtype: float
+        """
         x = [i.get_coords()[0] for i in self.vertices]
         y = [i.get_coords()[1] for i in self.vertices]
         return 0.5 * (np.dot(x, np.roll(y,1)) - np.dot(y, np.roll(x, 1)))
 
     def get_perimeter(self) -> float:
+        """
+        Get the perimeter of the cell
+
+        :return: Cell's perimeter
+        :rtype: float
+        """
         perimeter = 0
         for i in self.vertices:
             diffx = i.x - self.get_next_vertex(i).x
@@ -59,11 +116,16 @@ class Cell:
             perimeter +=  np.sqrt(diffx**2 + diffy**2)
         return perimeter
 
-    def replace_vertex(self, vold: object, vnew: object):
+    def replace_vertex(self, vold: object, vnew: object) -> None:
         """
         Replace vertex vold with vnew in the vertices list and
         add this cell to that vertex. If the vertex is already
         in the cell, remove it.
+
+        :param vold: Old vertex object to replace
+        :type vold: object
+        :param vnew: New vertex to replace in vold positions
+        :type vnew: object
         """
         vertices_ids = [v.id for v in self.vertices]
         if vnew.id in vertices_ids:
@@ -73,22 +135,38 @@ class Cell:
             # add cell to vertex
             vnew.add_cell(self.id)
 
-    def calculate_circle_center(self):
+    def calculate_circle_center(self) -> Tuple:
+        """
+        Calculate the centroid of the cell through a circle fit
+        Modified from DLITE's implementation: https://github.com/AllenCellModeling/DLITE
+
+        :return: x and y coordiante of the cell's center from a circular fit
+        :rtype: Tuple
+        """        
         import scipy.optimize as sco
         xs = [v.x for v in self.vertices]
         ys = [v.y for v in self.vertices]
 
         def objective_f(c):
-            """ calculate the algebraic distance between the data points and the mean circle centered at c=(xc, yc) """
+            """ 
+            Distance between the vertices and the mean circle centered at c
+            """
             distances = np.sqrt((xs - c[0]) ** 2 + (ys - c[1]) ** 2)
             return distances - distances.mean()
 
-        center_2, _ = sco.leastsq(objective_f, (np.mean(xs), np.mean(ys)))
-        self.center_x = center_2[0]
-        self.center_y = center_2[1]
-        return center_2[0], center_2[1]
+        center, _ = sco.leastsq(objective_f, (np.mean(xs), np.mean(ys)))
+        self.center_x = center[0]
+        self.center_y = center[1]
+        return center[0], center[1]
 
-    def calculate_neighbors(self):
+    def calculate_neighbors(self) -> list:
+        """
+        Get all neighboring cell's ids and set the corresponding class variable
+
+        :return: IDs of neighboring cells
+        :rtype: list
+        """
+        # TODO Functionalize
         current_cells = set()
         for vertex in self.vertices:
             [current_cells.add(cell_id) for cell_id in vertex.ownCells]

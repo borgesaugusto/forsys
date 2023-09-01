@@ -4,14 +4,29 @@ import forsys.time_series as ts
 import forsys.fmatrix as fmatrix
 import forsys.pmatrix as pmatrix
 import forsys.frames as fsframes
+
 @dataclass
 class ForSys():
+    """
+    Class wrapper containing the interface with the ForSys solver
+
+    :param frames: Unique identifier of the cell
+    :type id: dict
+    :param cm: True if the each frame should be moved the the center of mass
+    system, defaults to False
+    :type cm: bool
+    :param initial_guess: Dictionary pairing vertex IDs in different timepoints
+    to force ForSys to connect them through time
+    :type initial_guess: list
+    """
     frames: dict
 
-    cm: bool=True
+    cm: bool = False
     initial_guess: list = field(default_factory=list)
 
     def __post_init__(self):
+        """Constructor method        
+        """
         # if there is more than 1 time, generate time series
         if len(self.frames) > 1:
             self.mesh = ts.TimeSeries(self.frames, cm=self.cm, 
@@ -27,7 +42,17 @@ class ForSys():
         self.pressures = {k: None for k in range(len(self.frames))}
 
     
-    def build_force_matrix(self, when: int = 0, term: str = "none", metadata:dict = {}):
+    def build_force_matrix(self, when: int = 0, term: str = "none", metadata:dict = {}) -> None:
+        """Interface to create the matrix system to solve for the stresses
+
+        :param when: Time at which the matrix should be constructed, defaults to 0
+        :type when: int, optional
+        :param term: Define behaviour for external vertices. By default they are not 
+        considered, defaults to "none"
+        :type term: str, optional
+        :param metadata: Extra arguments to supply to the matrix builder, defaults to {}
+        :type metadata: dict, optional
+        """
         # TODO: add matrix caching
         self.force_matrices[when] = fmatrix.ForceMatrix(self.frames[when],
                                 # externals_to_use = self.frames[when].border_vertices,
@@ -37,17 +62,35 @@ class ForSys():
                                 timeseries=self.mesh)
 
     def build_pressure_matrix(self, when: int = 0):
+        """Interface to create the matrix system to solve for the pressures. 
+        Must be called after stresses were already found.
+
+        :param when: Time at which the matrix should be constructed, defaults to 0
+        :type when: int, optional
+        """
         # TODO: add matrix caching
         self.pressure_matrices[when] = pmatrix.PressureMatrix(self.frames[when],
                                                               timeseries=self.mesh)
         
 
     def solve_stress(self, when: int = 0, **kwargs) -> None:
+        """Interface to call the solver method for the stresses.
+        The matrix must already exist.
+
+        :param when: Time at which to calculate the solution, defaults to 0
+        :type when: int, optional
+        """
         self.forces[when] = self.force_matrices[when].solve(self.mesh, **kwargs)
         self.frames[when].forces = self.forces[when]
         self.frames[when].assign_tensions_to_big_edges()
         
     def solve_pressure(self, when: int=0, **kwargs):
+        """Interface to call the solver method for the pressures.
+        The matrix must already exist.
+
+        :param when: Time at which to calculate the solution, defaults to 0
+        :type when: int, optional
+        """
         assert type(self.forces[when]) is not None, "Forces must be calculated first"
         self.pressures = self.pressure_matrices[when].solve_system(**kwargs)
         self.frames[when].assign_pressures(self.pressures, self.pressure_matrices[when].mapping_order)
@@ -58,14 +101,37 @@ class ForSys():
     def get_velocities():
         raise(NotImplementedError)
 
-    def log_force(self, when: int):
+    def log_force(self, when: int) -> pd.DataFrame:
+        """Create dataframe with the solution for the stresses at a 
+        given time.
+
+        :param when: Time at which to create the dataframe
+        :type when: int
+        :return: Dataframe with the stresses per edge
+        :rtype: pd.DataFrame
+        """
         df = pd.DataFrame.from_dict(self.frames[when].forces, orient='index')
         df['is_border'] = [False if isinstance(x, int) else True for x in df.index]
         return df
 
-    def get_edge_force(self, v0, v1, t0=-1, tmax=-1):
-        """
+    """
         get lambda value for the edge given two vertices of the edge
+        """
+    def get_edge_force(self, v0: int, v1: int, t0: int = -1, tmax: int = -1) -> list:
+        """Return the edge tension between two timepoints for an edge, given two vertices.
+        If no time is provided, the whole evolution is assumed.
+
+        :param v0: First vertex of the edge
+        :type v0: int
+        :param v1: Second vertex of the edge
+        :type v1: int
+        :param t0: Initial time at which the edge's stress is required, defaults to -1.
+        Default returns the value for each frame.
+        :type t0: int, optional
+        :param tmax: Final time for the edge's stress, defaults to -1.
+        :type tmax: int, optional
+        :return: Array with the values of the edge's stress in time
+        :rtype: list
         """
         edge_force = []
         if tmax == -1 or t0 == -1:
@@ -85,6 +151,16 @@ class ForSys():
             
             
     def remove_outermost_edges(self, frame_number: int, layers: int = 1) -> tuple:
+        """Remove outermost layer of cells from a tissue. 
+        WARNING: This function is experimental
+
+        :param frame_number: Frame to perform the removal at
+        :type frame_number: int
+        :param layers: Number of layers of cells to remove, defaults to 1
+        :type layers: int, optional
+        :return: New vertices, edges and cells dictionaries after removal
+        :rtype: tuple
+        """
         if layers == 0:
             return True
         elif layers > 1:
@@ -93,32 +169,29 @@ class ForSys():
             # vertex_to_delete = []
             border_cells_ids = [cell.id for cell in self.frames[0].cells.values() if cell.is_border]
             for cell_id in border_cells_ids:
-                ### hardcoded remove after!
-                if (self.frames[frame_number].time == 3 and cell_id == 43) \
-                or (self.frames[frame_number].time == 17 and cell_id == 50) \
-                or (self.frames[frame_number].time == 24 and cell_id == 9) \
-                or (self.frames[frame_number].time == 28 and cell_id == 35) \
-                or (self.frames[frame_number].time == 11 and cell_id == 39):
-                    pass
-                else:
-                    self.remove_cell(frame_number, cell_id)            
-                ###
-                # self.remove_cell(frame_number, cell_id)            
+                self.remove_cell(frame_number, cell_id)            
+            
             return self.frames[frame_number].vertices, self.frames[frame_number].edges, self.frames[frame_number].cells
 
 
-    def remove_cell(self, frame_number: int, cell_id: int):
+    def remove_cell(self, frame_number: int, cell_id: int) -> fsframes.Frame:
+        """Remove a cell from the tissue
+
+        :param frame_number: Timepoint to perform removal
+        :type frame_number: int
+        :param cell_id: ID of the cell to be removed
+        :type cell_id: int
+        :return: New state of the frame
+        :rtype: fsframes.Frame
+        """
         vertex_to_delete = []
         for vertex in self.frames[frame_number].cells[cell_id].vertices:
-            # if all(cid in border_cells_ids for cid in vertex.ownCells):
             if len(vertex.ownCells) < 2:
                 assert vertex.ownCells[0] == self.frames[frame_number].cells[cell_id].id, "Vertex incorrectly placed in cell"
                 for ii in vertex.ownEdges.copy():
                     del self.frames[frame_number].edges[ii]
 
                 vertex_to_delete.append(vertex.id)
-                # vertex.ownCells.remove(self.frames[frame_number].cells[cell_id].id)
-                # vertex.remove_cell(cell_id)
         
         for vertex_id in list(set(vertex_to_delete)):
             del self.frames[frame_number].vertices[vertex_id]
@@ -130,6 +203,5 @@ class ForSys():
                                                    self.frames[frame_number].edges, 
                                                    self.frames[frame_number].cells, 
                                                    time=self.frames[frame_number].time,
-                                                   gt=self.frames[frame_number].gt,
-                                                   surface_evolver=self.frames[frame_number].surface_evolver)
+                                                   gt=self.frames[frame_number].gt)
         return self.frames[frame_number]
