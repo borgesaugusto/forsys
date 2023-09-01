@@ -23,8 +23,7 @@ def furrow():
                                     edges, 
                                     cells, 
                                     time=ii, 
-                                    gt=True, 
-                                    surface_evolver=False)
+                                    gt=True)
     forsys = fs.ForSys(frames, cm=False)
     yield forsys
 
