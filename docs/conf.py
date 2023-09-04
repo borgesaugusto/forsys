@@ -1,8 +1,8 @@
 # Configuration file for the Sphinx documentation builder.
 import sys
 import os
-sys.path.insert(0, os.path.abspath('..'))
-import forsys 
+# sys.path.insert(0, os.path.abspath('..'))
+# import forsys 
 
 project = 'ForSys'
 author = 'Augusto Borges'
