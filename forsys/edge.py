@@ -136,7 +136,6 @@ class BigEdge:
             self.own_cells = list(set(self.vertices[0].ownCells) & set(self.vertices[1].ownCells))
         else:
             self.own_cells = self.vertices[(len(self.vertices) - 1) // 2].ownCells
-
         vertices_own_cells = [len(vertex.ownCells) < 2 for vertex in self.vertices]
         has_junction_at_extremes = True if len(self.vertices[0].ownCells) > 2 \
                                            or len(self.vertices[-1].ownCells) > 2 else False
@@ -227,7 +226,12 @@ class BigEdge:
         else:
             raise Exception("Method for versor doesn't exist or cell missing")
         
-        vector = np.array((- (vobject.y - yc), (vobject.x - xc)))
+        edge_centroid = [np.mean(self.xs), np.mean(self.ys)]
+        if 10 * np.linalg.norm(edge_centroid) < np.linalg.norm([xc, yc]):
+            vector = np.array(self.get_straight_edge_versor_from_vid(vid))
+        else:
+            vector = np.array((- (vobject.y - yc), (vobject.x - xc)))
+
         correct_sign = self.get_versor_sign(vid)
         if np.any(np.sign(vector) != correct_sign):
             correction = correct_sign * np.sign(vector)
@@ -266,6 +270,12 @@ class BigEdge:
         :return: Array with the sign corrections
         :rtype: list
         """
+        versor = self.get_straight_edge_versor_from_vid(vid)
+        signs = np.sign(versor) 
+        return [1.0 if sign == 0 else sign for sign in signs]
+    
+    
+    def get_straight_edge_versor_from_vid(self, vid: int) -> list:
         all_vertices_ids = self.get_vertices_ids()
         v0 = self.get_vertex_object_by_id(vid)
         # connected to ?
@@ -277,6 +287,4 @@ class BigEdge:
             raise ("Vertex ID is not in a junction")
 
         v1 = self.get_vertex_object_by_id(next_vid)
-        versor = [v1.x - v0.x, v1.y - v0.y]
-        signs = np.sign(versor) 
-        return [1.0 if sign == 0 else sign for sign in signs]
+        return [v1.x - v0.x, v1.y - v0.y]
