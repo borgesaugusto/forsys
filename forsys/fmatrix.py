@@ -71,7 +71,7 @@ class ForceMatrix:
             row_x, row_y = self.get_row(vid)
             non_zero_x = np.count_nonzero(row_x)
             non_zero_y = np.count_nonzero(row_y)
-            if non_zero_x >= 3 and non_zero_y >= 3:
+            if non_zero_x >= 3 or non_zero_y >= 3:
                 self.map_vid_to_row[vid] = position_index
                 position_index += 2
                 if len(self.matrix) == 0:
@@ -227,7 +227,6 @@ class ForceMatrix:
             print("Numerically solving due to singular matrix")
             xres, _ = scop.nnls(mprime, b, maxiter=100000)
             xres = Matrix(xres)
-
         if removed_index is not None:
             xres = xres.row_insert(removed_index, Matrix([1]))
         for index, element in enumerate(self.big_edges_to_use):
