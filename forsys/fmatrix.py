@@ -56,6 +56,7 @@ class ForceMatrix:
 
         self.matrix = self._build_matrix()
         self.rhs = None
+        self.velocity_matrix = None
 
 
     def _build_matrix(self) -> Matrix:
@@ -200,6 +201,8 @@ class ForceMatrix:
                 j = self.map_vid_to_row[vid]
                 b[j] = value[0]
                 b[j+1] = value[1]
+
+        self.velocity_matrix = np.array(list(b.T), dtype=np.float64).round(4)
 
         if kwargs.get("method", None) == "fix_stress":
             mprime, b, removed_index = self.fix_one_stress(b)
