@@ -20,7 +20,7 @@ class ForceMatrix:
     :param term: If externals are incorporated, a term can be added to account for the third
     force in the balance. area, perimeter, area-perimeter and ext are possible.
     :type term: str
-    :param frame: Extra parameters required by functions in the class. 
+    :param metadata: Extra parameters required by functions in the class. 
     :type metadata: dict
     :param timeseries: Time series dictionary of frames
     :type timeseries: dict
@@ -72,7 +72,11 @@ class ForceMatrix:
             row_x, row_y = self.get_row(vid)
             non_zero_x = np.count_nonzero(row_x)
             non_zero_y = np.count_nonzero(row_y)
-            if non_zero_x >= 3 or non_zero_y >= 3:
+            at_least_three = non_zero_x >= 3 or non_zero_y >= 3
+            less_than_four = non_zero_x < 4 and non_zero_y < 4
+            less_than_four_condition = less_than_four if self.metadata.get("ignore_four", False) else True
+
+            if at_least_three and less_than_four_condition:
                 self.map_vid_to_row[vid] = position_index
                 position_index += 2
                 if len(self.matrix) == 0:
@@ -81,6 +85,7 @@ class ForceMatrix:
                 else:
                     self.matrix = self.matrix.row_insert(self.matrix.shape[0], Matrix(([row_x])))
                     self.matrix = self.matrix.row_insert(self.matrix.shape[0], Matrix(([row_y])))
+
         return self.matrix
 
     def get_row(self, vid: int) -> Tuple:
@@ -278,7 +283,8 @@ class ForceMatrix:
         """
         mprime = self.matrix.T * self.matrix
         b = self.matrix.T * b
-        total_edges = len(self.big_edges_to_use)
+        # total_edges = len(self.big_edges_to_use)
+        total_edges = mprime.shape[1]
         total_borders = len(self.externals_to_use)
         ones = np.ones(total_edges)
         zeros = np.zeros(total_borders*2)
