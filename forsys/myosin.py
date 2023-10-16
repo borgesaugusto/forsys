@@ -38,13 +38,13 @@ def get_intensities(frame,
                 # Normalize by the number of edges connected to it
                 # intensity = intensity / number_of_connections
                 intensities_per_edge.append(intensity)
-            try:
-                key_to_use = big_edges_to_use.index(big_edge)
-            except ValueError:
-                key_to_use = "ext_"+str(be_id)
 
             intensity_to_use = np.mean(list(map(np.median,
                                                 intensities_per_edge)))
+        try:
+            key_to_use = big_edges_to_use.index(big_edge)
+        except ValueError:
+            key_to_use = "ext_"+str(be_id)
 
         intensities[key_to_use] = intensity_to_use
         big_edge.gt = intensities[key_to_use]
