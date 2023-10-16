@@ -1,0 +1,32 @@
+[build-system]
+requires      = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ForSys"
+version = "0.4.0"
+description = "A tissue stress and cell pressure inference package with dynamical information"
+readme = "README.md"
+authors = [{ name = "Augusto Borges", email = "borges.augustoar@gmail.com" }]
+# license = { file = "LICENSE.md" }
+classifiers = [
+    "Intended Audience :: Science/Research"
+]
+keywords = ["systems biology", "stress", "pressure", "inference"]
+dependencies = [
+    "matplotlib >= 3.6.0",
+    "mpmath >= 1.3.0",
+    "numpy >= 1.23.0",
+    "opencv_python >= 4.5.0.0",
+    "pandas >= 1.4.2",
+    "Pillow >= 9.3.0",
+    "pytest >= 7.2.0",
+    "scipy >= 1.10.0",
+    "sympy >= 1.10.0",
+    "setuptools >= 60.2.0",
+    'tomli; python_version < "3.11"',
+]
+requires-python = ">=3.8"
+
+[project.urls]
+Homepage = "https://github.com/borgesaugusto/forsys/"
