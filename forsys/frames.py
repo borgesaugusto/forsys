@@ -144,11 +144,9 @@ class Frame():
             self.big_edges[big_edge_id].tension = np.mean(objects)
 
 
-    def assign_gt_small_edges(self, ground_truth: dict, big_edges_to_use:str = "internal") -> None:
+    def assign_gt_small_edges(self, big_edges_to_use:str = "internal") -> None:
         """Assign the ground truth stress values to the small edges.
 
-        :param ground_truth: Dictionary with ground truth values
-        :type ground_truth: dict
         :param big_edges_to_use: "ext" includes external edges, defaults to "internal"
         :type big_edges_to_use: str, optional
         """
@@ -157,10 +155,9 @@ class Frame():
         else:
             big_edges_to_use = self.internal_big_edges
 
-        for edge_id, vertices_list in enumerate(big_edges_to_use):
-            edges_to_use = self.get_big_edge_edgesid(vertices_list)
-            for small_edge_id in edges_to_use:
-                self.edges[small_edge_id].gt = ground_truth[edge_id]
+        for big_edge in big_edges_to_use:
+            for small_edge_id in big_edge.edges:
+                self.edges[small_edge_id].gt = big_edge.gt
 
     def assign_pressures(self, pressures: dict, mapping: dict) -> None:
         """Assign the ground truth pressures to the cells

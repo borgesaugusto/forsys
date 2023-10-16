@@ -9,21 +9,22 @@ from typing import Union, Tuple
 
 # TODO: Return the plot objects and let user handle saving for easier modification of the plots
 
-def plot_with_force_custom_fd(vertices: dict, edges: dict, step: str, folder: str, fd: dict, 
-                        earr: list, versors: Union[bool, list]=False, maxForce: float=None, 
-                        minForce: float=None, normalized: Union[bool, str]=False, mirror_y: bool=False, **kwargs) -> None:
+# def plot_inference(frame: fframes.Frame, pressure: bool=False, maxForce: float=None, 
+#                         minForce:float=None, normalized: Union[bool, str]=False, mirror_y: bool=False, **kwargs) -> Tuple:
+
+def plot_with_stress_custom(frame: fframes.Frame, step: str, folder: str, stress_dictionary: dict, 
+                            earr: list, versors: Union[bool, list]=False, maxForce: float=None, 
+                            minForce: float=None, normalized: Union[bool, str]=False, mirror_y: bool=False, **kwargs) -> None:
     """Generate a plot on a given mesh using a custom force dictionary.
 
-    :param vertices: Vertices in the system
-    :type vertices: dict
-    :param edges: Dicionary of all edges
-    :type edges: dict
+   :param frame: Frame to plot
+    :type frame: fframes.Frame
     :param step: Step at which to create the plot. It is used as the file name
     :type step: int
     :param folder: Folder to save the plot to
     :type folder: str
-    :param fd: Custom dictionary of stresses
-    :type fd: dict
+    :param stress_dictionary: Custom dictionary of stresses
+    :type stress_dictionary: dict
     :param earr: List of big edges in the system
     :type earr: list
     :param versors: Versors to plot if necessary. Useful when external stresses are used, defaults to False
@@ -41,112 +42,57 @@ def plot_with_force_custom_fd(vertices: dict, edges: dict, step: str, folder: st
     plt.close()
     if not os.path.exists(folder):
         os.makedirs(folder)
-    plotArrows = True
     jet = plt.get_cmap('jet')
-
-    # Get external forces vectors:
-    extForces = {}
-    if step != "cellfit" and plotArrows:
-        for name, val in fd.items():
-            if isinstance(name, str):
-                if int(name[1:-1]) not in extForces:
-                    extForces[int(name[1:-1])] = [0, 0]
-                if name[-1] == 'x':
-                    extForces[int(name[1:-1])][0] = val
-                else:
-                    extForces[int(name[1:-1])][1] = val
-
 
     _, ax = plt.subplots(1,1)
 
     if not os.path.exists(folder):
         os.makedirs(folder)
 
-    if step != "cellfit":
-        # fdWithoutForce = {k: v for k, v in fd.items() if k.startswith('F')}
-        fdWithoutForce = {}
-        # fprime = {}
-        for key, val in fd.items():
-            if not isinstance(key, str):
-                fdWithoutForce[key] = val
-    else:
-        fdWithoutForce = fd
-    for vertexID, vertex in vertices.items():
-        # print(vertexID, fd[edgeID])
-        mFx = 0
-        mFy = 0
-        versors = False
-        if versors != False:
-            try:
-                for vlist in versors[vertexID]:
-                    for v in vlist:
-                        if v != vertexID:
-                            px = vertices[v].x - vertex.x
-                            py = vertices[v].y - vertex.y
-                            versor = (px, py)/np.sqrt(px**2+py**2)
-                            plt.arrow(vertex.x, vertex.y, versor[0],
-                                        versor[1], color="red", zorder=100)
-            except KeyError:
-                pass
-
     if maxForce == None:
-        maxForce = max(fdWithoutForce.values())
+        maxForce = max(stress_dictionary.values())
     if minForce == None:
-        minForce = min(fdWithoutForce.values())
+        minForce = min(stress_dictionary.values())
     
-    allValues = np.array(list(fdWithoutForce.values())).flatten()
+    allValues = np.array(list(stress_dictionary.values())).flatten()
     aveForce = np.mean(allValues)
     stdForce = np.std(allValues)
 
     already_plotted = []
 
-    if len(fd) > 0:
-        for name, force in fd.items():
-            if not isinstance(name, str):
-                try:
-                    current = earr[name]
-                except IndexError:
-                    print(f"IndexError: trying big edge {name} in an earr of length {len(earr)}")
-                    pass
-                # print(current)
-                for j in range(0, len(current)):
-                    # current[0]
-                    eBelong = vertices[current[j]].ownEdges
-                    for e in eBelong:
-                        edge = edges[e]
-                        try:
-                            if len(set(edge.get_vertices_id()) & set([current[j], current[j+1]])) == 2:
-                                if normalized == "normal":
-                                    forceValToPlot = (force - aveForce) / stdForce
-                                elif normalized == "max":
-                                    forceValToPlot = force / maxForce
-                                else:
-                                    forceValToPlot = force/maxForce
+    for name, force in stress_dictionary.items():
+        if not isinstance(name, str):
+            try:
+                current = earr[name]
+            except IndexError:
+                print(f"IndexError: trying big edge {name} in an earr of length {len(earr)}")
+                pass
+            for j in range(0, len(current)):
+                eBelong = frame.vertices[current[j]].ownEdges
+                for e in eBelong:
+                    edge = frame.edges[e]
+                    try:
+                        if len(set(edge.get_vertices_id()) & set([current[j], current[j+1]])) == 2:
+                            if normalized == "normal":
+                                forceValToPlot = (force - aveForce) / stdForce
+                            elif normalized == "max":
+                                forceValToPlot = force / maxForce
+                            else:
+                                forceValToPlot = force/maxForce
 
-                                color = jet(forceValToPlot)
-                                plt.plot(   (edge.v1.x, edge.v2.x),
-                                            (edge.v1.y, edge.v2.y),
-                                            color=color, linewidth=3)
-                                already_plotted.append(edge.id)
-                        except IndexError:
-                            pass
+                            color = jet(forceValToPlot)
+                            plt.plot(   (edge.v1.x, edge.v2.x),
+                                        (edge.v1.y, edge.v2.y),
+                                        color=color, linewidth=3)
+                            already_plotted.append(edge.id)
+                    except IndexError:
+                        pass
                     
-    for edge in edges.values():
+    for edge in frame.edges.values():
         if edge.id not in already_plotted:
             plt.plot(   (edge.v1.x, edge.v2.x),
                         (edge.v1.y, edge.v2.y),
                         color="black", linewidth=0.5, alpha=0.6)
-
-
-    if step != "cellfit" and plotArrows:
-        for name, val in extForces.items():
-            mFx = round(float(val[0]), 3)
-            mFy = round(float(val[1]), 3)
-            mfmodulus = np.sqrt(mFx**2 + mFy**2)
-            # print(mFx, mFy)
-            vToUse = vertices[int(name)]
-            plt.arrow(vToUse.x, vToUse.y, mFx,
-                        mFy, color=jet(abs(mfmodulus/maxForce)), zorder=100)
 
     plt.axis('off')
     if mirror_y:
@@ -163,8 +109,10 @@ def plot_with_force_custom_fd(vertices: dict, edges: dict, step: str, folder: st
     plt.close()
 
 
-def plot_inference(frame: fframes.Frame, pressure: bool=False, maxForce: float=None, 
-                        minForce:float=None, normalized: Union[bool, str]=False, mirror_y: bool=False, **kwargs) -> Tuple:
+def plot_inference(frame: fframes.Frame, pressure: bool=False,
+                   ground_truth: bool=False, maxForce: float=None,
+                   minForce: float=None, normalized: Union[bool, str]=False,
+                   mirror_y: bool=False, **kwargs) -> Tuple:
     """Generate a plot of a tissue using the inferred tensions and pressures and return the plot object
 
     :param frame: Frame to plot
@@ -175,6 +123,7 @@ def plot_inference(frame: fframes.Frame, pressure: bool=False, maxForce: float=N
     # :type step: int
     :param pressure: If True pressures are plotted in the inner space of the cells.
     :type pressure: bool
+    :param ground_truth: False plots inferred stresses, True will plot the ground truth value assigned to each edge
     :param maxForce: Max force to use in the normalization, defaults to None
     :type maxForce: float, optional
     :param minForce: Min force in the normalization, defaults to None
@@ -190,35 +139,35 @@ def plot_inference(frame: fframes.Frame, pressure: bool=False, maxForce: float=N
     plt.close()
     jet = plt.get_cmap('jet')
     fig, ax = plt.subplots(1,1)
-
-    # if not os.path.exists(folder):
-    #     os.makedirs(folder)
     
-    all_forces = [edge.tension for edge in frame.edges.values() if edge.tension != 0]
+    if ground_truth:
+        all_forces = [edge.gt for edge in frame.edges.values() if edge.gt != 0]
+    else:
+        all_forces = [edge.tension for edge in frame.edges.values() if edge.tension != 0]
 
     if maxForce == None:
         maxForce = max(all_forces)
     if minForce == None:
         minForce = min(all_forces)
 
-    allValues = all_forces
-    aveForce = np.mean(allValues)
-    stdForce = np.std(allValues)
+    aveForce = np.mean(all_forces)
+    stdForce = np.std(all_forces)
 
     for _, edge in frame.edges.items():
-        if edge.tension == 0:
+        observable = edge.tension if not ground_truth else edge.gt
+        if observable == 0:
             plt.plot(   (edge.v1.x, edge.v2.x),
                         (edge.v1.y, edge.v2.y),
                         color="black", linewidth=0.5, alpha=0.6)
         else:
             if normalized == "normal":
-                forceValToPlot = (edge.tension - aveForce) / stdForce
+                forceValToPlot = (observable - aveForce) / stdForce
             elif normalized == "max":
-                forceValToPlot = edge.tension / maxForce
+                forceValToPlot = observable / maxForce
             elif normalized == "relative":
-                forceValToPlot = (edge.tension + minForce) / maxForce
+                forceValToPlot = (observable + minForce) / maxForce
             else:
-                forceValToPlot = edge.tension/maxForce
+                forceValToPlot = observable/maxForce
             
             color = jet(forceValToPlot)
             plt.plot(   (edge.v1.x, edge.v2.x),
@@ -249,7 +198,7 @@ def plot_inference(frame: fframes.Frame, pressure: bool=False, maxForce: float=N
     plt.tight_layout()
     # plt.savefig(name, dpi=500)
     # plt.close()
-    return fig, ax
+    return fig, ax  
 
 
 def plot_difference(frame, folder: str, step: str, **kwargs) -> None:

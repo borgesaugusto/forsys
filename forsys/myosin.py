@@ -29,12 +29,12 @@ def get_intensities(frame,
             # Normalize by the number of edges connected to it
             # intensity = intensity / number_of_connections
             intensities_per_edge.append(intensity)
-
         try:
             key_to_use = big_edges_to_use.index(big_edge)
         except ValueError:
             key_to_use = "ext_"+str(be_id)
         intensities[key_to_use] = np.mean(intensities_per_edge)
+        big_edge.gt = intensities[key_to_use]
 
     # divide by maximum
     # max_intensity = np.amax(im)
@@ -49,9 +49,6 @@ def get_intensities(frame,
             intensities_only_internal = {k: v/mean_value for k, v in intensities_only_internal.items()}
         else:
             raise(NotImplemented)
-
-    # for k, v in intensities_only_internal.items():
-    #     print(f"This edge {frame.big_edges_list[k]} has intensity: {round(v, 3)} and force {round(frame.forces[k], 3)}")
         
     return intensities_only_internal
 
