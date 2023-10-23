@@ -3,55 +3,62 @@ import numpy as np
 import itertools
 
 
-def get_intensities(frame,
-                    tiff_path,
-                    integrate=False,
-                    normalize="average",
-                    corrected_by_tilt=False,
-                    layers: int = 1,
-                    **kwargs):
+def read_myosin(frame,
+                tiff_path,
+                integrate=False,
+                normalize="average",
+                corrected_by_tilt=False,
+                layers: int = 1,
+                **kwargs):
+    image = Image.open(tiff_path)
 
-    im = Image.open(tiff_path)
-
-    intensities = {}
     if kwargs.get("use_all", False):
         big_edges_to_use = frame.big_edges_list
     else:
         big_edges_to_use = frame.internal_big_edges
 
+    return get_intensities(big_edges_to_use,
+                           image,
+                           integrate,
+                           normalize,
+                           corrected_by_tilt,
+                           layers)
+
+
+def get_intensities(big_edges,
+                    image,
+                    integrate=False,
+                    normalize="average",
+                    corrected_by_tilt=False,
+                    layers: int = 1):
+    intensities = {}
+
     if corrected_by_tilt:
-        image_to_use = Image.fromarray(modified_intensities(im))
+        image_to_use = Image.fromarray(modified_intensities(image))
     else:
-        image_to_use = im
+        image_to_use = image
 
-    for be_id, big_edge in enumerate(big_edges_to_use):
+    for be_id, big_edge in enumerate(big_edges):
         intensities_per_edge = []
-
         if integrate:
-            vertices, length = get_interpolation(big_edge)
+            vertices, length = get_interpolation(big_edge, layers=layers)
             intensity_to_use = sum(map(image_to_use.getpixel,
                                        vertices)) / length
         else:
             for vertex in big_edge.vertices:
                 intensity = get_intensity(image_to_use, vertex, layers=layers)
-                # number_of_connections = len(vertex.ownEdges)
-                # Normalize by the number of edges connected to it
-                # intensity = intensity / number_of_connections
                 intensities_per_edge.append(intensity)
 
             intensity_to_use = np.mean(list(map(np.median,
                                                 intensities_per_edge)))
         try:
-            key_to_use = big_edges_to_use.index(big_edge)
+            key_to_use = big_edges.index(big_edge)
         except ValueError:
             key_to_use = "ext_"+str(be_id)
 
         intensities[key_to_use] = intensity_to_use
         big_edge.gt = intensities[key_to_use]
 
-    # divide by maximum
-    # max_intensity = np.amax(im)
-    # intensities = {k: v/max_intensity for k, v in intensities.items()}
     intensities_only_internal = {k: v for k, v in intensities.items() if not isinstance(k, str)}
 
     if normalize == "maximum":
@@ -59,8 +66,6 @@ def get_intensities(frame,
     elif normalize == "average":
         mean_value = np.mean(list(intensities_only_internal.values()))
         intensities_only_internal = {k: v/mean_value for k, v in intensities_only_internal.items()}
-    else:
-        raise NotImplementedError
 
     return intensities_only_internal
 
@@ -80,44 +85,29 @@ def get_layer_elements(position, layers=1):
 
 
 def get_interpolation(big_edge, layers=0):
-    # len_vertices = len(big_edge.vertices)
+    from scipy import interpolate
     length = 0
     all_vertices = set()
-    y_iteration = False
-    for ii in range(0, len(big_edge.vertices) - 1):
-        if big_edge.vertices[ii].x < big_edge.vertices[ii + 1].x:
-            v0 = big_edge.vertices[ii]
-            v1 = big_edge.vertices[ii + 1]
-        else:
-            v0 = big_edge.vertices[ii + 1]
-            v1 = big_edge.vertices[ii]
+    interpolation = interpolate.interp1d(big_edge.xs, big_edge.ys, kind="linear")
 
-        difference = (v1.x - v0.x, v1.y - v0.y)
+    min_x = min(big_edge.xs)
+    max_x = max(big_edge.xs) + 1
 
-        if difference[0] == 0:
-            y_iteration = True
-            if v0.y < v1.y:
-                iter_interval = range(v0.y, v1.y)
-            else:
-                iter_interval = range(v1.y, v0.y)
-        else:
-            iter_interval = range(int(v0.x), int(v1.x + 1))
-            slope = difference[1] / difference[0]
-
-        length += np.linalg.norm(difference)
-        for position in iter_interval:
-            if y_iteration:
-                x_position = v0.x
-                y_position = position
-            else:
-                x_position = position
-                y_position = slope * (x_position - v0.x) + v0.y
-
-            layer_elements = get_layer_elements((x_position, y_position),
-                                                layers)
-            all_vertices.update(layer_elements)
+    x_values = range(min_x, max_x)
+    y_values = [int(interpolation(x_value)) for x_value in x_values]
+    for ii in range(len(x_values)):
+        layer_elements = get_layer_elements((x_values[ii], y_values[ii]),
+                                            layers)
+        all_vertices.update(layer_elements)
+    
+    length = len(all_vertices)
 
     return all_vertices, length
+
+
+def arc_length(x, y):
+    gradient = np.gradient(y, x)
+    return np.trapz(np.sqrt(1 + gradient**2))
 
 
 def modified_intensities(image):
