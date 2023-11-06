@@ -1,6 +1,11 @@
 from PIL import Image
 import numpy as np
 import itertools
+import math
+from scipy import interpolate
+
+from forsys.vertex import Vertex 
+from forsys.edge import SmallEdge, BigEdge 
 
 
 def read_myosin(frame,
@@ -70,6 +75,22 @@ def get_intensities(big_edges,
     return intensities_only_internal
 
 
+# def rotate_big_edge(big_edge_prev, angle):
+#     Rmatrix = np.array([[np.cos(angle), - np.sin(angle)],
+#                        [np.sin(angle), - np.cos(angle)]])
+    
+#     vertices = {}
+#     for vid in range(len(big_edge_prev.xs)):
+#         new_x, new_y = np.array(np.matmul(Rmatrix, [big_edge_prev.xs[vid], big_edge_prev.ys[vid]]))
+#         vertices[10000 + vid] = Vertex(10000 + vid, new_x, new_y)
+#         if vid > 0:
+#             edges[10000 + vid] = SmallEdge(vid - 1, vertices[vid - 1], vertices[vid])
+
+#     big_edge = BigEdge(0, list(vertices.values()))
+
+#     return big_edge
+
+
 def get_intensity(image, vertex, layers=1):
     pixel_positions = get_layer_elements([vertex.x, vertex.y], layers)
     return list(map(image.getpixel, pixel_positions))
@@ -84,25 +105,37 @@ def get_layer_elements(position, layers=1):
     return pixel_positions
 
 
-def get_interpolation(big_edge, layers=0):
-    from scipy import interpolate
+def get_interpolation(big_edge, layers):
     length = 0
     all_vertices = set()
-    interpolation = interpolate.interp1d(big_edge.xs, big_edge.ys, kind="linear")
+    xy_pairs = list(zip(big_edge.xs, big_edge.ys))
 
-    min_x = min(big_edge.xs)
-    max_x = max(big_edge.xs) + 1
-
-    x_values = range(min_x, max_x)
-    y_values = [int(interpolation(x_value)) for x_value in x_values]
-    for ii in range(len(x_values)):
-        layer_elements = get_layer_elements((x_values[ii], y_values[ii]),
-                                            layers)
-        all_vertices.update(layer_elements)
-    
-    length = len(all_vertices)
+    for ii in range(1, len(xy_pairs)):
+        current_vertex = list(map(math.ceil, xy_pairs[ii - 1]))
+        next_vertex = list(map(math.ceil, xy_pairs[ii]))
+        all_vertices.update(walk_two_vertices(current_vertex, next_vertex, layers))
+        length += np.linalg.norm(np.array(xy_pairs[ii - 1]) - np.array(xy_pairs[ii]))
 
     return all_vertices, length
+
+
+def walk_two_vertices(v0, v1, layers):
+    vertices_to_return = set()
+    diff_x = abs(v0[0] - v1[0])
+    diff_y = abs(v0[1] - v1[1])
+    axis = 0 if diff_x > diff_y else 1
+    delta = 1 if v0[axis] < v1[axis] else -1
+    interpolation = interpolate.interp1d([v0[axis], v1[axis]],
+                                                [v0[axis - 1], v1[axis - 1]],
+                                                kind="linear")
+    for value in range(v0[axis], v1[axis], delta):
+        if axis == 0:
+            position = (value, interpolation(value))
+        else:
+            position = (interpolation(value), value)
+
+        vertices_to_return.update(get_layer_elements(position, layers))
+    return vertices_to_return
 
 
 def arc_length(x, y):
