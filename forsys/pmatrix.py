@@ -36,12 +36,13 @@ class PressureMatrix(forsys_general_matrix.GeneralMatrix):
 
         for position_id, big_edge in enumerate(self.big_edges_to_use):
             lhs_row, rhs_value =  self.get_row(big_edge)
-            
+
             self.rhs_matrix[position_id] = rhs_value
             if not self.lhs_matrix:
-                self.lhs_matrix = Matrix(( [lhs_row] ))
+                self.lhs_matrix = Matrix(lhs_row).T
             else:
-                self.lhs_matrix = self.lhs_matrix.row_insert(self.lhs_matrix.shape[0], Matrix(([lhs_row])))
+                self.lhs_matrix = self.lhs_matrix.row_insert(self.lhs_matrix.shape[0],
+                                                             Matrix(lhs_row).T)
         
         self.removed_columns = []
         for column in range(self.lhs_matrix.shape[1]):
