@@ -45,7 +45,7 @@ def get_partition(cell_vertex_ids, number_connections):
     return partitioned
 
 
-def generate_mesh(vertices, edges, cells, ne=4):
+def generate_mesh(vertices, edges, cells, ne=4, **kwargs):
     # bedges = create_edges(cells)
     bedges = create_edges_new(vertices, cells)
     # ldict = {}
@@ -108,7 +108,7 @@ def generate_mesh(vertices, edges, cells, ne=4):
         print(f"*** WARNING **** CELL {cells[c].id} remove due to having {len(cells[c].vertices)} vertices")
         del cells[c]
 
-    if len(vertices_to_join) > 0:
+    if len(vertices_to_join) > 0 and kwargs.get("replace_short_edges", True):
         try:
             vertices, edges, cells = replace_short_edges(vertices_to_join, vertices, edges, cells)
         except KeyError:
