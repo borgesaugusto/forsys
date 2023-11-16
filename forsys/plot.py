@@ -283,6 +283,7 @@ def plot_mesh(vertices: dict, edges: dict, cells: dict,
     :param mirror_y: If True the tissue is plotted as a mirror image in the Y axis, defaults to False
     :type mirror_y: bool, optional
     """
+    fig, ax = plt.subplots(1,1)
     if not os.path.exists(folder):
         os.makedirs(folder)
     to_save = os.path.join(folder, name)
@@ -308,11 +309,13 @@ def plot_mesh(vertices: dict, edges: dict, cells: dict,
         plt.ylim(ylim[0], ylim[1])
     if mirror_y:
         plt.gca().invert_yaxis()
-    plt.tight_layout()
+    # plt.tight_layout()
 
-    plt.savefig(to_save, dpi=500)
-    plt.clf()
-    plt.close()
+    # plt.savefig(to_save, dpi=500)
+    # plt.clf()
+    # plt.close()
+    return fig, ax  
+    
 
 def plot_equilibrium(mesh, step, folder, what="acceleration", normalized=False, cutoff=None):
     # According to how much acceleration is present, paint the tissue
