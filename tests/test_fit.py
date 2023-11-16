@@ -34,7 +34,7 @@ def test_fit_initial_furrow(furrow):
     tensions_df = furrow.frames[0].get_tensions()
 
     r_value = distance_to_yeqx(tensions_df['gt'].values / tensions_df['gt'].mean(), 
-                                tensions_df['tension'].values)
+                                tensions_df['stress'].values)
     assert 1 > r_value > 0.94
 
 def test_fit_last_furrow(furrow):
@@ -45,7 +45,7 @@ def test_fit_last_furrow(furrow):
     tensions_df = furrow.frames[last_frame].get_tensions()
 
     r_value = distance_to_yeqx(tensions_df['gt'].values / tensions_df['gt'].mean(), 
-                                tensions_df['tension'].values)
+                                tensions_df['stress'].values)
     assert 1 > r_value > 0.93
 
 def test_fit_furrow_movement_velocity(furrow):
@@ -55,6 +55,6 @@ def test_fit_furrow_movement_velocity(furrow):
         furrow.solve_stress(when=ii, b_matrix="velocity")
         tensions_df = furrow.frames[ii].get_tensions()
         r_value = distance_to_yeqx(tensions_df['gt'].values / tensions_df['gt'].mean(), 
-                                    tensions_df['tension'].values)
+                                    tensions_df['stress'].values)
         all_r_values.append(r_value)
     assert np.all([1 > value > 0.94 for value in all_r_values])
