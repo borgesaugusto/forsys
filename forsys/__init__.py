@@ -10,4 +10,5 @@ from . import skeleton
 from . import exceptions
 from . import myosin
 from . import stress_tensor
+from . import tessellation
 # from . import general_matrix
