@@ -4,8 +4,13 @@ import os
 import numpy as np
 import forsys.virtual_edges as ve
 import forsys.frames as fframes
+import forsys.edge as fedges
 import forsys.time_series as ftimes
+import forsys.myosin as fmyo
 from typing import Union, Tuple
+from copy import deepcopy
+import PIL
+
 
 # TODO: Return the plot objects and let user handle saving for easier modification of the plots
 
@@ -109,10 +114,13 @@ def plot_with_stress_custom(frame: fframes.Frame, step: str, folder: str, stress
     plt.close()
 
 
-def plot_inference(frame: fframes.Frame, pressure: bool=False,
-                   ground_truth: bool=False, maxForce: float=None,
-                   minForce: float=None, normalized: Union[bool, str]=False,
-                   mirror_y: bool=False, **kwargs) -> Tuple:
+def plot_inference(frame: fframes.Frame, pressure: bool = False,
+                   ground_truth: bool = False, maxForce: float = None,
+                   minForce: float = None,
+                   normalized: Union[bool, str] = False,
+                   mirror_y: bool = False,
+                   mirror_x: bool = False,
+                   **kwargs) -> Tuple:
     """Generate a plot of a tissue using the inferred tensions and pressures and return the plot object
 
     :param frame: Frame to plot
@@ -175,7 +183,7 @@ def plot_inference(frame: fframes.Frame, pressure: bool=False,
                         color=color, linewidth=3)
             
     if pressure:
-        pressures = frame.get_pressures()["pressures"]
+        pressures = frame.get_pressures()["pressure"]
         pressures_cb = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=pressures.min(), vmax=pressures.max()))
         for _, cell in frame.cells.items():
             color_to_fill = pressures_cb.to_rgba(float(cell.pressure))
@@ -189,6 +197,8 @@ def plot_inference(frame: fframes.Frame, pressure: bool=False,
     plt.axis('off')
     if mirror_y:
         plt.gca().invert_yaxis()
+    if mirror_x:
+        plt.gca().invert_xaxis()
     
     if kwargs.get("colorbar", False):
         sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=0, vmax=1))
@@ -198,7 +208,7 @@ def plot_inference(frame: fframes.Frame, pressure: bool=False,
     plt.tight_layout()
     # plt.savefig(name, dpi=500)
     # plt.close()
-    return fig, ax  
+    return fig, ax
 
 
 def plot_difference(frame, folder: str, step: str, **kwargs) -> None:
@@ -263,7 +273,9 @@ def plot_force(freq: list, folder: str ='') -> None:
 
 def plot_mesh(vertices: dict, edges: dict, cells: dict, 
               name: str="0", folder: str=".", 
-              xlim: list=[], ylim: list=[], mirror_y: bool=False) -> None:
+              xlim: list=[], ylim: list=[], 
+              mirror_y: bool = False,
+              mirror_x: bool = False) -> None:
     """Generate a plot of the mesh. Useful for visualizing IDs of cells, edges and vertices in the system.
 
     :param vertices: Dictionary of vertices
@@ -309,6 +321,8 @@ def plot_mesh(vertices: dict, edges: dict, cells: dict,
         plt.ylim(ylim[0], ylim[1])
     if mirror_y:
         plt.gca().invert_yaxis()
+    if mirror_x:
+        plt.gca().invert_xaxis()
     # plt.tight_layout()
 
     # plt.savefig(to_save, dpi=500)
@@ -692,12 +706,60 @@ def plot_stress_tensor(frame: fframes.Frame, folder: str, fname: str,
         plt.plot(axis_2_x, axis_2_y, color="green", linewidth=2)
 
     plt.axis('off')
-    
+
     if kwargs.get("mirror_y", None):
         plt.gca().invert_yaxis()
-    
+
 
     name = os.path.join(folder, str(fname))
     plt.tight_layout()
     plt.savefig(name, dpi=500)
     plt.close()
+
+
+def plot_skeleton(frame: fframes.Frame, save_folder: str, **kwargs) -> None:
+    # image_size_x, image_size_y = kwargs.get("image_size", (1000, 1000))
+    # image_array = np.zeros((image_size_x, image_size_y))
+
+    maximize = kwargs.get("maximize", False)
+    if maximize:
+        factor_x, factor_y = maximize
+    else:
+        factor_x, factor_y = 1, 1
+
+    new_frame = deepcopy(frame)
+    for vid, vertex in new_frame.vertices.items():
+        vertex.x = vertex.x * factor_x
+        vertex.y = vertex.y * factor_y
+
+    for beid, big_edge in new_frame.big_edges.items():
+        new_frame.big_edges[beid] = fedges.BigEdge(beid,
+                                                   big_edge.vertices)
+    frame = new_frame
+
+    if kwargs.get("use_all", False):
+        edges_to_use = list(frame.big_edges.values())
+    else:
+        edges_to_use = frame.internal_big_edges
+
+    all_vertices = set()
+    for _, big_edge in enumerate(edges_to_use):
+        vertices, _ = fmyo.get_interpolation(big_edge, layers=0)
+        all_vertices.update(vertices)
+
+    all_vertices_tuple = list(zip(*all_vertices))
+
+    all_xs = all_vertices_tuple[0]
+    all_ys = all_vertices_tuple[1]
+    max_x, min_x = np.max(all_xs), np.min(all_xs)
+    max_y, min_y = np.max(all_ys), np.min(all_ys)
+    diff_x = int(max_x) - int(min_x)
+    diff_y = int(max_y) - int(min_y)
+    image_array = np.zeros((diff_y + 7, diff_x + 7))
+
+    for vx, vy in list(all_vertices):
+        vx = int((vx - min_x)) + 5
+        vy = int((vy - min_y)) + 5
+        image_array[int(vy), int(vx)] = 255
+    im = PIL.Image.fromarray(image_array)
+    im.save(save_folder)
