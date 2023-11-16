@@ -194,7 +194,7 @@ class Frame():
         :rtype: pd.DataFrame
         """
         df = pd.DataFrame.from_dict({beid: big_edge.gt for beid, big_edge in self.big_edges.items()}.items()).rename(columns={0: 'id', 1: 'gt'})
-        df['tension'] = [big_edge.tension for big_edge in self.big_edges.values()]
+        df['stress'] = [big_edge.tension for big_edge in self.big_edges.values()]
         if not with_border:
             # Only return results that don't belong the edges in the border
             df = df.loc[~df.id.isin(self.get_external_edges_ids())]
@@ -207,9 +207,9 @@ class Frame():
         :return: DataFrame with the ID of the cells, their ground truth pressure and the inferred value
         :rtype: pd.DataFrame
         """
-        pressure_df = pd.DataFrame.from_dict({cid: cell.gt_pressure for cid, cell in self.cells.items()}.items()).rename(columns={0: id, 1: "gt_pressure"})
+        pressure_df = pd.DataFrame.from_dict({cid: cell.gt_pressure for cid, cell in self.cells.items()}.items()).rename(columns={0: "id", 1: "gt_pressure"})
         inferred_pressures = [cell.pressure for cell in self.cells.values()]
-        pressure_df["pressures"] = inferred_pressures
+        pressure_df["pressure"] = inferred_pressures
 
         return pressure_df
 
