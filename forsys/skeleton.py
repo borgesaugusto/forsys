@@ -3,12 +3,14 @@ import numpy as np
 from PIL import Image
 import cv2
 import itertools as iter
+from collections import Counter
 from typing import Tuple
 
 import forsys.vertex as vertex
 import forsys.edge as edge
 import forsys.cell as cell
-
+import forsys.wkt as fwkt
+import forsys.virtual_edges as fvedges
 
 @dataclass
 class Skeleton:
@@ -47,7 +49,7 @@ class Skeleton:
             self.max_y = float(max(list(iter.chain.from_iterable(
                 [list(zip(*c))[1] for c in self.contours]))))
 
-    def create_lattice(self) -> Tuple[dict, dict, dict]:
+    def create_lattice(self, **kwargs) -> Tuple[dict, dict, dict]:
         """
         Creates vertices, edges and cells of the system in three dictioinaries
 
@@ -61,6 +63,10 @@ class Skeleton:
         self.coords_to_key = {}
 
         self.edges_added = []
+
+        rescale = kwargs.get("rescale", [1, 1])
+        offset = kwargs.get("offset", [0, 0])
+
         for _, polygon in enumerate(self.contours):
             cell_vertices_list = []
             for coords in polygon:
@@ -71,8 +77,8 @@ class Skeleton:
                 if vid == -1:
                     vid = self.vertex_id
                     self.vertices[vid] = vertex.Vertex(int(vid),
-                                                       coords[0],
-                                                       coords[1])
+                                                       (coords[0] - offset[0]) / rescale[0],
+                                                       (coords[1] - offset[1]) / rescale[1])
                     self.vertex_id += 1
 
                     self.coords_to_key[tuple(coords)] = vid
@@ -89,6 +95,13 @@ class Skeleton:
             # create cells now
             self.cells[self.cell_id] = cell.Cell(self.cell_id, cell_vertices_list, {})
             self.cell_id += 1
+        
+        self.vertices, self.edges, self.cells = fwkt.reduce_amount(self.vertices,
+                                                                   self.edges,
+                                                                   self.cells)
+
+        self.all_big_edges = fvedges.create_edges_new(self.vertices,
+                                                      self.cells)
 
         for current_cell in self.cells.values():
             # if any of the vertices in the cell has a vertex with only one cell, that is an external cell
@@ -100,6 +113,40 @@ class Skeleton:
                 e.external = True
             else:
                 e.external = False
+
+        # triangles in the middle
+        inner_edge_triangles = []
+        num_elements = len(self.all_big_edges)
+        first_part = [(e[0], e[-1]) for e in self.all_big_edges]
+        last_part = [(e[-1], e[0]) for e in self.all_big_edges]
+        first_last = first_part + last_part
+        inner_edge_triangles = [k for k, v in Counter(first_last).items() if v > 1]
+        
+        visited = []
+        for index in range(len(inner_edge_triangles) - 1):
+            if (inner_edge_triangles[index] in visited or
+                inner_edge_triangles[index][::-1] in visited):
+                continue
+
+            edge_0_index = first_last.index(inner_edge_triangles[index]) % num_elements
+            edge_1_index = first_last.index(inner_edge_triangles[(index + 1)]) % num_elements
+            edge_0 = self.all_big_edges[edge_0_index]
+            if len(edge_0) > 3:
+                continue
+            edge_1 = self.all_big_edges[edge_1_index]
+            vertex_id_to_delete = np.setdiff1d(edge_0, edge_1)[0]
+
+            its_cells = self.vertices[vertex_id_to_delete].ownCells
+            for cell_id in its_cells:
+                self.cells[cell_id].replace_vertex(self.vertices[vertex_id_to_delete],
+                                                   self.vertices[edge_0[0]])
+
+            its_edges = self.vertices[vertex_id_to_delete].ownEdges
+            for edge_id in its_edges:
+                del self.edges[edge_id]
+
+            del self.vertices[vertex_id_to_delete]
+            visited.append(inner_edge_triangles[index])
 
         # get artifacts from the contour and apply T3 transitions to them
         all_artifact_vertices = list(self.get_artifacts())
@@ -215,6 +262,7 @@ class Skeleton:
         :return: List of vertices belonging to artifacts
         :rtype: list
         """
+        # triangles with TJs
         candidate_artifact_vertices = []
         for v in self.vertices.values():
             if len(v.ownEdges) == 3 and len(v.ownCells) == 2:
