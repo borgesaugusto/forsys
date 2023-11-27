@@ -79,14 +79,23 @@ def reduce_amount(vertices, edges, cells):
             deltaX2 = kpos[0]-jpos[0]
             deltaY2 = kpos[1]-jpos[1]
 
-            try:
+            if deltaX1 != 0:
                 slope1 = deltaY1/deltaX1
-            except ZeroDivisionError:
+            else:
                 slope1 = np.inf
-            try:
+            if deltaX2 != 0:
                 slope2 = deltaY2/deltaX2
-            except ZeroDivisionError:
+            else:
                 slope2 = np.inf
+
+            # try:
+            #     slope1 = deltaY1/deltaX1
+            # except (ZeroDivisionError, FloatingPointError):
+            #     slope1 = np.inf
+            # try:
+            #     slope2 = deltaY2/deltaX2
+            # except (ZeroDivisionError, FloatingPointError):
+            #     slope2 = np.inf
 
             # edgesToDelete = []
             # vertexToDelete = []
