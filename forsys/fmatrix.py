@@ -54,6 +54,11 @@ class ForceMatrix:
             raise(NotImplementedError)
 
 
+        tj_vertices = set([big_edge[0] for big_edge in self.big_edges_to_use])
+        last = set([big_edge[-1] for big_edge in self.big_edges_to_use])
+        tj_vertices.update(last)
+
+        self.tj_vertices = list(tj_vertices)
         self.matrix = self._build_matrix()
         self.rhs = None
         self.velocity_matrix = None
@@ -67,8 +72,7 @@ class ForceMatrix:
         """
         position_index = 0
         self.matrix = Matrix(())
-        tj_vertices = list(set([big_edge[0] for big_edge in self.big_edges_to_use]))
-        for vid in tj_vertices:
+        for vid in self.tj_vertices:
             row_x, row_y = self.get_row(vid)
             non_zero_x = np.count_nonzero(row_x)
             non_zero_y = np.count_nonzero(row_y)
