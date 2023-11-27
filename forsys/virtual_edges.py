@@ -69,7 +69,9 @@ def generate_mesh(vertices, edges, cells, ne=4, **kwargs):
             alreadySeen.append(e)
             # if edge has only 2 vertices, join them 
             # TODO: Make it work with polygonal vertex model
-            if len(e) == 2 and len(vertices[e[0]].ownCells) < 3 and len(vertices[e[1]].ownCells) < 3:
+            if (len(e) == 2 and
+                len(vertices[e[0]].ownCells) < 3 and
+                len(vertices[e[1]].ownCells) < 3):
                 vertices_to_join.append(e)
 
     vertexToRemove = []
@@ -108,12 +110,15 @@ def generate_mesh(vertices, edges, cells, ne=4, **kwargs):
         print(f"*** WARNING **** CELL {cells[c].id} remove due to having {len(cells[c].vertices)} vertices")
         del cells[c]
 
-    if len(vertices_to_join) > 0 and kwargs.get("replace_short_edges", True):
-        try:
-            vertices, edges, cells = replace_short_edges(vertices_to_join, vertices, edges, cells)
-        except KeyError:
-            raise SegmentationArtifactException()
-
+    # if len(vertices_to_join) > 0 and kwargs.get("replace_short_edges", True):
+    mapper = {}
+    if kwargs.get("replace_short_edges", True):
+        for edge_to_join in vertices_to_join:
+            try:
+                vertices, edges, cells, new_mapper = join_two_vertices(edge_to_join, vertices, edges, cells, mapper)
+                mapper = mapper | new_mapper
+            except KeyError:
+                raise SegmentationArtifactException()
     # exit()
 
     return vertices, edges, cells, nEdgeArray
@@ -330,41 +335,57 @@ def angle_between_two_vectors(a, b):
     return np.arccos(clipped_dot_product)
 
 
-def replace_short_edges(vertices_to_join, vertices, edges, cells):
+# def replace_short_edges(vertices_to_join, vertices, edges, cells):
+def join_two_vertices(vertices_to_join, vertices, edges, cells, mapper={}):
     """ Join the two-vertex edges"""
-    for e in vertices_to_join:
-        x_cm = abs(vertices[e[0]].x + vertices[e[1]].x) / 2
-        y_cm = abs(vertices[e[0]].y + vertices[e[1]].y) / 2
+    try:
+        v0 = vertices[vertices_to_join[0]]
+    except KeyError:
+        v0 = vertices[mapper[vertices_to_join[0]]]
+    try:
+        v1 = vertices[vertices_to_join[1]]
+    except KeyError:
+        v1 = vertices[mapper[vertices_to_join[1]]]
+    
+    x_cm = abs(v0.x + v1.x) / 2
+    y_cm = abs(v0.y + v1.y) / 2
 
-        # find the common edge
-        common_edge = list(set(vertices[e[0]].ownEdges) & set(vertices[e[1]].ownEdges))[0]
+    # find the common edge
+    common_edge = list(set(v0.ownEdges) & set(v1.ownEdges))[0]
 
-        # TODO: Move this to a function
-        new_id = len(vertices)
-        i = 0
-        while vertices.get(new_id) != None:
-            new_id = len(vertices) + i
-            i += 1
+    new_id = get_unused_id(vertices)        
+    new_vertex = fvertex.Vertex(new_id, x_cm, y_cm)
+    vertices[new_id] = new_vertex
+    mapper[vertices_to_join[0]] = new_id
+    mapper[vertices_to_join[1]] = new_id
+    # replace vertex in the cells
+    list_of_cells_0 = [cid for cid in v0.ownCells]
+    list_of_cells_1 = [cid for cid in v1.ownCells]
+    for cid in list_of_cells_0:
+        cells[cid].replace_vertex(vertices[v0.id], new_vertex)
+    for cid in list_of_cells_1:
+        cells[cid].replace_vertex(vertices[v1.id], new_vertex)
+    # destroy edge
+    del edges[common_edge]
+    # replace vertex in the edges
+    list_of_edges_0 = [eid for eid in v0.ownEdges]
+    list_of_edges_1 = [eid for eid in v1.ownEdges]
+    for edge_id in list_of_edges_0:
+        edges[edge_id].replace_vertex(vertices[v0.id], new_vertex)
+    for edge_id in list_of_edges_1:
+        edges[edge_id].replace_vertex(vertices[v1.id], new_vertex)
 
-        new_vertex = fvertex.Vertex(new_id, x_cm, y_cm)
-        vertices[new_id] = new_vertex
-        # replace vertex in the cells
-        # def replace_vertex(self, vold: object, vnew: object):
-        for cid in vertices[e[0]].ownCells:
-            cells[cid].replace_vertex(vertices[e[0]], new_vertex)
-        for cid in vertices[e[1]].ownCells:
-            cells[cid].replace_vertex(vertices[e[1]], new_vertex)
+    # destroy the two previous vertices
+    del vertices[v0.id]
+    del vertices[v1.id]
 
-        # destroy edge
-        del edges[common_edge]
-        # replace vertex in the edges
-        edges[vertices[e[0]].ownEdges[-1]].replace_vertex(vertices[e[0]], new_vertex)
-        edges[vertices[e[0]].ownEdges[-1]].replace_vertex(vertices[e[0]], new_vertex)
-        edges[vertices[e[1]].ownEdges[-1]].replace_vertex(vertices[e[1]], new_vertex)
-        edges[vertices[e[1]].ownEdges[-1]].replace_vertex(vertices[e[1]], new_vertex)
+    return vertices, edges, cells, mapper
 
-        # destroy the two previous vertices
-        del vertices[e[0]]
-        del vertices[e[1]]
 
-    return vertices, edges, cells
+def get_unused_id(dictionary):
+    new_id = len(dictionary)
+    i = 0
+    while dictionary.get(new_id) != None:
+        new_id = len(dictionary) + i
+        i += 1
+    return new_id
