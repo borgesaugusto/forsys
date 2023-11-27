@@ -728,7 +728,7 @@ def plot_skeleton(frame: fframes.Frame, save_folder: str, **kwargs) -> None:
         factor_x, factor_y = 1, 1
 
     new_frame = deepcopy(frame)
-    for vid, vertex in new_frame.vertices.items():
+    for _, vertex in new_frame.vertices.items():
         vertex.x = vertex.x * factor_x
         vertex.y = vertex.y * factor_y
 
@@ -753,13 +753,62 @@ def plot_skeleton(frame: fframes.Frame, save_folder: str, **kwargs) -> None:
     all_ys = all_vertices_tuple[1]
     max_x, min_x = np.max(all_xs), np.min(all_xs)
     max_y, min_y = np.max(all_ys), np.min(all_ys)
-    diff_x = int(max_x) - int(min_x)
-    diff_y = int(max_y) - int(min_y)
-    image_array = np.zeros((diff_y + 7, diff_x + 7))
+    # size_x = int(max_x) - int(min_x) if min_x < 0 else 0
+    # size_y = int(max_y) - int(min_y) if min_y < 0 else 0
+    size_x = int(max_x - min_x)
+    size_y = int(max_y - min_y)
+
+    # diff_x = int(max_x) - int(min_x)
+    # diff_y = int(max_y) - int(min_y)
+    # image_array = np.zeros((diff_y + 7, diff_x + 7))
+    image_array = np.zeros((size_y + 10, size_x + 10))
 
     for vx, vy in list(all_vertices):
         vx = int((vx - min_x)) + 5
         vy = int((vy - min_y)) + 5
+        # vx = int(vx) + 5
+        # vy = int(vy) + 5
         image_array[int(vy), int(vx)] = 255
     im = PIL.Image.fromarray(image_array)
     im.save(save_folder)
+
+
+def plot_big_edges(frame, **kwargs) -> Tuple:
+    fig, ax = plt.subplots(1,1)
+
+    for v in frame.vertices.values():
+        if len(v.ownEdges) > 2:
+            plt.scatter(v.x, v.y, s=2, color="black")
+            plt.annotate(str(v.id), [v.x, v.y], fontsize=2)
+
+    for e in frame.edges.values():
+        plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="orange", linewidth=0.5)
+
+    for be in frame.big_edges.values():
+        # x_cm = np.mean(be.xs) + np.random.uniform(-10, 10)
+        x_cm = np.mean(be.xs)
+        y_cm = np.mean(be.ys)
+        plt.annotate(str(be.big_edge_id), [x_cm , y_cm], fontweight="bold", fontsize=5, color="blue", alpha=0.4)
+
+
+    for c in frame.cells.values():
+        cm = c.get_cm()
+        cxs = [v.x for v in c.vertices]
+        cys = [v.y for v in c.vertices]
+
+        plt.fill(cxs, cys, alpha=0.3)
+        plt.annotate(str(c.id), [cm[0], cm[1]])
+
+    kwarg_xlim = kwargs.get("xlim", [])
+    kwarg_ylim = kwargs.get("ylim", [])
+
+    if len(kwarg_xlim) > 0:
+        plt.xlim(kwarg_xlim[0], kwarg_xlim[1])
+    if len(kwarg_ylim) > 0:
+        plt.ylim(kwarg_ylim[0], kwarg_ylim[1])
+    if kwargs.get("mirror_y", False):
+        plt.gca().invert_yaxis()
+    if kwargs.get("mirror_x", False):
+        plt.gca().invert_xaxis()
+
+    return fig, ax  
