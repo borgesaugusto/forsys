@@ -9,7 +9,7 @@ class SmallEdge:
 
     :param id: Unique identifier of the small edge
     :type id: int
-    :param v1: First vertex of the edge 
+    :param v1: First vertex of the edge
     :type v1: object
     :param v2: Second vertex of the edge
     :type v2: object
@@ -34,7 +34,8 @@ class SmallEdge:
 
     def __del__(self):
         for v in self.verticesArray:
-            v.remove_edge(self.id)
+            if self.id in v.ownEdges:
+                v.remove_edge(self.id)
 
     def get_vertices_id(self) -> list:
         """
@@ -88,7 +89,7 @@ class SmallEdge:
         """
         Get the vector connecting the two vertices of the edge.
 
-        :return: Vector in the (0, 0) frame of reference 
+        :return: Vector in the (0, 0) frame of reference
         :rtype: list
         """
         vector = [self.v2.x - self.v1.x, self.v2.y - self.v1.y]
@@ -131,7 +132,7 @@ class BigEdge:
         self.edges = [list(set(self.vertices[vid].ownEdges) &
                            set(self.vertices[vid + 1].ownEdges))[0]
                       for vid in range(0, len(self.vertices) - 1)]
-        
+
         if len(self.vertices) == 2:
             self.own_cells = list(set(self.vertices[0].ownCells) & set(self.vertices[1].ownCells))
         else:
@@ -154,7 +155,7 @@ class BigEdge:
         d2x_dt2 = np.gradient(dx_dt)
         d2y_dt2 = np.gradient(dy_dt)
         curvature = (d2x_dt2 * dy_dt - dx_dt * d2y_dt2) / ((dx_dt**2 + dy_dt**2)**1.5)
-        
+
         return curvature
 
     def calculate_total_curvature(self, normalized=True) -> float:
@@ -203,14 +204,14 @@ class BigEdge:
         vector = self.get_vector_from_vertex(vid, method, cell)
         versor = vector / np.linalg.norm(vector)
         return versor
-    
+
     def get_vector_from_vertex(self, vid: int, method: str = "edge", cell: object = None) -> list:
         """
         Get the vector representation for the big edge
 
         :param vid: ID of the vertex from where the vector is defined
         :type vid: int
-        :param method: Method to calculate representation. "edge" gives the circular fit to the edge, 
+        :param method: Method to calculate representation. "edge" gives the circular fit to the edge,
         "cell" and passing a cell object gives a circular fit to the given cell.
         :type method: str
         :param cell: Object reference of the cell to calculate the curvature if necessary
@@ -225,12 +226,12 @@ class BigEdge:
             xc, yc = cell.center_x, cell.center_y
         else:
             raise Exception("Method for versor doesn't exist or cell missing")
-        
-        edge_centroid = [np.mean(self.xs), np.mean(self.ys)]
-        if 10 * np.linalg.norm(edge_centroid) < np.linalg.norm([xc, yc]):
-            vector = np.array(self.get_straight_edge_versor_from_vid(vid))
-        else:
-            vector = np.array((- (vobject.y - yc), (vobject.x - xc)))
+
+        # edge_centroid = [np.mean(self.xs), np.mean(self.ys)]
+        # if 10 * np.linalg.norm(edge_centroid) < np.linalg.norm([xc, yc]):
+        #     vector = np.array(self.get_straight_edge_versor_from_vid(vid))
+        # else:
+        vector = np.array((- (vobject.y - yc), (vobject.x - xc)))
 
         correct_sign = self.get_versor_sign(vid)
         if np.any(np.sign(vector) != correct_sign):
@@ -255,7 +256,7 @@ class BigEdge:
         """
         Get all IDs of the vertices that form the big edge
 
-        :return: Array with all vertices' IDs 
+        :return: Array with all vertices' IDs
         :rtype: list
         """
         return [vertex.id for vertex in self.vertices]
@@ -263,7 +264,7 @@ class BigEdge:
     def get_versor_sign(self, vid: int) -> list:
         """
         Get the correction sign for each
-        componenet of the vector 
+        componenet of the vector
 
         :param vid: Vertex to calculate the sign from
         :type vid: int
@@ -271,10 +272,10 @@ class BigEdge:
         :rtype: list
         """
         versor = self.get_straight_edge_versor_from_vid(vid)
-        signs = np.sign(versor) 
+        signs = np.sign(versor)
         return [1.0 if sign == 0 else sign for sign in signs]
-    
-    
+
+
     def get_straight_edge_versor_from_vid(self, vid: int) -> list:
         all_vertices_ids = self.get_vertices_ids()
         v0 = self.get_vertex_object_by_id(vid)
