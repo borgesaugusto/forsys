@@ -210,7 +210,9 @@ class ForceMatrix:
                 j = self.map_vid_to_row[vid]
                 b[j] = value[0]
                 b[j+1] = value[1]
-
+        
+        self.velocity_normalization = kwargs.get("velocity_normalization", 1)
+        b = b * self.velocity_normalization
         self.velocity_matrix = np.array(list(b.T), dtype=np.float64).round(4)
 
         if kwargs.get("method", None) == "fix_stress":
