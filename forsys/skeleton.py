@@ -96,9 +96,10 @@ class Skeleton:
             self.cells[self.cell_id] = cell.Cell(self.cell_id, cell_vertices_list, {})
             self.cell_id += 1
         
-        self.vertices, self.edges, self.cells = fwkt.reduce_amount(self.vertices,
-                                                                   self.edges,
-                                                                   self.cells)
+        if kwargs.get("reduce_amount", False):
+            self.vertices, self.edges, self.cells = fwkt.reduce_amount(self.vertices,
+                                                                    self.edges,
+                                                                    self.cells)
 
         self.all_big_edges = fvedges.create_edges_new(self.vertices,
                                                       self.cells)
