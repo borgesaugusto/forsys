@@ -27,7 +27,8 @@ def read_myosin(frame,
                            integrate,
                            normalize,
                            corrected_by_tilt,
-                           layers)
+                           layers,
+                           **kwargs)
 
 
 def get_intensities(big_edges,
@@ -35,7 +36,8 @@ def get_intensities(big_edges,
                     integrate=False,
                     normalize="average",
                     corrected_by_tilt=False,
-                    layers: int = 1):
+                    layers: int = 1,
+                    **kwargs):
     intensities = {}
 
     if corrected_by_tilt:
@@ -46,12 +48,12 @@ def get_intensities(big_edges,
     for be_id, big_edge in enumerate(big_edges):
         intensities_per_edge = []
         if integrate:
-            vertices, length = get_interpolation(big_edge, layers=layers)
+            vertices, length = get_interpolation(big_edge, layers, **kwargs)
             intensity_to_use = sum(map(image_to_use.getpixel,
                                        vertices)) / length
         else:
             for vertex in big_edge.vertices:
-                intensity = get_intensity(image_to_use, vertex, layers=layers)
+                intensity = get_intensity(image_to_use, vertex, layers, **kwargs)
                 intensities_per_edge.append(intensity)
 
             intensity_to_use = np.mean(list(map(np.median,
@@ -91,8 +93,11 @@ def get_intensities(big_edges,
 #     return big_edge
 
 
-def get_intensity(image, vertex, layers=1):
-    pixel_positions = get_layer_elements([vertex.x, vertex.y], layers)
+def get_intensity(image, vertex, layers=1, **kwargs):
+    offset = kwargs.get("offset", [0, 0])
+    rescale = kwargs.get("rescale", [1, 1])
+    x_y_position = [(vertex.x * rescale[0]) + offset[0], (vertex.y * rescale[1]) + offset[1]]
+    pixel_positions = get_layer_elements(x_y_position, layers)
     return list(map(image.getpixel, pixel_positions))
 
 
@@ -105,10 +110,15 @@ def get_layer_elements(position, layers=1):
     return pixel_positions
 
 
-def get_interpolation(big_edge, layers):
+def get_interpolation(big_edge, layers, **kwargs):
+    offset = kwargs.get("offset", [0, 0])
+    rescale = kwargs.get("rescale", [1, 1])
     length = 0
     all_vertices = set()
-    xy_pairs = list(zip(big_edge.xs, big_edge.ys))
+    xs_values = [(value * rescale[0]) + offset[0] for value in big_edge.xs]
+    ys_values = [(value * rescale[1]) + offset[1] for value in big_edge.xs]
+    # xy_pairs = list(zip(big_edge.xs, big_edge.ys))
+    xy_pairs = list(zip(xs_values, ys_values))
 
     for ii in range(1, len(xy_pairs)):
         current_vertex = list(map(math.ceil, xy_pairs[ii - 1]))
