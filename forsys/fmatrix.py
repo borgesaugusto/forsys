@@ -213,8 +213,10 @@ class ForceMatrix:
                 vector_of_vectors.append(value)
 
         self.velocity_normalization = kwargs.get("velocity_normalization", 1)
-
-        ave_velocities = np.mean([np.linalg.norm(vector) for vector in vector_of_vectors])
+        if len(vector_of_vectors) != 0 and kwargs.get("adimensional_velocity",  False):
+            ave_velocities = np.mean([np.linalg.norm(vector) for vector in vector_of_vectors])
+        else:
+            ave_velocities = 1
         b = (b / ave_velocities) * self.velocity_normalization
         self.velocity_matrix = np.array(list(b.T), dtype=np.float64).round(4)
 
