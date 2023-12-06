@@ -196,7 +196,7 @@ class ForceMatrix:
         tote = len(self.big_edges_to_use)
 
         shapeM = self.matrix.shape
-
+        vector_of_vectors = []
         b = Matrix(np.zeros(shapeM[0]))
         b_matrix = kwargs.get("b_matrix", None)
         if timeseries and  (b_matrix == "velocity" or b_matrix == "acceleration"):
@@ -210,9 +210,12 @@ class ForceMatrix:
                 j = self.map_vid_to_row[vid]
                 b[j] = value[0]
                 b[j+1] = value[1]
-        
+                vector_of_vectors.append(value)
+
         self.velocity_normalization = kwargs.get("velocity_normalization", 1)
-        b = b * self.velocity_normalization
+
+        ave_velocities = np.mean([np.linalg.norm(vector) for vector in vector_of_vectors])
+        b = (b / ave_velocities) * self.velocity_normalization
         self.velocity_matrix = np.array(list(b.T), dtype=np.float64).round(4)
 
         if kwargs.get("method", None) == "fix_stress":
