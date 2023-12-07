@@ -116,7 +116,7 @@ def get_interpolation(big_edge, layers, **kwargs):
     length = 0
     all_vertices = set()
     xs_values = [(value * rescale[0]) + offset[0] for value in big_edge.xs]
-    ys_values = [(value * rescale[1]) + offset[1] for value in big_edge.xs]
+    ys_values = [(value * rescale[1]) + offset[1] for value in big_edge.ys]
     # xy_pairs = list(zip(big_edge.xs, big_edge.ys))
     xy_pairs = list(zip(xs_values, ys_values))
 
