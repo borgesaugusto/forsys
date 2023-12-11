@@ -195,36 +195,14 @@ class ForceMatrix:
         np.seterr(all='raise')
         tote = len(self.big_edges_to_use)
 
-        shapeM = self.matrix.shape
-        vector_of_vectors = []
-        b = Matrix(np.zeros(shapeM[0]))
-        b_matrix = kwargs.get("b_matrix", None)
-        if timeseries and  (b_matrix == "velocity" or b_matrix == "acceleration"):
-            for vid in self.map_vid_to_row.keys():
-                if b_matrix == "velocity":
-                    value = timeseries.calculate_velocity(vid, self.frame.frame_id)
-                elif b_matrix == "acceleration":
-                    value = timeseries.calculate_acceleration(vid, self.frame.frame_id)
-                    if np.any(np.isnan(value)):
-                        value = [0, 0]
-                j = self.map_vid_to_row[vid]
-                b[j] = value[0]
-                b[j+1] = value[1]
-                vector_of_vectors.append(value)
-
-        self.velocity_normalization = kwargs.get("velocity_normalization", 1)
-        if len(vector_of_vectors) != 0 and kwargs.get("adimensional_velocity",  False):
-            ave_velocities = np.mean([np.linalg.norm(vector) for vector in vector_of_vectors])
-        else:
-            ave_velocities = 1
-        b = (b / ave_velocities) * self.velocity_normalization
-        self.velocity_matrix = np.array(list(b.T), dtype=np.float64).round(4)
+        b, average_velocity = self.set_velocity_matrix(timeseries, **kwargs)
 
         if kwargs.get("method", None) == "fix_stress":
             mprime, b, removed_index = self.fix_one_stress(b)
         else:
             mprime, b = self.add_mean_one(b)
             removed_index = None
+        
         b = Matrix([np.round(float(val), 3) for val in b])
         rounded_b = np.array(list(b.T), dtype=np.float64).round(4)
         self.rhs = rounded_b
@@ -357,3 +335,34 @@ class ForceMatrix:
 
         return mprime, b, max_index
 
+    def set_velocity_matrix(self, timeseries: Union[str, list] = None, **kwargs):
+        shapeM = self.matrix.shape
+        vector_of_vectors = []
+        b = Matrix(np.zeros(shapeM[0]))
+        b_matrix = kwargs.get("b_matrix", None)
+        if timeseries and  (b_matrix == "velocity" or b_matrix == "acceleration"):
+            for vid in self.map_vid_to_row.keys():
+                if b_matrix == "velocity":
+                    value = timeseries.calculate_velocity(vid, self.frame.frame_id)
+                elif b_matrix == "acceleration":
+                    value = timeseries.calculate_acceleration(vid, self.frame.frame_id)
+                    if np.any(np.isnan(value)):
+                        value = [0, 0]
+                j = self.map_vid_to_row[vid]
+                b[j] = value[0]
+                b[j+1] = value[1]
+                vector_of_vectors.append(value)
+
+        self.velocity_normalization = kwargs.get("velocity_normalization", 1)
+        if len(vector_of_vectors) != 0 and kwargs.get("adimensional_velocity",  False):
+            average_velocity = np.mean([np.linalg.norm(vector) for vector in vector_of_vectors])
+        else:
+            average_velocity = 1
+        
+        self.velocity_matrix_dimensional = np.array(list(b.T), dtype=np.float64).round(4)
+        
+        b = (b / average_velocity) * self.velocity_normalization
+        
+        self.velocity_matrix = np.array(list(b.T), dtype=np.float64).round(4)
+
+        return b, average_velocity
