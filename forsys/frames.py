@@ -200,6 +200,15 @@ class Frame():
             df = df.loc[~df.id.isin(self.get_external_edges_ids())]
 
         return df
+    
+
+    def get_gt_tensions(self, with_border: bool = False) -> pd.DataFrame():
+        df = pd.DataFrame.from_dict({beid: big_edge.gt for beid, big_edge in self.big_edges.items()}.items()).rename(columns={0: 'id', 
+                                                                                                                                1: 'gt'})
+        if not with_border:
+            df = df.loc[~df.id.isin(self.get_external_edges_ids())]
+        return df
+
 
     def get_pressures(self) -> pd.DataFrame:
         """Create the pressures DataFrame.
