@@ -197,8 +197,15 @@ class ForceMatrix:
 
         b, average_velocity = self.set_velocity_matrix(timeseries, **kwargs)
 
-        if kwargs.get("method", None) == "fix_stress":
+        solver_method = kwargs.get("method", None)
+        if solver_method == "fix_stress":
             mprime, b, removed_index = self.fix_one_stress(b)
+        elif solver_method == "lsq_linear":
+            mprime = self.matrix
+            removed_index = None
+        elif solver_method == "lsq":
+            mprime = self.matrix
+            removed_index = None
         else:
             mprime, b = self.add_mean_one(b)
             removed_index = None
@@ -209,16 +216,39 @@ class ForceMatrix:
 
         mprime = np.array(mprime).astype(np.float64)
         b = np.array(mp.matrix(b)).astype(np.float64)
-
+        
+        def lsq_cost_function(_x, A, b):
+            atr_a = np.dot(A.T, A)
+            atr_b = np.dot(A.T, b)
+            residual = np.linalg.norm(np.dot(atr_a, _x) - atr_b)
+            regularizer = residual / np.linalg.norm(_x)
+            return 0.5 * residual**2 + regularizer**2
+        
         try:
-            xres = Matrix(np.linalg.inv(mprime) * Matrix(b))
-            
-            if np.any([x<0 for x in xres[:-1]]) and not kwargs.get("allow_negatives", True):
-                print("Numerically solving due to negative values")
-                # negative_edges = [self.big_edges_to_use[x_id] for x_id, x_val in enumerate(xres[:-1]) if x_val < 0]
-                # print(f"Negatives edges: ", negative_edges)
-                xres, _ = scop.nnls(mprime, b, maxiter=100000)
-                xres = Matrix(xres)
+            if solver_method == "lsq_linear":
+                solutions = scop.lsq_linear(np.array(self.matrix).astype(np.float64), b, bounds=(0.01, np.inf))
+                xres = solutions["x"]
+            elif solver_method == "lsq":
+                arguments = (np.array(self.matrix).astype(np.float64), b)
+                x0 = kwargs.get("initial_condition", np.ones(len(b)))
+                bounds = [(0.0, None) for _ in b]
+                solutions = scop.minimize(lsq_cost_function,
+                                          x0=x0,
+                                          bounds=bounds,
+                                          args=arguments,
+                                          method="L-BFGS-B",
+                                          tol=1e-15)
+                                        #   method=None)
+                xres = solutions["x"]
+            else:
+                xres = Matrix(np.linalg.inv(mprime) * Matrix(b))
+                
+                if np.any([x<0 for x in xres[:-1]]) and not kwargs.get("allow_negatives", True):
+                    print("Numerically solving due to negative values")
+                    # negative_edges = [self.big_edges_to_use[x_id] for x_id, x_val in enumerate(xres[:-1]) if x_val < 0]
+                    # print(f"Negatives edges: ", negative_edges)
+                    xres, _ = scop.nnls(mprime, b, maxiter=100000)
+                    xres = Matrix(xres)
         except np.linalg.LinAlgError:
             # then try with nnls
             print("Numerically solving due to singular matrix")
