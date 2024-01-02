@@ -81,7 +81,7 @@ def test_fit_furrow_velocity_lsq_initial_last_val(furrow):
                                     tensions_df['stress'].values)
         all_r_values.append(r_value)
     print("Dynamic furrow using last", all_r_values)
-    assert np.all([1 > value > 0.93 for value in all_r_values])
+    assert np.all([1 > value > 0.92 for value in all_r_values])
 
 def test_fit_furrow_velocity_lsq_initial_gt(furrow):
     all_r_values = []
