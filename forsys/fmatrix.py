@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Union, Tuple
 from mpmath import mp
 import scipy.optimize as scop
+import itertools as itert
 
 import forsys.virtual_edges as ve
 import forsys.borders as borders
@@ -174,10 +175,19 @@ class ForceMatrix:
         arry = np.zeros(len(self.big_edges_to_use))
         vertex = self.frame.vertices[vid]
         vertex_big_edges = [self.frame.big_edges[beid] for beid in vertex.own_big_edges]
-        for big_edge in vertex_big_edges:
+        vertex_big_edges_versors = [big_edge.get_versor_from_vertex(vid) for big_edge in vertex_big_edges]
+        # Find the three angles
+        # TODO: Should something be done for 4-fold junctions ?
+        if len(vertex_big_edges) == 3:
+            combinations = itert.combinations(vertex_big_edges_versors, r=2)
+            angles = [np.arccos(np.dot(*combination)) for combination in combinations]
+            if np.max(angles) >= np.pi:
+                vertex_big_edges_versors = np.zeros((3, 2))
+
+        for index, big_edge in enumerate(vertex_big_edges):
             if not big_edge.external and len(vertex.ownCells) > 2:
                 pos = ve.eid_from_vertex(self.big_edges_to_use, big_edge.get_vertices_ids())
-                versor = big_edge.get_versor_from_vertex(vid)
+                versor = vertex_big_edges_versors[index]
     
                 arrx[pos] = versor[0]
                 arry[pos] = versor[1]
@@ -201,10 +211,10 @@ class ForceMatrix:
         if solver_method == "fix_stress":
             mprime, b, removed_index = self.fix_one_stress(b)
         elif solver_method == "lsq_linear":
-            mprime = self.matrix
+            mprime, b = self.add_mean_one(b)
             removed_index = None
         elif solver_method == "lsq":
-            mprime = self.matrix
+            mprime, b = self.add_mean_one(b)
             removed_index = None
         else:
             mprime, b = self.add_mean_one(b)
@@ -218,8 +228,10 @@ class ForceMatrix:
         b = np.array(mp.matrix(b)).astype(np.float64)
         
         def lsq_cost_function(_x, A, b):
-            atr_a = np.dot(A.T, A)
-            atr_b = np.dot(A.T, b)
+            # atr_a = np.dot(A.T, A)
+            # atr_b = np.dot(A.T, b)
+            atr_a = A
+            atr_b = b
             residual = np.linalg.norm(np.dot(atr_a, _x) - atr_b)
             regularizer = residual / np.linalg.norm(_x)
             return 0.5 * residual**2 + regularizer**2
@@ -229,9 +241,11 @@ class ForceMatrix:
                 solutions = scop.lsq_linear(np.array(self.matrix).astype(np.float64), b, bounds=(0.01, np.inf))
                 xres = solutions["x"]
             elif solver_method == "lsq":
-                arguments = (np.array(self.matrix).astype(np.float64), b)
-                x0 = kwargs.get("initial_condition", np.ones(len(b)))
-                bounds = [(0.0, None) for _ in b]
+                # arguments = (np.array(self.matrix).astype(np.float64), b)
+                arguments = (np.array(mprime).astype(np.float64), b)
+                x0 = kwargs.get("initial_condition", np.ones(tote + 1))
+                x0[-1] = 0
+                bounds = [(0.0, None) for _ in x0]
                 solutions = scop.minimize(lsq_cost_function,
                                           x0=x0,
                                           bounds=bounds,
