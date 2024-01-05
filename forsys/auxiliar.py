@@ -1,4 +1,5 @@
 import os
+import json
 def create_folders(resFolder):
     upperFolder = os.path.join(resFolder, "complete")
     directory = os.path.join(upperFolder, "accelerations")
@@ -44,3 +45,16 @@ def create_directory(name, upperFolder):
     directory = os.path.join(upperFolder, name)
     if not os.path.exists(directory):
         os.makedirs(directory)
+
+def load_initial_guess(guess_file, max_time):
+    try:
+        with open(guess_file) as jfile:
+            initial_guess = json.load(jfile)
+            initial_guess = {int(k): {int(kin): vin for kin, vin in v.items()} for k, v in initial_guess.items()}
+    except FileNotFoundError:
+        initial_guess = {}
+        print("No guess file, using zero guess")
+
+    initial_guess = {k: {} for k in range(max_time)
+                    if k not in initial_guess.keys()} | initial_guess
+    return initial_guess
