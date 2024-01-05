@@ -32,6 +32,7 @@ class ForceMatrix:
     term: str
     metadata: dict
     timeseries: dict
+    angle_limit: float = np.pi
 
     def __post_init__(self):
         """Constructor method
@@ -53,7 +54,8 @@ class ForceMatrix:
                 self.big_edges_to_use = self.frame.internal_big_edges_vertices
         else:
             raise(NotImplementedError)
-
+        
+        self.deletes = []
 
         tj_vertices = set([big_edge[0] for big_edge in self.big_edges_to_use])
         last = set([big_edge[-1] for big_edge in self.big_edges_to_use])
@@ -181,7 +183,8 @@ class ForceMatrix:
         if len(vertex_big_edges) == 3:
             combinations = itert.combinations(vertex_big_edges_versors, r=2)
             angles = [np.arccos(np.dot(*combination)) for combination in combinations]
-            if np.max(angles) >= np.pi:
+            if np.max(angles) >= self.angle_limit:
+                self.deletes.append(vid)
                 vertex_big_edges_versors = np.zeros((3, 2))
 
         for index, big_edge in enumerate(vertex_big_edges):
@@ -214,7 +217,8 @@ class ForceMatrix:
             mprime, b = self.add_mean_one(b)
             removed_index = None
         elif solver_method == "lsq":
-            mprime, b = self.add_mean_one(b)
+            # mprime, b = self.add_mean_one(b)
+            mprime = self.matrix
             removed_index = None
         else:
             mprime, b = self.add_mean_one(b)
@@ -228,23 +232,28 @@ class ForceMatrix:
         b = np.array(mp.matrix(b)).astype(np.float64)
         
         def lsq_cost_function(_x, A, b):
-            # atr_a = np.dot(A.T, A)
-            # atr_b = np.dot(A.T, b)
-            atr_a = A
-            atr_b = b
-            residual = np.linalg.norm(np.dot(atr_a, _x) - atr_b)
-            regularizer = residual / np.linalg.norm(_x)
-            return 0.5 * residual**2 + regularizer**2
+            atr_a = np.dot(A.T, A)
+            atr_b = np.dot(A.T, b)
+            atr_a_x = np.dot(atr_a, _x) 
+            residual = np.linalg.norm(atr_a_x - atr_b)
+            std_reg  = residual * np.std(_x)
+            return residual**2 + std_reg**2
         
         try:
             if solver_method == "lsq_linear":
                 solutions = scop.lsq_linear(np.array(self.matrix).astype(np.float64), b, bounds=(0.01, np.inf))
                 xres = solutions["x"]
             elif solver_method == "lsq":
-                # arguments = (np.array(self.matrix).astype(np.float64), b)
-                arguments = (np.array(mprime).astype(np.float64), b)
-                x0 = kwargs.get("initial_condition", np.ones(tote + 1))
-                x0[-1] = 0
+                arguments = (np.array(self.matrix).astype(np.float64), b)
+                # arguments = (np.array(mprime).astype(np.float64), b)
+                x0 = kwargs.get("initial_condition", np.ones(tote))
+                # modified initial condition discarding deletes
+                # print("Original x0: ", x0)
+                # x0 = self.get_new_initial_condition(x0)
+                # print()
+                # print("New x0", x0)
+                # x0 = kwargs.get("initial_condition", np.ones(tote + 1))
+                # x0[-1] = 0
                 bounds = [(0.0, None) for _ in x0]
                 solutions = scop.minimize(lsq_cost_function,
                                           x0=x0,
@@ -254,6 +263,7 @@ class ForceMatrix:
                                           tol=1e-15)
                                         #   method=None)
                 xres = solutions["x"]
+                print("Cost function: ", solutions["fun"])
             else:
                 xres = Matrix(np.linalg.inv(mprime) * Matrix(b))
                 
@@ -268,8 +278,12 @@ class ForceMatrix:
             print("Numerically solving due to singular matrix")
             xres, _ = scop.nnls(mprime, b, maxiter=100000)
             xres = Matrix(xres)
+
+        xres = self.get_solution_no_discarded(xres)
+
         if removed_index is not None:
             xres = xres.row_insert(removed_index, Matrix([1]))
+
         for index, element in enumerate(self.big_edges_to_use):
             edges_to_use = [list(set(self.frame.vertices[element[vid]].ownEdges) & 
                             set(self.frame.vertices[element[vid+1]].ownEdges))[0]
@@ -410,3 +424,41 @@ class ForceMatrix:
         self.velocity_matrix = np.array(list(b.T), dtype=np.float64).round(4)
 
         return b, average_velocity
+    
+    def get_solution_no_discarded(self, xres: list) -> list:
+        """Get new solution adding zeros to the big edges that no longer exist
+
+        :param x0: Original solution
+        :type x0: list
+        :return: New list with solution for the inexesitant edges equal to zero
+        :rtype: list
+        """
+        print("Total number of deleted vertices: ", len(self.deletes))
+        both_count = 0
+        for index, big_edge in enumerate(self.big_edges_to_use):
+            cond1 = big_edge[0] in self.deletes
+            cond2 = big_edge[-1] in self.deletes
+            if cond1 and cond2:
+                xres[index] = 0
+                both_count += 1
+        print(f"Deleted {both_count} / {self.matrix.shape[1]}")
+        return xres
+    
+    def get_new_initial_condition(self, x0: list) -> list:
+        """Get new initial condition adding zeros to the big edges that no longer exist
+
+        :param x0: Original list
+        :type x0: list
+        :return: New list with initial condition for the inexesitant edges equal to zero
+        :rtype: list
+        """
+        print("Total number of deleted vertices: ", len(self.deletes))
+        both_count = 0
+        for index, big_edge in enumerate(self.big_edges_to_use):
+            cond1 = big_edge[0] in self.deletes
+            cond2 = big_edge[-1] in self.deletes
+            if cond1 and cond2:
+                x0[index] = 0
+                both_count += 1
+        print(f"Deleted {both_count} / {self.matrix.shape[1]}")
+        return x0
