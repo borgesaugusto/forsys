@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 import pandas as pd
+import numpy as np
 import forsys.time_series as ts
 import forsys.fmatrix as fmatrix
 import forsys.pmatrix as pmatrix
@@ -42,7 +43,7 @@ class ForSys():
         self.pressures = {k: None for k in range(len(self.frames))}
 
     
-    def build_force_matrix(self, when: int = 0, term: str = "none", metadata:dict = {}) -> None:
+    def build_force_matrix(self, when: int = 0, term: str = "none", metadata:dict = {}, **kwargs) -> None:
         """Interface to create the matrix system to solve for the stresses
 
         :param when: Time at which the matrix should be constructed, defaults to 0
@@ -59,7 +60,8 @@ class ForSys():
                                 externals_to_use = 'none',
                                 term=term,
                                 metadata=metadata,
-                                timeseries=self.mesh)
+                                timeseries=self.mesh,
+                                angle_limit=kwargs.get("angle_limit", np.pi))
 
     def build_pressure_matrix(self, when: int = 0):
         """Interface to create the matrix system to solve for the pressures. 
