@@ -283,11 +283,20 @@ class ForceMatrix:
                 x0, removed_indices = self.get_new_initial_condition(x0_original, what="other")
                 x0 = [val for val in x0 if val > 0]
                 x0.append(1)
+
                 def lmfit_cost(params, A, b):
                     _x = [params[name].value for name in params]
                     a_x = np.dot(np.array(A), np.array(_x)) 
                     vectorial_differences = a_x - b
                     return vectorial_differences
+
+                def lmfit_cost_std(params, A, b):
+                    _x = [params[name].value for name in params]
+                    a_x = np.dot(np.array(A), np.array(_x)) 
+                    vectorial_differences = a_x - b
+                    vectorial_differences_2 = vectorial_differences * vectorial_differences
+                    return vectorial_differences + 0.5 * np.sqrt(vectorial_differences_2.sum()) * np.std(_x)
+
 
                 parameters = lmf.Parameters()
                 for index, val in enumerate(x0):
@@ -295,9 +304,14 @@ class ForceMatrix:
                     parameters.add(naming, val)
                     parameters[naming].min = 0
 
-                solution = lmf.minimize(lmfit_cost,
-                             params=parameters,
-                             args=arguments)
+                if kwargs.get("use_std", False):
+                    solution = lmf.minimize(lmfit_cost_std,
+                                            params=parameters,
+                                            args=arguments)
+                else:
+                    solution = lmf.minimize(lmfit_cost,
+                                            params=parameters,
+                                            args=arguments)
 
                 xres = Matrix([solution.params[name].value for name in solution.params])
 
