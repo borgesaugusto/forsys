@@ -6,8 +6,13 @@ from mpmath import mp
 import scipy.optimize as scop
 import itertools as itert
 
+import lmfit as lmf
+
+import copy
+
 import forsys.virtual_edges as ve
 import forsys.borders as borders
+from forsys.exceptions import BigEdgesBadlyCreated
 
 @dataclass
 class ForceMatrix:
@@ -38,6 +43,9 @@ class ForceMatrix:
         """Constructor method
         """
         self.map_vid_to_row = {}
+        self.map_edge_to_column = {}
+        self.deletes = []
+
         if type(self.externals_to_use) == str:
             if self.externals_to_use == 'all':
                 # self.externals_to_use = list(np.array(ve.get_border_edge(self.frame.big_edges_list, 
@@ -51,12 +59,11 @@ class ForceMatrix:
                 # Only solve on the triple junctions
                 self.externals_to_use = []
                 # TODO: make it work with the general matrix solver using self.frame.internal_big_edges
-                self.big_edges_to_use = self.frame.internal_big_edges_vertices
+                # self.big_edges_to_use = self.frame.internal_big_edges_vertices
+                self.big_edges_to_use, _ = self.get_angle_limited_edges()
         else:
             raise(NotImplementedError)
         
-        self.deletes = []
-
         tj_vertices = set([big_edge[0] for big_edge in self.big_edges_to_use])
         last = set([big_edge[-1] for big_edge in self.big_edges_to_use])
         tj_vertices.update(last)
@@ -180,22 +187,53 @@ class ForceMatrix:
         vertex_big_edges_versors = [big_edge.get_versor_from_vertex(vid) for big_edge in vertex_big_edges]
         # Find the three angles
         # TODO: Should something be done for 4-fold junctions ?
-        if len(vertex_big_edges) == 3:
+        # if len(vertex_big_edges) == 3:
+        #     combinations = itert.combinations(vertex_big_edges_versors, r=2)
+        #     angles = [np.arccos(np.dot(*combination)) for combination in combinations]
+        #     if np.max(angles) >= self.angle_limit:
+        #         self.deletes.append(vid)
+        #         vertex_big_edges_versors = np.zeros((3, 2))
+
+        for index, big_edge in enumerate(vertex_big_edges):
+            if not big_edge.external and len(vertex.ownCells) > 2:
+                try:
+                    pos = ve.eid_from_vertex(self.big_edges_to_use, big_edge.get_vertices_ids())
+                    versor = vertex_big_edges_versors[index]
+                    arrx[pos] = versor[0]
+                    arry[pos] = versor[1]
+                except BigEdgesBadlyCreated:
+                    continue
+
+        return arrx, arry
+    
+    def get_angle_limited_edges(self):
+        big_edges_vertices = [big_edge.get_vertices_ids() for big_edge in self.frame.internal_big_edges]
+        tj_vertices = set([big_edge[0] for big_edge in big_edges_vertices])
+        last = set([big_edge[-1] for big_edge in big_edges_vertices])
+        tj_vertices.update(last)
+        for vid in tj_vertices:
+            vertex = self.frame.vertices[vid]
+            vertex_big_edges = [self.frame.big_edges[beid] for beid in vertex.own_big_edges]
+            vertex_big_edges_versors = [big_edge.get_versor_from_vertex(vid) for big_edge in vertex_big_edges]
+            # Find the three angles
+            # TODO: Should something be done for 4-fold junctions ?
+            # if len(vertex_big_edges) == 3:
             combinations = itert.combinations(vertex_big_edges_versors, r=2)
             angles = [np.arccos(np.dot(*combination)) for combination in combinations]
             if np.max(angles) >= self.angle_limit:
                 self.deletes.append(vid)
-                vertex_big_edges_versors = np.zeros((3, 2))
+        
+        big_edges_to_use = copy.copy(self.frame.internal_big_edges_vertices)
+        
+        for _, big_edge in enumerate(big_edges_vertices):
+            cond1 = big_edge[0] in self.deletes
+            cond2 = big_edge[-1] in self.deletes
+            if cond1 and cond2:
+                big_edges_to_use.remove(big_edge)
+                # print(f"removed {big_edge} len is now", len(big_edges_to_use))
 
-        for index, big_edge in enumerate(vertex_big_edges):
-            if not big_edge.external and len(vertex.ownCells) > 2:
-                pos = ve.eid_from_vertex(self.big_edges_to_use, big_edge.get_vertices_ids())
-                versor = vertex_big_edges_versors[index]
-    
-                arrx[pos] = versor[0]
-                arry[pos] = versor[1]
+        return big_edges_to_use, self.deletes
 
-        return arrx, arry
 
     def solve(self, timeseries: Union[str, list] = None, **kwargs) -> dict:
         """Solve the system of equations. The stress inference matrix must be built beforehand.
@@ -214,14 +252,16 @@ class ForceMatrix:
         if solver_method == "fix_stress":
             mprime, b, removed_index = self.fix_one_stress(b)
         elif solver_method == "lsq_linear":
-            mprime, b = self.add_mean_one(b)
+            mprime, b = self.add_mean_one_before(b)
             removed_index = None
         elif solver_method == "lsq":
-            # mprime, b = self.add_mean_one(b)
-            mprime = self.matrix
+            mprime, b = self.add_mean_one(b)
+            # mprime = self.matrix
             removed_index = None
         else:
             mprime, b = self.add_mean_one(b)
+            # mprime = self.matrix.T * self.matrix
+            # b = self.matrix.T * b
             removed_index = None
         
         b = Matrix([np.round(float(val), 3) for val in b])
@@ -231,55 +271,51 @@ class ForceMatrix:
         mprime = np.array(mprime).astype(np.float64)
         b = np.array(mp.matrix(b)).astype(np.float64)
         
-        def lsq_cost_function(_x, A, b):
-            atr_a = np.dot(A.T, A)
-            atr_b = np.dot(A.T, b)
-            atr_a_x = np.dot(atr_a, _x) 
-            residual = np.linalg.norm(atr_a_x - atr_b)
-            std_reg  = residual * np.std(_x)
-            return residual**2 + std_reg**2
-        
         try:
             if solver_method == "lsq_linear":
-                solutions = scop.lsq_linear(np.array(self.matrix).astype(np.float64), b, bounds=(0.01, np.inf))
+                solutions = scop.lsq_linear(np.array(mprime).astype(np.float64),
+                                            b,
+                                            bounds=(0.0, np.inf))
                 xres = solutions["x"]
             elif solver_method == "lsq":
-                arguments = (np.array(self.matrix).astype(np.float64), b)
-                # arguments = (np.array(mprime).astype(np.float64), b)
-                x0 = kwargs.get("initial_condition", np.ones(tote))
-                # modified initial condition discarding deletes
-                # print("Original x0: ", x0)
-                # x0 = self.get_new_initial_condition(x0)
-                # print()
-                # print("New x0", x0)
-                # x0 = kwargs.get("initial_condition", np.ones(tote + 1))
-                # x0[-1] = 0
-                bounds = [(0.0, None) for _ in x0]
-                solutions = scop.minimize(lsq_cost_function,
-                                          x0=x0,
-                                          bounds=bounds,
-                                          args=arguments,
-                                          method="L-BFGS-B",
-                                          tol=1e-15)
-                                        #   method=None)
-                xres = solutions["x"]
-                print("Cost function: ", solutions["fun"])
+                arguments = (np.array(mprime).astype(np.float64), np.array(b).astype(np.float64))
+                x0_original = kwargs.get("initial_condition", np.ones(len(self.frame.internal_big_edges)))
+                x0, removed_indices = self.get_new_initial_condition(x0_original, what="other")
+                x0 = [val for val in x0 if val > 0]
+                x0.append(1)
+                def lmfit_cost(params, A, b):
+                    _x = [params[name].value for name in params]
+                    a_x = np.dot(np.array(A), np.array(_x)) 
+                    vectorial_differences = a_x - b
+                    return vectorial_differences
+
+                parameters = lmf.Parameters()
+                for index, val in enumerate(x0):
+                    naming = f"_{index}"
+                    parameters.add(naming, val)
+                    parameters[naming].min = 0
+
+                solution = lmf.minimize(lmfit_cost,
+                             params=parameters,
+                             args=arguments)
+
+                xres = Matrix([solution.params[name].value for name in solution.params])
+
+                # reinsert all the removed spaces
+                for index, value in removed_indices.items():
+                    xres = xres.row_insert(index, Matrix([-1]))
             else:
                 xres = Matrix(np.linalg.inv(mprime) * Matrix(b))
                 
                 if np.any([x<0 for x in xres[:-1]]) and not kwargs.get("allow_negatives", True):
                     print("Numerically solving due to negative values")
-                    # negative_edges = [self.big_edges_to_use[x_id] for x_id, x_val in enumerate(xres[:-1]) if x_val < 0]
-                    # print(f"Negatives edges: ", negative_edges)
+
                     xres, _ = scop.nnls(mprime, b, maxiter=100000)
                     xres = Matrix(xres)
         except np.linalg.LinAlgError:
-            # then try with nnls
             print("Numerically solving due to singular matrix")
             xres, _ = scop.nnls(mprime, b, maxiter=100000)
             xres = Matrix(xres)
-
-        xres = self.get_solution_no_discarded(xres)
 
         if removed_index is not None:
             xres = xres.row_insert(removed_index, Matrix([1]))
@@ -291,11 +327,15 @@ class ForceMatrix:
             for e in edges_to_use:
                 self.frame.edges[e].tension = float(xres[index])
         
+        xres = xres[:-1]
+        xres = self.get_solution_no_discarded(xres)
         self.force_dictionary = {}
-        for i in range(0, tote):
-            if i < tote:
-                val = float(xres[i])
-            self.force_dictionary[i] = val
+        # TODO: Reincorporate external forces
+        for index, value in enumerate(xres):
+        # for i in range(0, tote):
+        #     if i < tote:
+        #         val = float(xres[i])
+            self.force_dictionary[index] = value
         i = 0
 
         if type(self.externals_to_use) == list or \
@@ -328,9 +368,52 @@ class ForceMatrix:
         :return: The new LHS and RHS matrices
         :rtype: Tuple
         """
+        mprime = self.matrix
+        total_edges = mprime.shape[1]
+        total_vertices = mprime.shape[0]
+        total_borders = len(self.externals_to_use)
+        cMatrix = Matrix(np.concatenate((np.ones(total_edges),
+                                         np.zeros(total_borders*2)), axis=0))
+        mprime = mprime.row_insert(mprime.shape[0], cMatrix.T)
+        ## Now insert the two corresponding cols for the lagrange multpliers
+        cMatrix = Matrix(np.concatenate((np.ones(total_vertices),
+                                         np.zeros(total_borders*2),
+                                         np.zeros(1)), axis=0))
+        mprime = mprime.col_insert(mprime.shape[1], cMatrix)
+
+        zeros = Matrix(np.zeros(b.shape[1]))
+        b = b.row_insert(b.shape[0]+1, zeros)
+        b[b.shape[0]-1,b.shape[1]-1] = total_edges
+
+        if total_borders != 0:
+            # cmatrix forces
+            ones = np.ones(total_borders*2)
+            zeros = np.zeros(total_edges)
+            cMatrix = Matrix(np.concatenate((zeros, ones, np.zeros(1)), axis=0))
+            mprime = mprime.row_insert(mprime.shape[0]+1, cMatrix.T)
+            
+            ones = np.ones(total_borders*2)
+            zeros = np.zeros(total_edges)
+            additional_zeros = np.zeros(2) # +2 comes from the two inserted rows
+            cMatrix = Matrix(np.concatenate((zeros, ones, np.zeros(1)), axis=0))
+            mprime = mprime.col_insert(mprime.shape[1], cMatrix)
+
+            zeros = Matrix(np.zeros(b.shape[1]))
+            b = b.row_insert(b.shape[0]+1, zeros)
+            b[b.shape[0]-1,b.shape[1]-1] = 0
+        return mprime, b
+    
+    def add_mean_one_before(self, b: Matrix) -> Tuple:
+        """Add the lagrange multiplier required the average of stresses values equal to one.
+
+        :param b: Right hand side matrix. If in a statical modality it is the null column,
+        in dynamcal modality, has the components of the velocity for each edge.
+        :type b: Matrix
+        :return: The new LHS and RHS matrices
+        :rtype: Tuple
+        """
         mprime = self.matrix.T * self.matrix
         b = self.matrix.T * b
-        # total_edges = len(self.big_edges_to_use)
         total_edges = mprime.shape[1]
         total_borders = len(self.externals_to_use)
         ones = np.ones(total_edges)
@@ -433,32 +516,37 @@ class ForceMatrix:
         :return: New list with solution for the inexesitant edges equal to zero
         :rtype: list
         """
-        print("Total number of deleted vertices: ", len(self.deletes))
+        xres = Matrix(xres)
+        list_of_big_edges = [big_edge.get_vertices_ids() for big_edge in self.frame.internal_big_edges]
         both_count = 0
-        for index, big_edge in enumerate(self.big_edges_to_use):
+        for index, big_edge in enumerate(list_of_big_edges):
             cond1 = big_edge[0] in self.deletes
             cond2 = big_edge[-1] in self.deletes
             if cond1 and cond2:
-                xres[index] = 0
+                # xres[index] = -1
+                xres = xres.row_insert(index, Matrix([-1]))
                 both_count += 1
-        print(f"Deleted {both_count} / {self.matrix.shape[1]}")
         return xres
     
-    def get_new_initial_condition(self, x0: list) -> list:
-        """Get new initial condition adding zeros to the big edges that no longer exist
+    def get_new_initial_condition(self, x0: list, what="zero") -> list:
+        """Get new initial condition adding zeros to or removing the big edges that no longer exist
 
         :param x0: Original list
         :type x0: list
         :return: New list with initial condition for the inexesitant edges equal to zero
         :rtype: list
         """
-        print("Total number of deleted vertices: ", len(self.deletes))
+        list_of_big_edges = [big_edge.get_vertices_ids() for big_edge in self.frame.internal_big_edges]
         both_count = 0
-        for index, big_edge in enumerate(self.big_edges_to_use):
+        removed_indices = {}
+        for index, big_edge in enumerate(list_of_big_edges):
             cond1 = big_edge[0] in self.deletes
             cond2 = big_edge[-1] in self.deletes
             if cond1 and cond2:
-                x0[index] = 0
+                removed_indices[index] = x0[index]
+                if what == "zero":
+                    x0[index] = 0
+                else:
+                    x0[index] = -1
                 both_count += 1
-        print(f"Deleted {both_count} / {self.matrix.shape[1]}")
-        return x0
+        return x0, removed_indices
