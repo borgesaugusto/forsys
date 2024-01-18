@@ -148,10 +148,13 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
     jet = plt.get_cmap('jet')
     fig, ax = plt.subplots(1,1)
     
+    scale_to_compress = kwargs.get("compress_scale", 1)
     if ground_truth:
-        all_forces = [edge.gt for edge in frame.edges.values() if edge.gt != 0]
+        perturbation = 0.0
+        all_forces = [edge.gt + np.random.uniform(-edge.gt*perturbation, edge.gt*perturbation) for edge in frame.edges.values() if edge.gt != 0]
     else:
         all_forces = [edge.tension for edge in frame.edges.values() if edge.tension != 0]
+        # all_forces = [1 + (edge.tension - 1) * scale_to_compress for edge in frame.edges.values() if edge.tension != 0]
 
     if maxForce == None:
         maxForce = max(all_forces)
@@ -162,8 +165,13 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
     stdForce = np.std(all_forces)
 
     for _, edge in frame.edges.items():
-        observable = edge.tension if not ground_truth else edge.gt
-        if observable == 0:
+        # observable = edge.tension if not ground_truth else edge.gt
+        if edge.tension != 0:
+            # observable = 1 + (edge.tension - 1) * scale_to_compress if not ground_truth else edge.gt
+            observable = edge.tension if not ground_truth else edge.gt
+        else:
+            observable = edge.tension if not ground_truth else edge.gt
+        if observable <= 0:
             plt.plot(   (edge.v1.x, edge.v2.x),
                         (edge.v1.y, edge.v2.y),
                         color="black", linewidth=0.5, alpha=0.6)
@@ -174,6 +182,8 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
                 forceValToPlot = observable / maxForce
             elif normalized == "relative":
                 forceValToPlot = (observable + minForce) / maxForce
+            elif normalized == "absolute":
+                forceValToPlot = observable / kwargs.get("max_stress", 2)
             else:
                 forceValToPlot = observable/maxForce
             
