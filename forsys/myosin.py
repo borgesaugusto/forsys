@@ -64,7 +64,7 @@ def get_intensities(big_edges,
             key_to_use = "ext_"+str(be_id)
 
         intensities[key_to_use] = intensity_to_use
-        big_edge.gt = intensities[key_to_use]
+        # big_edge.gt = intensities[key_to_use]
 
     intensities_only_internal = {k: v for k, v in intensities.items() if not isinstance(k, str)}
 
@@ -73,6 +73,11 @@ def get_intensities(big_edges,
     elif normalize == "average":
         mean_value = np.mean(list(intensities_only_internal.values()))
         intensities_only_internal = {k: v/mean_value for k, v in intensities_only_internal.items()}
+
+    
+    for be_id, big_edge in enumerate(big_edges):
+        key_to_use = big_edges.index(big_edge)
+        big_edge.gt = intensities_only_internal[key_to_use]
 
     return intensities_only_internal
 
