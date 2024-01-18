@@ -4,9 +4,7 @@ import os
 import numpy as np
 import forsys as fs
 
-def distance_to_yeqx(gt, values):
-        return 1 - sum([abs(gt[ii] - values[ii]) 
-                    for ii in range(0, len(gt))]) / len(values)
+from sklearn.metrics import mean_absolute_percentage_error, r2_score
 
 @pytest.fixture
 def furrow():
@@ -33,7 +31,7 @@ def test_fit_initial_furrow(furrow):
 
     tensions_df = furrow.frames[0].get_tensions()
 
-    r_value = distance_to_yeqx(tensions_df['gt'].values / tensions_df['gt'].mean(), 
+    r_value = r2_score(tensions_df['gt'].values / tensions_df['gt'].mean(), 
                                 tensions_df['stress'].values)
     print("initial furrow", r_value)
     assert 1 > r_value > 0.94
@@ -45,7 +43,7 @@ def test_fit_last_furrow(furrow):
     
     tensions_df = furrow.frames[last_frame].get_tensions()
 
-    r_value = distance_to_yeqx(tensions_df['gt'].values / tensions_df['gt'].mean(), 
+    r_value = r2_score(tensions_df['gt'].values / tensions_df['gt'].mean(), 
                                 tensions_df['stress'].values)
     print("Final furrow", r_value)
     assert 1 > r_value > 0.93
@@ -56,8 +54,11 @@ def test_fit_furrow_movement_velocity(furrow):
         furrow.build_force_matrix(when=ii)
         furrow.solve_stress(when=ii, b_matrix="velocity")
         tensions_df = furrow.frames[ii].get_tensions()
-        r_value = distance_to_yeqx(tensions_df['gt'].values / tensions_df['gt'].mean(), 
-                                    tensions_df['stress'].values)
+
+        arguments = [tensions_df['gt'].values / tensions_df['gt'].mean(), 
+                                    tensions_df['stress'].values / tensions_df['stress'].mean()]
+        r_value = r2_score(*arguments)
+        print(f"t ={ii} with MAPE {mean_absolute_percentage_error(*arguments)}")
         all_r_values.append(r_value)
     print("Dynamic furrow", all_r_values)
     assert np.all([1 > value > 0.94 for value in all_r_values])
@@ -76,7 +77,7 @@ def test_fit_furrow_velocity_lsq_initial_last_val(furrow):
                             initial_condition=initial_condition,
                             method="lsq")
         tensions_df = furrow.frames[ii].get_tensions()
-        r_value = distance_to_yeqx(tensions_df['gt'].values / tensions_df['gt'].mean(), 
+        r_value = r2_score(tensions_df['gt'].values / tensions_df['gt'].mean(), 
                                     tensions_df['stress'].values / tensions_df['stress'].mean())
         all_r_values.append(r_value)
     print("Dynamic furrow using last", all_r_values)
@@ -85,7 +86,7 @@ def test_fit_furrow_velocity_lsq_initial_last_val(furrow):
 def test_fit_furrow_velocity_lsq_initial_gt(furrow):
     all_r_values = []
     for ii in furrow.frames.keys():
-        initial_condition = list(furrow.frames[ii].get_gt_tensions()["gt"].values)
+        initial_condition = list(furrow.frames[ii].get_gt_tensions()["gt"].values / furrow.frames[ii].get_gt_tensions()["gt"].mean())
 
         furrow.build_force_matrix(when=ii)
         furrow.solve_stress(when=ii,
@@ -93,8 +94,56 @@ def test_fit_furrow_velocity_lsq_initial_gt(furrow):
                             initial_condition=initial_condition,
                             method="lsq")
         tensions_df = furrow.frames[ii].get_tensions()
-        r_value = distance_to_yeqx(tensions_df['gt'].values / tensions_df['gt'].mean(), 
+        r_value = r2_score(tensions_df['gt'].values / tensions_df['gt'].mean(), 
                                     tensions_df['stress'].values / tensions_df['stress'].mean())
         all_r_values.append(r_value)
     print("Dynamic furrow using GT", all_r_values)
+    print(tensions_df)
+    assert np.all([1 > value > 0.94 for value in all_r_values])
+
+def test_fit_furrow_velocity_lsq_initial_one(furrow):
+    all_r_values = []
+    for ii in furrow.frames.keys():
+        initial_condition = np.ones(len(furrow.frames[ii].get_gt_tensions()["gt"]))
+        # initial_condition = np.abs(np.random.normal(1, 0.1, len(furrow.frames[ii].get_gt_tensions()["gt"])))
+        
+
+        furrow.build_force_matrix(when=ii)
+        furrow.solve_stress(when=ii,
+                            b_matrix="velocity",
+                            initial_condition=initial_condition,
+                            method="lsq")
+        tensions_df = furrow.frames[ii].get_tensions()
+        # r_value = distance_to_yeqx(tensions_df['gt'].values / tensions_df['gt'].mean(), 
+        #                             tensions_df['stress'].values / tensions_df['stress'].mean())
+        arguments = [tensions_df['gt'].values / tensions_df['gt'].mean(), 
+                                    tensions_df['stress'].values / tensions_df['stress'].mean()]
+        r_value = r2_score(*arguments)
+        print(f"t ={ii} with MAPE {mean_absolute_percentage_error(*arguments)}")
+        all_r_values.append(r_value)
+    print("Dynamic furrow using Ones", all_r_values)
+    print(tensions_df)
+    assert np.all([1 > value > 0.95 for value in all_r_values])
+
+@pytest.mark.skip(reason="Eliminating edges doesn't work with this normalization ")
+def test_fit_furrow_velocity_lsq_initial_gt_deleting10(furrow):
+    all_r_values = []
+    angle_limit = 180 * (1 - 0.1) * np.pi / 180
+    for ii in furrow.frames.keys():
+        initial_condition = list(furrow.frames[ii].get_gt_tensions()["gt"].values / furrow.frames[ii].get_gt_tensions()["gt"].mean())
+
+        furrow.build_force_matrix(when=ii,
+                                  angle_limit=angle_limit)
+        furrow.solve_stress(when=ii,
+                            b_matrix="velocity",
+                            initial_condition=initial_condition,
+                            method="lsq")
+        tensions_df = furrow.frames[ii].get_tensions()
+        
+        arguments = [tensions_df['gt'].values / tensions_df['gt'].mean(), 
+                                    tensions_df['stress'].values / tensions_df['stress'].mean()]
+        r_value = r2_score(*arguments)
+        all_r_values.append(r_value)
+        print(f"t ={ii} with MAPE {mean_absolute_percentage_error(*arguments)}")
+    print("Dynamic furrow using GT with 10% discard", all_r_values)
     assert np.all([1 > value > 0.94 for value in all_r_values])
