@@ -46,7 +46,7 @@ def create_directory(name, upperFolder):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-def load_initial_guess(guess_file, max_time):
+def load_initial_guess(guess_file, min_time, max_time):
     try:
         with open(guess_file) as jfile:
             initial_guess = json.load(jfile)
@@ -54,7 +54,9 @@ def load_initial_guess(guess_file, max_time):
     except FileNotFoundError:
         initial_guess = {}
         print("No guess file, using zero guess")
+    
+    number_of_frames = max_time - min_time
 
-    initial_guess = {k: {} for k in range(max_time)
+    initial_guess = {k: {} for k in range(number_of_frames)
                     if k not in initial_guess.keys()} | initial_guess
     return initial_guess
