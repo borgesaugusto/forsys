@@ -25,6 +25,7 @@ class ForSys():
     cm: bool = False
     initial_guess: list = field(default_factory=list)
 
+
     def __post_init__(self):
         """Constructor method        
         """
@@ -63,6 +64,7 @@ class ForSys():
                                 timeseries=self.mesh,
                                 angle_limit=kwargs.get("angle_limit", np.pi))
 
+
     def build_pressure_matrix(self, when: int = 0):
         """Interface to create the matrix system to solve for the pressures. 
         Must be called after stresses were already found.
@@ -85,7 +87,8 @@ class ForSys():
         self.forces[when] = self.force_matrices[when].solve(self.mesh, **kwargs)
         self.frames[when].forces = self.forces[when]
         self.frames[when].assign_tensions_to_big_edges()
-        
+
+
     def solve_pressure(self, when: int=0, **kwargs):
         """Interface to call the solver method for the pressures.
         The matrix must already exist.
@@ -96,12 +99,7 @@ class ForSys():
         assert type(self.forces[when]) is not None, "Forces must be calculated first"
         self.pressures = self.pressure_matrices[when].solve_system(**kwargs)
         self.frames[when].assign_pressures(self.pressures, self.pressure_matrices[when].mapping_order)
-        
-    def get_accelerations():
-        raise(NotImplementedError)
-    
-    def get_velocities():
-        raise(NotImplementedError)
+
 
     def log_force(self, when: int) -> pd.DataFrame:
         """Create dataframe with the solution for the stresses at a 
@@ -116,9 +114,7 @@ class ForSys():
         df['is_border'] = [False if isinstance(x, int) else True for x in df.index]
         return df
 
-    """
-        get lambda value for the edge given two vertices of the edge
-        """
+
     def get_edge_force(self, v0: int, v1: int, t0: int = -1, tmax: int = -1) -> list:
         """Return the edge tension between two timepoints for an edge, given two vertices.
         If no time is provided, the whole evolution is assumed.
@@ -207,3 +203,29 @@ class ForSys():
                                                    time=self.frames[frame_number].time,
                                                    gt=self.frames[frame_number].gt)
         return self.frames[frame_number]
+
+
+    def get_system_velocity_per_frame(self, time_interval: list=None, angle_limit=np.inf) -> list:
+        """Calculate the average velocity of the frame. Useful for 
+        normalization purposes. When this functions is called, the system's
+        matrix is automatically generated.
+
+        :param time_interval: Times to do the calculation. Default is every frame, defaults to None
+        :type time_interval: list, optional
+        :param angle_limit: Angle limit to ignore triple junctions in the inference, defaults to np.inf
+        :type angle_limit: _type_, optional
+        :return: List of velocity averages per frame
+        :rtype: list
+        """
+        velocities_per_frame = []
+        if type(time_interval) is not list:
+            time_interval = range(len(self.frames))
+        for time in time_interval:
+            self.build_force_matrix(when=time,
+                                    angle_limit=angle_limit)
+            _, ave_velocity = self.force_matrices[time].set_velocity_matrix(self.mesh,
+                                                                            b_matrix="velocity",
+                                                                            adimensional_velocity=True)
+            velocities_per_frame.append(ave_velocity)
+
+        return velocities_per_frame
