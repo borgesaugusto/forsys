@@ -15,11 +15,10 @@ def furrow():
                                                             "data", 
                                                             "furrow_gauss_velocity", 
                                                             f"stage{ii}.dmp"))
-        vertices, edges, cells = surfaceEvolver.create_lattice()
         frames[ii] = fs.frames.Frame(ii,
-                                    vertices,
-                                    edges, 
-                                    cells, 
+                                    surfaceEvolver.vertices,
+                                    surfaceEvolver.edges, 
+                                    surfaceEvolver.cells, 
                                     time=ii, 
                                     gt=True)
     forsys = fs.ForSys(frames, cm=False)

@@ -17,6 +17,10 @@ class SurfaceEvolver:
     """
     fname: str
 
+
+    def __post_init__(self):
+        self.vertices, self.edges, self.cells = self.create_lattice()
+
     def create_lattice(self) -> Tuple:
         """Create vertices, edges and cells from a Surface Evolver file. 
         All necessary steps are taken by this call.
