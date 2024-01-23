@@ -175,3 +175,12 @@ class Cell:
         current_cells.remove(self.id)
         self.neighbors = current_cells
         return self.neighbors
+    
+
+    def get_edges(self):
+        cell_edges = []
+        for vnum in range(0, len(self.vertices) - 1):
+            local_edges = list(set(self.vertices[vnum].ownEdges) &
+                               set(self.vertices[vnum + 1].ownEdges))
+            cell_edges.append(local_edges[0])
+        return cell_edges
