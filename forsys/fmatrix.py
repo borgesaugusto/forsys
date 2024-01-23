@@ -37,7 +37,7 @@ class ForceMatrix:
     term: str
     metadata: dict
     timeseries: dict
-    angle_limit: float = np.pi
+    angle_limit: float = np.inf
 
     def __post_init__(self):
         """Constructor method
@@ -230,7 +230,6 @@ class ForceMatrix:
             cond2 = big_edge[-1] in self.deletes
             if cond1 and cond2:
                 big_edges_to_use.remove(big_edge)
-                # print(f"removed {big_edge} len is now", len(big_edges_to_use))
 
         return big_edges_to_use, self.deletes
 
