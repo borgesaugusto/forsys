@@ -317,15 +317,15 @@ class ForceMatrix:
                 for index, value in removed_indices.items():
                     xres = xres.row_insert(index, Matrix([-1]))
             else:
-                xres = Matrix(np.linalg.inv(mprime) * Matrix(b))
+                try:
+                    xres = Matrix(np.linalg.inv(mprime) * Matrix(b))
+                except np.linalg.LinAlgError:
+                    raise ValueError("Singular matrix")
                 
-                if np.any([x<0 for x in xres[:-1]]) and not kwargs.get("allow_negatives", True):
-                    print("Numerically solving due to negative values")
-
-                    xres, _ = scop.nnls(mprime, b, maxiter=100000)
-                    xres = Matrix(xres)
-        except np.linalg.LinAlgError:
-            print("Numerically solving due to singular matrix")
+                if np.any([x < 0 for x in xres[:-1]]) and not kwargs.get("allow_negatives", True):
+                    raise ValueError("Negative values detected")
+        except (ValueError, np.linalg.LinAlgError, TypeError) as e:
+            print(f"Numerically solving due to the following error: {e}")
             xres, _ = scop.nnls(mprime, b, maxiter=100000)
             xres = Matrix(xres)
 
