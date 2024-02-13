@@ -290,11 +290,10 @@ class ForceMatrix:
                     return vectorial_differences
 
                 def lmfit_cost_std(params, A, b):
-                    _x = [params[name].value for name in params]
-                    a_x = np.dot(np.array(A), np.array(_x)) 
+                    _x = np.array([params[name].value for name in params])
+                    a_x = np.dot(A, _x)
                     vectorial_differences = a_x - b
-                    vectorial_differences_2 = vectorial_differences * vectorial_differences
-                    return vectorial_differences + 0.5 * np.sqrt(vectorial_differences_2.sum()) * np.std(_x)
+                    return vectorial_differences * (1 + 0.5 * _x.std())
 
 
                 parameters = lmf.Parameters()
