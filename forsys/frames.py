@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import scipy.signal as spsignal
 import os
 
 from dataclasses import dataclass, field
@@ -287,5 +288,33 @@ class Frame():
                 principal_component = np.linalg.eig(self.stress_tensor[0][f"{row}{column}"])
                 self.principal_stress[(self.stress_tensor[1][0][row], 
                                             self.stress_tensor[1][1][column])] = principal_component
+        
+    def filter_edges(self, method: str = "SG") -> None:
+        """
+        Filter the edges of the frame using the specified method.
 
+        :param method: The filtering method to use. Options are "SG" for Savitzky-Golay filter or "none" for no filtering.
+        :type method: str, optional
+        :raises ValueError: If the specified method is not available.
+        :return: None
+        """
+        if method == "SG":
+            filtering_function = spsignal.savgol_filter
+            arguments = (5, 3)
+        elif method == "none":
+            filtering_function = lambda x, *args: x
+            arguments = ()
+        else:
+            raise ValueError("Method not available")
+
+        for index, big_edge in self.big_edges.items():
+            try:
+                new_xs = filtering_function(big_edge.xs, *arguments)
+                new_ys = filtering_function(big_edge.ys, *arguments)
+            except ValueError:
+                new_xs = big_edge.xs
+                new_ys = big_edge.ys
+            for index, vertex in enumerate(big_edge.vertices):
+                vertex.x = new_xs[index]
+                vertex.y = new_ys[index]
 
