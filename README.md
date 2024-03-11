@@ -1,3 +1,4 @@
+[![codecov](https://codecov.io/gh/borgesaugusto/forsys/graph/badge.svg?token=09Z4YKV8IG)](https://codecov.io/gh/borgesaugusto/forsys)
 # ForSys
 #### ForSys: a non-invasive open-source analysis software to infer stress from microscopic time series 
 
