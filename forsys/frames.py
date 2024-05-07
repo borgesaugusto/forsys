@@ -318,3 +318,50 @@ class Frame():
                 vertex.x = new_xs[index]
                 vertex.y = new_ys[index]
 
+    def get_cell_properties_df(self) -> pd.DataFrame:
+        all_ids = []
+        all_centerx = []
+        all_centery = []
+        all_perimeters = []
+        all_areas = []
+        all_pressures = []
+
+        for cell in self.cells.values():
+            center = cell.calculate_circle_center()
+            all_ids.append(cell.id)
+            all_centerx.append(center[0])
+            all_centery.append(center[1])
+            all_perimeters.append(cell.get_perimeter())
+            all_areas.append(cell.get_area())
+            all_pressures.append(cell.pressure)
+
+            if cell.id == 605:
+                import pdb; pdb.set_trace()
+
+        return pd.DataFrame({"cid": all_ids,
+                             "centerx": all_centerx,
+                             "centery": all_centery,
+                             "perimeter": all_perimeters,
+                             "area": all_areas,
+                             "pressure": all_pressures})
+
+
+    def get_edges_props_df(self) -> pd.DataFrame:
+        all_ids = []
+        all_tensions = []
+        all_gt_tensions = []
+        all_posx = []
+        all_posy = []
+
+        for edge in self.big_edges.values():
+            all_ids.append(edge.big_edge_id)
+            all_tensions.append(edge.tension)
+            all_gt_tensions.append(edge.gt)
+            all_posx.append(np.mean(edge.xs))
+            all_posy.append(np.mean(edge.ys))
+
+        return pd.DataFrame({"eid": all_ids,
+                             "posx": all_posx,
+                             "posy": all_posy,
+                             "tension": all_tensions,
+                             "gt_tension": all_gt_tensions})
