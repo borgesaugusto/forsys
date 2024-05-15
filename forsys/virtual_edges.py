@@ -1,9 +1,10 @@
 import itertools as itertools
 import numpy as np
 from collections import Counter
+from typing import Tuple
 
 import scipy.optimize as sco
-
+import circle_fit as cfit
 import forsys.vertex as fvertex
 import forsys.edge as fedge
 
@@ -247,18 +248,48 @@ def get_line_constant_from_bedge(edges, ele):
     return edgeLC
 
 
-def get_circle_params(big_edge, vertices):
-    x = [vertices[vid].x for vid in big_edge]
-    y = [vertices[vid].y for vid in big_edge]
+def calculate_circle_center(vertices, method: str="dlite") -> Tuple:
+        """
+        Calculate the centroid of the cell through a circle fit 
+        dlite invokes a modified from DLITE's implementation: 
+        https://github.com/AllenCellModeling/DLITE
+        if no argument is passed, the geometric center is returned
 
-    # TODO: identificar residuos para ver si excluir
+        :return: x and y coordiante of the cell's center from a circular fit
+        :rtype: Tuple
+        """        
+        # print("Using as method: ", method)
+        xs = [v.x for v in vertices]
+        ys = [v.y for v in vertices]
+
+        if method == "dlite":
+            center = dlite_circle_method(xs, ys)
+        elif method == "taubinSVD":
+            zipped_coords = list(zip(xs, ys))
+            if len(zipped_coords) < 3:
+                center = dlite_circle_method(xs, ys)
+            else:
+                try:
+                    xc, yc, r, sigma = cfit.taubinSVD(zipped_coords)
+                    center = [xc, yc]
+                except FloatingPointError:
+                    center = dlite_circle_method(xs, ys)
+        else:
+            center = [np.mean(xs),  np.mean(ys)]
+        
+        return center[0], center[1]
+
+def dlite_circle_method(xs, ys):
     def objective_f(c):
-        """ calculate the algebraic distance between the data points and the mean circle centered at c=(xc, yc) """
-        distances = np.sqrt((x - c[0]) ** 2 + (y - c[1]) ** 2)
-        return distances - distances.mean()
+                """ 
+                Distance between the vertices and the mean circle centered at c
+                """
+                distances = np.sqrt((xs - c[0]) ** 2 + (ys - c[1]) ** 2)
+                return distances - distances.mean()
 
-    center_2, _ = sco.leastsq(objective_f, (np.mean(x), np.mean(y)))
-    return center_2[0], center_2[1]
+    center, _ = sco.leastsq(objective_f, (np.mean(xs), np.mean(ys)))
+    return center
+
 
 
 def get_versors(vertices, edges, vid):

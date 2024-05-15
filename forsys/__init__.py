@@ -12,3 +12,5 @@ from . import myosin
 from . import stress_tensor
 from . import tessellation
 # from . import general_matrix
+import numpy as np
+np.seterr(all='raise')

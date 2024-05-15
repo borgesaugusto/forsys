@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 import numpy as np
 from typing import Tuple
 
+import forsys.virtual_edges as ve
+
 @dataclass
 class SmallEdge:
     """
@@ -175,24 +177,8 @@ class BigEdge:
             total_curvature = total_curvature / curve_length
         return total_curvature
 
-    def get_circle_parameters(self) -> Tuple:
-        """
-        Calculate the best circle fit to the big edge
-        Modified from DLITE's implementation: https://github.com/AllenCellModeling/DLITE
 
-        :return: x and y coordiante of the circle's center from a circular fit
-        :rtype: Tuple
-        """
-        import scipy.optimize as sco
-        def objective_f(c):
-            """ Distance between the vertices and the mean circle centered at c """
-            distances = np.sqrt((self.xs - c[0]) ** 2 + (self.ys - c[1]) ** 2)
-            return distances - distances.mean()
-
-        center, _ = sco.leastsq(objective_f, (np.mean(self.xs), np.mean(self.ys)))
-        return center[0], center[1]
-
-    def get_versor_from_vertex(self, vid: int, method: str = "edge", cell: object = None) -> list:
+    def get_versor_from_vertex(self, vid: int, method: str = "edge", cell: object = None, fit_method:str = "dlite") -> list:
         """
         Get versor corresponding to the vectorial reprensentation of the big erdge
 
@@ -201,11 +187,11 @@ class BigEdge:
         :return: Object reference for the next vertex in the ordering
         :rtype: object
         """
-        vector = self.get_vector_from_vertex(vid, method, cell)
+        vector = self.get_vector_from_vertex(vid, method, cell, fit_method)
         versor = vector / np.linalg.norm(vector)
         return versor
 
-    def get_vector_from_vertex(self, vid: int, method: str = "edge", cell: object = None) -> list:
+    def get_vector_from_vertex(self, vid: int, method: str = "edge", cell: object = None, fit_method: str="dlite") -> list:
         """
         Get the vector representation for the big edge
 
@@ -221,7 +207,8 @@ class BigEdge:
         """
         vobject = self.get_vertex_object_by_id(vid)
         if method == "edge":
-            xc, yc = self.get_circle_parameters()
+            xc, yc = ve.calculate_circle_center(self.vertices, method=fit_method)
+            # xc, yc = self.get_circle_parameters()
         elif method == "cell" and cell:
             xc, yc = cell.center_x, cell.center_y
         else:

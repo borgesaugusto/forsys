@@ -35,6 +35,7 @@ def test_fit_initial_furrow(furrow):
     print("initial furrow", r_value)
     assert 1 > r_value > 0.94
 
+
 def test_fit_last_furrow(furrow):
     last_frame = len(furrow.frames) - 1
     furrow.build_force_matrix(when=last_frame)
@@ -47,10 +48,39 @@ def test_fit_last_furrow(furrow):
     print("Final furrow", r_value)
     assert 1 > r_value > 0.93
 
+
+def test_fit_last_furrow_taubin(furrow):
+    last_frame = len(furrow.frames) - 1
+    furrow.build_force_matrix(when=last_frame, circle_fit_method="taubinSVD")
+    furrow.solve_stress(when=last_frame)
+    
+    tensions_df = furrow.frames[last_frame].get_tensions()
+
+    r_value = r2_score(tensions_df['gt'].values / tensions_df['gt'].mean(), 
+                                tensions_df['stress'].values)
+    print("Final furrow", r_value)
+    assert 1 > r_value > 0.93
+
+
 def test_fit_furrow_movement_velocity(furrow):
     all_r_values = []
     for ii in furrow.frames.keys():
         furrow.build_force_matrix(when=ii)
+        furrow.solve_stress(when=ii, b_matrix="velocity")
+        tensions_df = furrow.frames[ii].get_tensions()
+
+        arguments = [tensions_df['gt'].values / tensions_df['gt'].mean(), 
+                                    tensions_df['stress'].values / tensions_df['stress'].mean()]
+        r_value = r2_score(*arguments)
+        print(f"t ={ii} with MAPE {mean_absolute_percentage_error(*arguments)}")
+        all_r_values.append(r_value)
+    print("Dynamic furrow", all_r_values)
+    assert np.all([1 > value > 0.94 for value in all_r_values])
+
+def test_fit_furrow_movement_velocity_taubin(furrow):
+    all_r_values = []
+    for ii in furrow.frames.keys():
+        furrow.build_force_matrix(when=ii, circle_fit_method="taubinSVD")
         furrow.solve_stress(when=ii, b_matrix="velocity")
         tensions_df = furrow.frames[ii].get_tensions()
 

@@ -38,6 +38,7 @@ class ForceMatrix:
     metadata: dict
     timeseries: dict
     angle_limit: float = np.inf
+    circle_fit_method: str = "dlite"
 
     def __post_init__(self):
         """Constructor method
@@ -184,7 +185,7 @@ class ForceMatrix:
         arry = np.zeros(len(self.big_edges_to_use))
         vertex = self.frame.vertices[vid]
         vertex_big_edges = [self.frame.big_edges[beid] for beid in vertex.own_big_edges]
-        vertex_big_edges_versors = [big_edge.get_versor_from_vertex(vid) for big_edge in vertex_big_edges]
+        vertex_big_edges_versors = [big_edge.get_versor_from_vertex(vid, fit_method=self.circle_fit_method) for big_edge in vertex_big_edges]
         # Find the three angles
         # TODO: Should something be done for 4-fold junctions ?
         # if len(vertex_big_edges) == 3:
@@ -214,7 +215,7 @@ class ForceMatrix:
         for vid in tj_vertices:
             vertex = self.frame.vertices[vid]
             vertex_big_edges = [self.frame.big_edges[beid] for beid in vertex.own_big_edges]
-            vertex_big_edges_versors = [big_edge.get_versor_from_vertex(vid) for big_edge in vertex_big_edges]
+            vertex_big_edges_versors = [big_edge.get_versor_from_vertex(vid, fit_method=self.circle_fit_method) for big_edge in vertex_big_edges]
             # Find the three angles
             # TODO: Should something be done for 4-fold junctions ?
             # if len(vertex_big_edges) == 3:
@@ -269,7 +270,6 @@ class ForceMatrix:
 
         mprime = np.array(mprime).astype(np.float64)
         b = np.array(mp.matrix(b)).astype(np.float64)
-        
         try:
             if solver_method == "lsq_linear":
                 solutions = scop.lsq_linear(np.array(mprime).astype(np.float64),

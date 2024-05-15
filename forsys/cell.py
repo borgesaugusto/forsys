@@ -1,6 +1,10 @@
 from dataclasses import dataclass
 import numpy as np
 from typing import Tuple
+import scipy.optimize as sco
+import circle_fit as cfit
+
+import forsys.virtual_edges as ve
 
 @dataclass 
 class Cell:
@@ -24,6 +28,7 @@ class Cell:
     
     gt_pressure: float = None
     pressure: float = None
+    center_method: str = "dlite"
 
 
     def __post_init__(self):
@@ -36,7 +41,8 @@ class Cell:
         for v in self.vertices:
             v.add_cell(self.id)
 
-        self.calculate_circle_center()
+        # self.calculate_circle_center(center_method)
+        self.center_x, self.center_y = ve.calculate_circle_center(vertices=self.vertices, method=self.center_method)
         
     def __del__(self):
         for v in self.vertices:
@@ -135,29 +141,6 @@ class Cell:
             # add cell to vertex
             vnew.add_cell(self.id)
 
-    def calculate_circle_center(self) -> Tuple:
-        """
-        Calculate the centroid of the cell through a circle fit
-        Modified from DLITE's implementation: https://github.com/AllenCellModeling/DLITE
-
-        :return: x and y coordiante of the cell's center from a circular fit
-        :rtype: Tuple
-        """        
-        import scipy.optimize as sco
-        xs = [v.x for v in self.vertices]
-        ys = [v.y for v in self.vertices]
-
-        def objective_f(c):
-            """ 
-            Distance between the vertices and the mean circle centered at c
-            """
-            distances = np.sqrt((xs - c[0]) ** 2 + (ys - c[1]) ** 2)
-            return distances - distances.mean()
-
-        center, _ = sco.leastsq(objective_f, (np.mean(xs), np.mean(ys)))
-        self.center_x = center[0]
-        self.center_y = center[1]
-        return center[0], center[1]
 
     def calculate_neighbors(self) -> list:
         """
