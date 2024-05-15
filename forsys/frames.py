@@ -318,7 +318,7 @@ class Frame():
                 vertex.x = new_xs[index]
                 vertex.y = new_ys[index]
 
-    def get_cell_properties_df(self) -> pd.DataFrame:
+    def get_cell_properties_df(self, center_method) -> pd.DataFrame:
         all_ids = []
         all_centerx = []
         all_centery = []
@@ -327,16 +327,13 @@ class Frame():
         all_pressures = []
 
         for cell in self.cells.values():
-            center = cell.calculate_circle_center()
+            center = fs.virtual_edges.calculate_circle_center(cell.vertices, center_method)
             all_ids.append(cell.id)
             all_centerx.append(center[0])
             all_centery.append(center[1])
             all_perimeters.append(cell.get_perimeter())
             all_areas.append(cell.get_area())
             all_pressures.append(cell.pressure)
-
-            if cell.id == 605:
-                import pdb; pdb.set_trace()
 
         return pd.DataFrame({"cid": all_ids,
                              "centerx": all_centerx,
