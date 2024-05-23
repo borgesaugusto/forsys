@@ -120,6 +120,7 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
                    normalized: Union[bool, str] = False,
                    mirror_y: bool = False,
                    mirror_x: bool = False,
+                   ax: mpl.axes.Axes = None,
                    **kwargs) -> Tuple:
     """Generate a plot of a tissue using the inferred tensions and pressures and return the plot object
 
@@ -144,17 +145,14 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
     :return: Matplotlib plot object
     :rtype: Tuple
     """
-    plt.close()
     jet = plt.get_cmap('jet')
-    fig, ax = plt.subplots(1,1)
-    
-    scale_to_compress = kwargs.get("compress_scale", 1)
+    if not ax:
+        _, ax = plt.subplots(1,1)
     if ground_truth:
         perturbation = 0.0
         all_forces = [edge.gt + np.random.uniform(-edge.gt*perturbation, edge.gt*perturbation) for edge in frame.edges.values() if edge.gt != 0]
     else:
         all_forces = [edge.tension for edge in frame.edges.values() if edge.tension != 0]
-        # all_forces = [1 + (edge.tension - 1) * scale_to_compress for edge in frame.edges.values() if edge.tension != 0]
 
     if maxForce == None:
         maxForce = max(all_forces)
@@ -165,14 +163,12 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
     stdForce = np.std(all_forces)
 
     for _, edge in frame.edges.items():
-        # observable = edge.tension if not ground_truth else edge.gt
         if edge.tension != 0:
-            # observable = 1 + (edge.tension - 1) * scale_to_compress if not ground_truth else edge.gt
             observable = edge.tension if not ground_truth else edge.gt
         else:
             observable = edge.tension if not ground_truth else edge.gt
         if observable <= 0:
-            plt.plot(   (edge.v1.x, edge.v2.x),
+            ax.plot(   (edge.v1.x, edge.v2.x),
                         (edge.v1.y, edge.v2.y),
                         color="black", linewidth=0.5, alpha=0.6)
         else:
@@ -188,7 +184,7 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
                 forceValToPlot = observable/maxForce
             
             color = jet(forceValToPlot)
-            plt.plot(   (edge.v1.x, edge.v2.x),
+            ax.plot(   (edge.v1.x, edge.v2.x),
                         (edge.v1.y, edge.v2.y),
                         color=color, linewidth=3)
             
@@ -200,9 +196,9 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
             color_to_fill = mpl.colors.to_hex(color_to_fill)
             all_xs = [v.x for v in cell.get_cell_vertices()]
             all_ys = [v.y for v in cell.get_cell_vertices()]
-            plt.fill(all_xs, all_ys, color_to_fill, alpha=0.4)
+            ax.fill(all_xs, all_ys, color_to_fill, alpha=0.4)
         if kwargs.get("colorbar", False):
-            plt.colorbar(pressures_cb)
+            ax.colorbar(pressures_cb)
 
     plt.axis('off')
     if mirror_y:
@@ -214,11 +210,8 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
         sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=0, vmax=1))
         plt.colorbar(sm)
     
-    # name = os.path.join(folder, str(step))
     plt.tight_layout()
-    # plt.savefig(name, dpi=500)
-    # plt.close()
-    return fig, ax
+    return _, ax
 
 
 def plot_difference(frame, folder: str, step: str, **kwargs) -> None:
@@ -314,7 +307,7 @@ def plot_mesh(vertices: dict, edges: dict, cells: dict,
         plt.annotate(str(v.id), [v.x, v.y], fontsize=2)
 
     for e in edges.values():
-        plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="orange", linewidth=0.5)
+        plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="black", linewidth=0.5)
         plt.annotate(str(e.id), [(e.v1.x +  e.v2.x)/2 , (e.v1.y + e.v2.y)/2], fontweight="bold", fontsize=1)
 
     for c in cells.values():
@@ -322,7 +315,7 @@ def plot_mesh(vertices: dict, edges: dict, cells: dict,
         cxs = [v.x for v in c.vertices]
         cys = [v.y for v in c.vertices]
 
-        plt.fill(cxs, cys, alpha=0.3)
+        plt.fill(cxs, cys, alpha=0.25, color="gray")
         plt.annotate(str(c.id), [cm[0], cm[1]])
 
     if len(xlim) > 0:
@@ -333,11 +326,8 @@ def plot_mesh(vertices: dict, edges: dict, cells: dict,
         plt.gca().invert_yaxis()
     if mirror_x:
         plt.gca().invert_xaxis()
-    # plt.tight_layout()
 
-    # plt.savefig(to_save, dpi=500)
-    # plt.clf()
-    # plt.close()
+    plt.axis("off")
     return fig, ax  
     
 
@@ -728,8 +718,6 @@ def plot_stress_tensor(frame: fframes.Frame, folder: str, fname: str,
 
 
 def plot_skeleton(frame: fframes.Frame, save_folder: str, **kwargs) -> None:
-    # image_size_x, image_size_y = kwargs.get("image_size", (1000, 1000))
-    # image_array = np.zeros((image_size_x, image_size_y))
 
     maximize = kwargs.get("maximize", False)
     if maximize:
@@ -763,21 +751,17 @@ def plot_skeleton(frame: fframes.Frame, save_folder: str, **kwargs) -> None:
     all_ys = all_vertices_tuple[1]
     max_x, min_x = np.max(all_xs), np.min(all_xs)
     max_y, min_y = np.max(all_ys), np.min(all_ys)
-    # size_x = int(max_x) - int(min_x) if min_x < 0 else 0
-    # size_y = int(max_y) - int(min_y) if min_y < 0 else 0
+
     size_x = int(max_x - min_x)
     size_y = int(max_y - min_y)
 
-    # diff_x = int(max_x) - int(min_x)
-    # diff_y = int(max_y) - int(min_y)
-    # image_array = np.zeros((diff_y + 7, diff_x + 7))
+
     image_array = np.zeros((size_y + 10, size_x + 10))
 
     for vx, vy in list(all_vertices):
         vx = int((vx - min_x)) + 5
         vy = int((vy - min_y)) + 5
-        # vx = int(vx) + 5
-        # vy = int(vy) + 5
+
         image_array[int(vy), int(vx)] = 255
     im = PIL.Image.fromarray(image_array)
     im.save(save_folder)
@@ -795,7 +779,6 @@ def plot_big_edges(frame, **kwargs) -> Tuple:
         plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="orange", linewidth=0.5)
 
     for be in frame.big_edges.values():
-        # x_cm = np.mean(be.xs) + np.random.uniform(-10, 10)
         x_cm = np.mean(be.xs)
         y_cm = np.mean(be.ys)
         plt.annotate(str(be.big_edge_id), [x_cm , y_cm], fontweight="bold", fontsize=5, color="blue", alpha=0.4)
