@@ -203,7 +203,7 @@ class Frame():
         return df
     
 
-    def get_gt_tensions(self, with_border: bool = False) -> pd.DataFrame():
+    def get_gt_tensions(self, with_border: bool = False) -> pd.DataFrame:
         df = pd.DataFrame.from_dict({beid: big_edge.gt for beid, big_edge in self.big_edges.items()}.items()).rename(columns={0: 'id', 
                                                                                                                                 1: 'gt'})
         if not with_border:

@@ -80,9 +80,6 @@ def generate_mesh(vertices, edges, cells, ne=4, **kwargs):
         if not vID in list(itertools.chain.from_iterable(nEdgeArray)):
             if not vID in vertexToRemove:
                 vertexToRemove.append(vID)
-            # for eid in v.getEdgesBelonging():
-            #     if not eid in edgesToRemove:
-            #         edgesToRemove.append(eid)
             for cid in v.ownCells:
                 cells[cid].vertices.remove(v)
                 # cellsToRemove.append(cid)
@@ -148,7 +145,6 @@ def get_border_from_angles(earr, vertices):
     inBorder = []
     bedge = get_border_edge(earr, vertices)
     for eid in bedge:
-        # print("Now in ", eid)
         # Choose pivot vector
         anglesArr = []
         for i in range(1, len(eid) - 1):
@@ -158,11 +154,9 @@ def get_border_from_angles(earr, vertices):
                   vertices[eid[i + 1]].y - vertices[eid[i]].y)
 
             anglesArr.append(angle_between_two_vectors(v1, v2))
-            # print(eid[i], " with angle ", round(np.degrees(anglesArr[-1]), 1))
         diff = 0
         for a, b in itertools.combinations(anglesArr, 2):
             if abs(a - b) > 0.3:
-                # if abs(a-b) > np.pi/6:
                 diff += 1
         if diff == 2 or diff == 0:
             inBorder.append(eid[int(len(eid) / 2)])
@@ -281,11 +275,11 @@ def calculate_circle_center(vertices, method: str="dlite") -> Tuple:
 
 def dlite_circle_method(xs, ys):
     def objective_f(c):
-                """ 
-                Distance between the vertices and the mean circle centered at c
-                """
-                distances = np.sqrt((xs - c[0]) ** 2 + (ys - c[1]) ** 2)
-                return distances - distances.mean()
+        """ 
+        Distance between the vertices and the mean circle centered at c
+        """
+        distances = np.sqrt((xs - c[0]) ** 2 + (ys - c[1]) ** 2)
+        return distances - distances.mean()
 
     center, _ = sco.leastsq(objective_f, (np.mean(xs), np.mean(ys)))
     return center
@@ -339,10 +333,6 @@ def get_versors_average(vertices, edges, vid):
 
         vector1 = edge.get_vector()
 
-        # deltaX = edge.v1.x - edge.v2.x
-        # deltaY = edge.v1.y - edge.v2.y
-        # modulus = np.sqrt(deltaX**2 + deltaY**2)
-
         sign1 = 1
         sign2 = 1
         if vid != edge.get_vertices_id()[0]:
@@ -360,8 +350,6 @@ def get_versors_average(vertices, edges, vid):
 
 
 def angle_between_two_vectors(a, b):
-    # anorm = np.(a, 2)
-    # b = np.round(b, 2)
     clipped_dot_product = np.clip(np.dot(a / np.linalg.norm(a), b / np.linalg.norm(b)), -1, 1)
     return np.arccos(clipped_dot_product)
 

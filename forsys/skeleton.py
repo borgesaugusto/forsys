@@ -38,7 +38,6 @@ class Skeleton:
         # if a cell has more than 5 times the average cell area (withouth the maximum)
         # remove it
         ave_cell_area = np.mean(np.sort(all_cell_areas)[:-1])
-        # areas = [self.calculate_area(polygons) for polygons in self.contours)]
         self.contours = [polygon for polygon in self.contours if self.calculate_area(polygon) < 5 * ave_cell_area]
         # initialize the counters
         self.vertex_id = 0

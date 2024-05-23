@@ -208,16 +208,11 @@ class BigEdge:
         vobject = self.get_vertex_object_by_id(vid)
         if method == "edge":
             xc, yc = ve.calculate_circle_center(self.vertices, method=fit_method)
-            # xc, yc = self.get_circle_parameters()
         elif method == "cell" and cell:
             xc, yc = cell.center_x, cell.center_y
         else:
             raise Exception("Method for versor doesn't exist or cell missing")
 
-        # edge_centroid = [np.mean(self.xs), np.mean(self.ys)]
-        # if 10 * np.linalg.norm(edge_centroid) < np.linalg.norm([xc, yc]):
-        #     vector = np.array(self.get_straight_edge_versor_from_vid(vid))
-        # else:
         vector = np.array((- (vobject.y - yc), (vobject.x - xc)))
 
         correct_sign = self.get_versor_sign(vid)

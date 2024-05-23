@@ -347,7 +347,6 @@ class TimeSeries():
                 acceleration = f1 - 2 * f0 + f2
 
 
-            # print("Accelerations: ", f0, fh, f2h, "Total: ", acceleration)
         except KeyError:
             # that vertex has no counterpart at a later time
             acceleration = np.nan

@@ -41,7 +41,6 @@ class Cell:
         for v in self.vertices:
             v.add_cell(self.id)
 
-        # self.calculate_circle_center(center_method)
         self.center_x, self.center_y = ve.calculate_circle_center(vertices=self.vertices, method=self.center_method)
         
     def __del__(self):

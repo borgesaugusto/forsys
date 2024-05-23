@@ -87,19 +87,7 @@ def reduce_amount(vertices, edges, cells):
                 slope2 = deltaY2/deltaX2
             else:
                 slope2 = np.inf
-
-            # try:
-            #     slope1 = deltaY1/deltaX1
-            # except (ZeroDivisionError, FloatingPointError):
-            #     slope1 = np.inf
-            # try:
-            #     slope2 = deltaY2/deltaX2
-            # except (ZeroDivisionError, FloatingPointError):
-            #     slope2 = np.inf
-
-            # edgesToDelete = []
-            # vertexToDelete = []
-
+                
             if slope1 == slope2:
                 toRemove = None
                 toReplace = None

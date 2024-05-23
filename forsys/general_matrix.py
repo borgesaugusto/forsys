@@ -56,16 +56,11 @@ class GeneralMatrix:
         self.lhs_matrix = np.array(self.lhs_matrix).astype(np.float64)
         self.rhs_matrix = np.array(mp.matrix(self.rhs_matrix)).astype(np.float64)
 
-        # xres, _ = scop.nnls(self.lhs_matrix, self.rhs_matrix, maxiter=100000)
-        # xres = Matrix(xres)
-
         try:
             xres = Matrix(np.linalg.inv(self.lhs_matrix) * Matrix(self.rhs_matrix))
             
             if np.any([x<0 for x in xres[:-1]]) and not kwargs.get("allow_negatives", True):
                 print("Numerically solving due to negative values")
-                # negative_edges = [self.big_edges_to_use[x_id] for x_id, x_val in enumerate(xres[:-1]) if x_val < 0]
-                # print(f"Negatives edges: ", negative_edges)
                 xres, _ = scop.nnls(self.lhs_matrix, self.rhs_matrix, maxiter=100000)
                 xres = Matrix(xres)
         except np.linalg.LinAlgError:
