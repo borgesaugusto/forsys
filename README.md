@@ -10,13 +10,16 @@
 Forsys can infer membrane stress and cell pressure from a skeletonized microscopy image or a time series.
 
 ##  Documentation: 
-...
+Available at
+https://forsys.readthedocs.io/en/latest/
 
 ---
 
 ## Installation
-...
-
+To install, just run
+```bash
+pip install forsys
+```
 ---
 
 ## Usage
