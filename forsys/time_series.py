@@ -18,9 +18,9 @@ class TimeSeries():
     :type time_series: Dictionary with all frames to be linked.
     :param cm: If True, all frames are converted to the CM before linking
     :type cm: bool
-    :param initial_guess: Optional dictionary to give linking values before automating.
-    Each key corresponds to a frame, and within has a dictionary with linking edges to their
-    new ids in that frame
+    :param initial_guess: Optional dictionary to give linking values before automating. \
+        Each key corresponds to a frame, and within has a dictionary with linking edges \
+            to their new ids in that frame
     :type initial_guess: dict
 
     :raises DifferentTissueException: If two tissues are two different to link them, this exception occurs
@@ -55,7 +55,8 @@ class TimeSeries():
 
 
     def export_mapping(self, where: str = 'meshing.txt') -> None:
-        """Export the mapping built by the class
+        """
+        Export the mapping built by the class
 
         :param where: Path to export to, must include filename, defaults to 'meshing.txt'
         :type where: str, optional
@@ -76,7 +77,8 @@ class TimeSeries():
                         np.mean([v.y for v in vertices.values()])], 3)
 
     def create_mapping(self, t0: fframes.Frame, t1: fframes.Frame, initial_guess: dict) -> dict:
-        """Create the mapping between two frames by finding the most probable vertex by 
+        """
+        Create the mapping between two frames by finding the most probable vertex by 
         proximity. If a vertex cannot be mapped, its assigned a None value in the dictionary
 
         :param t0: Previous frame
@@ -167,7 +169,8 @@ class TimeSeries():
         return mapping
     
     def find_best(self, v0: fvertex.Vertex, pool: dict, found: list) -> Union[fvertex.Vertex, None]:
-        """Find the best possible future vertex by proximity, using increasing distances
+        """
+        Find the best possible future vertex by proximity, using increasing distances
 
         :param v0: Vertex at initial time
         :type v0: fvertex.Vertex
@@ -214,7 +217,8 @@ class TimeSeries():
     
     @staticmethod
     def distance(v0: fvertex.Vertex, v1: fvertex.Vertex) -> float:
-        """Calculate the distance between two vertices
+        """
+        Calculate the distance between two vertices
 
         :param v0: First vertex object
         :type v0: fvertex.Vertex
@@ -226,7 +230,8 @@ class TimeSeries():
         return np.sqrt((v1.x - v0.x)**2 + (v1.y - v0.y)**2)
 
     def calculate_velocity(self, point: int, initial_time: str) -> np.ndarray:
-        """Calculate the velocity of a given vertex. Forward finite difference is used, 
+        """
+        Calculate the velocity of a given vertex. Forward finite difference is used, 
         except the last point where backward is used.
 
         :param point: ID of the desired vertex at the initial time
@@ -268,7 +273,8 @@ class TimeSeries():
         return (np.array([v1.x, v1.y]) - np.array([v0.x, v0.y])) / (tf - ti)
 
     def whole_tissue_acceleration(self, initial_time: int) -> dict:
-        """Calculate an estimation of the acceleration in the whole tissue, per big edge
+        """
+        Calculate an estimation of the acceleration in the whole tissue, per big edge
 
         :param initial_time: Initial time
         :type initial_time: int
@@ -283,7 +289,8 @@ class TimeSeries():
         return self.accelerations
 
     def whole_tissue_velocity(self, initial_time: int) -> dict:
-        """Calculate an estimation of the velocity in the whole tissue, per big edge
+        """
+        Calculate an estimation of the velocity in the whole tissue, per big edge
 
         :param initial_time: Initial time
         :type initial_time: int
@@ -299,7 +306,8 @@ class TimeSeries():
 
 
     def calculate_acceleration(self, point: int, initial_time: int) -> list:
-        """Calculate acceleration of a vertex in time. At least three timepoints are required
+        """
+        Calculate acceleration of a vertex in time. At least three timepoints are required
         for calcualting the acceleration. Forward finite difference is used, except for the 
         last points where either backward or central is used.
 
@@ -360,7 +368,8 @@ class TimeSeries():
         return acceleration
 
     def get_point_id_by_map(self, point: int, initial_time: int, final_time: int) -> int:
-        """Get the ID of a vertex at any later time, given one initial.
+        """
+        Get the ID of a vertex at any later time, given one initial.
 
         :param point: Point ID at initial time
         :type point: int
@@ -388,7 +397,8 @@ class TimeSeries():
         return point
         
     def acceleration_per_edge(self, earrid: int, initial_time: int, final_time: int) -> list:
-        """Get list with edge acceleration from an initial time to a final time. 
+        """
+        Get list with edge acceleration from an initial time to a final time. 
         Edge accelration is the sum of the pivot vertices acceleration.
 
         :param earrid: ID of the big edge of interest
@@ -422,7 +432,8 @@ class TimeSeries():
         return row
 
     def velocity_per_edge(self, earrid: int, initial_time: int, final_time: int) -> list:
-        """Get list with edge velocity from an initial time to a final time. 
+        """
+        Get list with edge velocity from an initial time to a final time. 
         Edge velocity is the sum of the pivot vertices velocities.
 
         :param earrid: ID of the big edge of interest
@@ -457,7 +468,8 @@ class TimeSeries():
         return row
 
     def times_to_use(self, last_frame: bool = False) -> list:
-        """Get list of times to use
+        """
+        Get list of times to use
 
         :param last_frame: Include up until the last frame, defaults to False
         :type last_frame: bool, optional
@@ -478,7 +490,8 @@ class TimeSeries():
         return final_times
 
     def get_vertex_position(self, v0: int, t0: int, tmax: int) -> Tuple:
-        """Get the position of a vertex for all times from t0 to tmax.
+        """
+        Get the position of a vertex for all times from t0 to tmax.
 
         :param v0: Vertex ID
         :type v0: int

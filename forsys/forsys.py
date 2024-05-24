@@ -13,11 +13,11 @@ class ForSys():
 
     :param frames: Unique identifier of the cell
     :type id: dict
-    :param cm: True if the each frame should be moved the the center of mass
-    system, defaults to False
+    :param cm: True if the each frame should be moved the the center of mass \
+        system, defaults to False
     :type cm: bool
-    :param initial_guess: Dictionary pairing vertex IDs in different timepoints
-    to force ForSys to connect them through time
+    :param initial_guess: Dictionary pairing vertex IDs in different timepoints \
+        to force ForSys to connect them through time
     :type initial_guess: list
     """
     frames: dict
@@ -45,12 +45,13 @@ class ForSys():
 
     
     def build_force_matrix(self, when: int = 0, term: str = "none", metadata:dict = {}, **kwargs) -> None:
-        """Interface to create the matrix system to solve for the stresses
+        """
+        Interface to create the matrix system to solve for the stresses
 
         :param when: Time at which the matrix should be constructed, defaults to 0
         :type when: int, optional
-        :param term: Define behaviour for external vertices. By default they are not 
-        considered, defaults to "none"
+        :param term: Define behaviour for external vertices. By default they are not \
+            considered, defaults to "none"
         :type term: str, optional
         :param metadata: Extra arguments to supply to the matrix builder, defaults to {}
         :type metadata: dict, optional
@@ -67,7 +68,8 @@ class ForSys():
 
 
     def build_pressure_matrix(self, when: int = 0):
-        """Interface to create the matrix system to solve for the pressures. 
+        """
+        Interface to create the matrix system to solve for the pressures. 
         Must be called after stresses were already found.
 
         :param when: Time at which the matrix should be constructed, defaults to 0
@@ -79,7 +81,8 @@ class ForSys():
         
 
     def solve_stress(self, when: int = 0, **kwargs) -> None:
-        """Interface to call the solver method for the stresses.
+        """
+        Interface to call the solver method for the stresses.
         The matrix must already exist.
 
         :param when: Time at which to calculate the solution, defaults to 0
@@ -117,15 +120,16 @@ class ForSys():
 
 
     def get_edge_force(self, v0: int, v1: int, t0: int = -1, tmax: int = -1) -> list:
-        """Return the edge tension between two timepoints for an edge, given two vertices.
+        """
+        Return the edge tension between two timepoints for an edge, given two vertices.
         If no time is provided, the whole evolution is assumed.
 
         :param v0: First vertex of the edge
         :type v0: int
         :param v1: Second vertex of the edge
         :type v1: int
-        :param t0: Initial time at which the edge's stress is required, defaults to -1.
-        Default returns the value for each frame.
+        :param t0: Initial time at which the edge's stress is required, defaults to -1. \
+            Default returns the value for each frame.
         :type t0: int, optional
         :param tmax: Final time for the edge's stress, defaults to -1.
         :type tmax: int, optional

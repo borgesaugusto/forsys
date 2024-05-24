@@ -180,12 +180,18 @@ class BigEdge:
 
     def get_versor_from_vertex(self, vid: int, method: str = "edge", cell: object = None, fit_method:str = "dlite") -> list:
         """
-        Get versor corresponding to the vectorial reprensentation of the big erdge
-
-        :param normalized: Current vertex after which the next is calculated
-        :type normalized: bool
-        :return: Object reference for the next vertex in the ordering
-        :rtype: object
+        Get the versor corresponding to the vectorial representation of the big edge.
+        
+        :param vid: The ID of the vertex.
+        :type vid: int
+        :param method: The method used to calculate the vector representation of the big edge. Default is "edge".
+        :type method: str, optional
+        :param cell: The cell object. Default is None.
+        :type cell: object, optional
+        :param fit_method: The fit method used. Default is "dlite".
+        :type fit_method: str, optional
+        :return: The versor corresponding to the vectorial representation of the big edge.
+        :rtype: list
         """
         vector = self.get_vector_from_vertex(vid, method, cell, fit_method)
         versor = vector / np.linalg.norm(vector)
@@ -197,8 +203,8 @@ class BigEdge:
 
         :param vid: ID of the vertex from where the vector is defined
         :type vid: int
-        :param method: Method to calculate representation. "edge" gives the circular fit to the edge,
-        "cell" and passing a cell object gives a circular fit to the given cell.
+        :param method: Method to calculate representation. "edge" gives the circular fit to the edge, \
+            "cell" and passing a cell object gives a circular fit to the given cell.
         :type method: str
         :param cell: Object reference of the cell to calculate the curvature if necessary
         :type cell: object

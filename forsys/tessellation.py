@@ -30,67 +30,67 @@ def create_lattice(vertices_voronoi, edges_voronoi, cells_voronoi, **kwargs) -> 
     return vertices, edges, cells
 
 def create_lattice_elements(cell_centers: list, **kwargs) -> tuple:
-        """
-        Create the vertices, edges and cells from the scipy.spatial.Voronoi() objects
+    """
+    Create the vertices, edges and cells from the scipy.spatial.Voronoi() objects
 
-        :param cell_centers: Centroids of the objects 
-        :type cell_centers: list
-        :return: Vertices, edges and cell's list
-        :rtype: tuple
-        """
-        # if kwargs.get("add_layer", False):
-        #     centroid = np.mean(cell_centers)
-            
-        tessellation = scspace.Voronoi(cell_centers)
+    :param cell_centers: Centroids of the objects 
+    :type cell_centers: list
+    :return: Vertices, edges and cell's list
+    :rtype: tuple
+    """
+    # if kwargs.get("add_layer", False):
+    #     centroid = np.mean(cell_centers)
+        
+    tessellation = scspace.Voronoi(cell_centers)
 
-        new_vertices = {}
-        new_cells = {}
-        new_edges = {}
-        regions = deepcopy(tessellation.regions)
-        big_edge = []
+    new_vertices = {}
+    new_cells = {}
+    new_edges = {}
+    regions = deepcopy(tessellation.regions)
+    big_edge = []
 
-        cnum = 1
+    cnum = 1
 
-        regions = remove_infinite_regions(tessellation, regions, max_distance=kwargs.get("max_distance", 75))
+    regions = remove_infinite_regions(tessellation, regions, max_distance=kwargs.get("max_distance", 75))
 
-        for c in regions:
-            temp_for_cell = []
-            temp_vertex_for_cell = []
-            if len(c) != 0 and -1 not in c:
-                # add first to close the cell_vertices
-                c.append(c[0])
-                for ii in range(0, len(c) - 1):
-                    temp_big_edge = []
-                    x_coordinate = np.around(np.linspace(round(tessellation.vertices[c[ii]][0], 3),
-                                                        round(tessellation.vertices[c[ii + 1]][0], 3), 2), 3)
-                    y_coordinate = np.around(line_eq(tessellation.vertices[c[ii]],
-                                                        tessellation.vertices[c[ii + 1]],
-                                                        x_coordinate), 3)
+    for c in regions:
+        temp_for_cell = []
+        temp_vertex_for_cell = []
+        if len(c) != 0 and -1 not in c:
+            # add first to close the cell_vertices
+            c.append(c[0])
+            for ii in range(0, len(c) - 1):
+                temp_big_edge = []
+                x_coordinate = np.around(np.linspace(round(tessellation.vertices[c[ii]][0], 3),
+                                                    round(tessellation.vertices[c[ii + 1]][0], 3), 2), 3)
+                y_coordinate = np.around(line_eq(tessellation.vertices[c[ii]],
+                                                    tessellation.vertices[c[ii + 1]],
+                                                    x_coordinate), 3)
 
-                    new_edge_vertices = list(zip(x_coordinate, y_coordinate))
-                    # add new edges to the global list
-                    for v in range(0, len(new_edge_vertices) - 1):
-                        v0 = new_edge_vertices[v]
-                        v1 = new_edge_vertices[v + 1]
+                new_edge_vertices = list(zip(x_coordinate, y_coordinate))
+                # add new edges to the global list
+                for v in range(0, len(new_edge_vertices) - 1):
+                    v0 = new_edge_vertices[v]
+                    v1 = new_edge_vertices[v + 1]
 
-                        vertex_number_1 = get_vertex_number(v0, new_vertices)
+                    vertex_number_1 = get_vertex_number(v0, new_vertices)
 
-                        vertex_number_2 = get_vertex_number(v1, new_vertices)
+                    vertex_number_2 = get_vertex_number(v1, new_vertices)
 
-                        enum = get_enum([vertex_number_1, vertex_number_2], new_edges)
+                    enum = get_enum([vertex_number_1, vertex_number_2], new_edges)
 
-                        temp_big_edge.append(enum)
-                        temp_for_cell.append(enum)
-                        temp_vertex_for_cell.append(vertex_number_1)
-                        temp_vertex_for_cell.append(vertex_number_2)
+                    temp_big_edge.append(enum)
+                    temp_for_cell.append(enum)
+                    temp_vertex_for_cell.append(vertex_number_1)
+                    temp_vertex_for_cell.append(vertex_number_2)
 
-                    big_edge.append(temp_big_edge)
+                big_edge.append(temp_big_edge)
 
-                area_sign = get_cell_area_sign(temp_vertex_for_cell, new_vertices)
-                new_cells[-1 * cnum * area_sign] = temp_for_cell
-                cnum += 1
+            area_sign = get_cell_area_sign(temp_vertex_for_cell, new_vertices)
+            new_cells[-1 * cnum * area_sign] = temp_for_cell
+            cnum += 1
 
-        return new_vertices, new_edges, new_cells
+    return new_vertices, new_edges, new_cells
 
 
 def remove_infinite_regions(tessellation, regions: list, max_distance: float = 50) -> list:
@@ -156,8 +156,8 @@ def get_cell_area(cell_vertices: list, vertices: dict) -> float:
 
     :param cell_vertices: List of vertex's id of the polygon
     :param vertices: Dictionary of vertices in the system
-    :return: Area of the polygon. Positive number indicates clockwise orientation, negative number
-    counterclockwise.
+    :return: Area of the polygon. Positive number indicates clockwise orientation, negative number \
+        counterclockwise.
     """
     x = [vertices[i][0] for i in cell_vertices]
     y = [vertices[i][1] for i in cell_vertices]

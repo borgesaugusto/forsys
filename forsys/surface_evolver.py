@@ -22,7 +22,8 @@ class SurfaceEvolver:
         self.vertices, self.edges, self.cells = self.create_lattice()
 
     def create_lattice(self) -> Tuple:
-        """Create vertices, edges and cells from a Surface Evolver file. 
+        """
+        Create vertices, edges and cells from a Surface Evolver file. 
         All necessary steps are taken by this call.
 
         :return: Three dictionaries with the vertices, edges and cells respectively   
@@ -63,11 +64,12 @@ class SurfaceEvolver:
         return vertices, edges, cells
 
     def calculate_first_last(self) -> Tuple:
-        """Calculate starting position of the vertices, edges, cells and pressures
+        """
+        Calculate starting position of the vertices, edges, cells and pressures
         definitions in the Surface Evolver file.
 
-        :return: Four tuples with the initial and final line index for the 
-        vertices, edges, cells and pressures respectively.
+        :return: Four tuples with the initial and final line index for the \
+            vertices, edges, cells and pressures respectively.
         :rtype: Tuple
         """
         with open(os.path.join(self.fname),"r") as f:
@@ -92,11 +94,12 @@ class SurfaceEvolver:
 
 
     def get_first_last(self) -> Tuple:
-        """Get list of line indices for all conditions. If the lines are already known,
+        """
+        Get list of line indices for all conditions. If the lines are already known,
         returns known values. If not, sets them and the returns their values.
 
-        :return: Four tuples with the initial and final line index for the 
-        vertices, edges, cells and pressures respectively.
+        :return: Four tuples with the initial and final line index for the \
+            vertices, edges, cells and pressures respectively.
         :rtype: Tuple
         """
         try:
@@ -105,10 +108,11 @@ class SurfaceEvolver:
             return self.calculate_first_last()
     
     def get_vertices(self) -> pd.DataFrame:
-        """Generate DataFrame with the system's vertices IDs and positions
+        """
+        Generate DataFrame with the system's vertices IDs and positions
 
-        :return: Dataframe with three columns: ID, x and y for each vertex in the 
-        system.
+        :return: Dataframe with three columns: ID, x and y for each vertex in \
+            the system.
         :rtype: pd.DataFrame
         """
         vertices = pd.DataFrame()
@@ -132,11 +136,12 @@ class SurfaceEvolver:
         return vertices
     
     def get_edges(self) -> pd.DataFrame:
-        """Generate DataFrame with the system's edges IDs, the two vertices that 
+        """
+        Generate DataFrame with the system's edges IDs, the two vertices that 
         form them and the ground truth density.
 
-        :return: Dataframe with four columns: ID, vertex 1, vertex 2
-        and ground truth density for each edge.
+        :return: Dataframe with four columns: ID, vertex 1, vertex 2 \
+            and ground truth density for each edge.
         :rtype: pd.DataFrame
         """
         edges = pd.DataFrame()
@@ -162,11 +167,12 @@ class SurfaceEvolver:
         return edges
 
     def get_cells(self) -> pd.DataFrame:
-        """Generate DataFrame with the system's cells IDs, its edges, 
+        """
+        Generate DataFrame with the system's cells IDs, its edges, 
         and their ground truth pressures.
 
-        :return: Dataframe with three columns: ID, array of edges from the cell
-        and the ground truth pressure.
+        :return: Dataframe with three columns: ID, array of edges from the cell \
+            and the ground truth pressure.
         :rtype: pd.DataFrame
         """
         cells = pd.DataFrame()

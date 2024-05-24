@@ -12,11 +12,6 @@ from copy import deepcopy
 import PIL
 
 
-# TODO: Return the plot objects and let user handle saving for easier modification of the plots
-
-# def plot_inference(frame: fframes.Frame, pressure: bool=False, maxForce: float=None, 
-#                         minForce:float=None, normalized: Union[bool, str]=False, mirror_y: bool=False, **kwargs) -> Tuple:
-
 def plot_with_stress_custom(frame: fframes.Frame, step: str, folder: str, stress_dictionary: dict, 
                             earr: list, versors: Union[bool, list]=False, maxForce: float=None, 
                             minForce: float=None, normalized: Union[bool, str]=False, mirror_y: bool=False, **kwargs) -> None:
@@ -38,8 +33,8 @@ def plot_with_stress_custom(frame: fframes.Frame, step: str, folder: str, stress
     :type maxForce: float, optional
     :param minForce: Min force in the normalization, defaults to None
     :type minForce: float, optional
-    :param normalized: "max" normalizes by the maximum force; "normal" normalizes to a 
-    normal distribution centered in zero, defaults to False
+    :param normalized: "max" normalizes by the maximum force; "normal" normalizes to a \
+        normal distribution centered in zero, defaults to False
     :type normalized: Union[bool, str], optional
     :param mirror_y: Plot mirroring the y component, defaults to False
     :type mirror_y: bool, optional
@@ -126,10 +121,6 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
 
     :param frame: Frame to plot
     :type frame: fframes.Frame
-    # :param folder: Folder to save the plot to
-    # :type folder: str
-    # :param step: Step at which to create the plot. It is used as the file name
-    # :type step: int
     :param pressure: If True pressures are plotted in the inner space of the cells.
     :type pressure: bool
     :param ground_truth: False plots inferred stresses, True will plot the ground truth value assigned to each edge
@@ -137,8 +128,8 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
     :type maxForce: float, optional
     :param minForce: Min force in the normalization, defaults to None
     :type minForce: float, optional
-    :param normalized: "max" normalizes by the maximum force; "normal" normalizes to a 
-    normal distribution centered in zero, defaults to False
+    :param normalized: "max" normalizes by the maximum force; "normal" normalizes to a \
+        normal distribution centered in zero, defaults to False
     :type normalized: Union[bool, str], optional
     :param mirror_y: Plot mirroring the y componenet, defaults to False
     :type mirror_y: bool, optional
@@ -578,8 +569,8 @@ def plot_residues(frame: fframes.Frame, folder: str, normalized: bool=False, max
     :type frame: fframes.Frame
     :param folder: Folder to save the plot
     :type folder: str
-    :param normalized: "max" normalizes by the maximum force; "normal" normalizes to a 
-    normal distribution centered in zero, defaults to False
+    :param normalized: "max" normalizes by the maximum force; "normal" normalizes to a \
+        normal distribution centered in zero, defaults to False
     :type normalized: bool, optional
     :param maxForce:  Maximum force to use in the normalization , defaults to None
     :type maxForce: float, optional

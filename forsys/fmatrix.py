@@ -23,8 +23,8 @@ class ForceMatrix:
     :type frame: object
     :param externals_to_use: List of external vertices to use, or method to determine them. 
     :type externals_to_use: str or list
-    :param term: If externals are incorporated, a term can be added to account for the third
-    force in the balance. area, perimeter, area-perimeter and ext are possible.
+    :param term: If externals are incorporated, a term can be added to account for the third \
+        force in the balance. area, perimeter, area-perimeter and ext are possible.
     :type term: str
     :param metadata: Extra parameters required by functions in the class. 
     :type metadata: dict
@@ -374,8 +374,8 @@ class ForceMatrix:
     def add_mean_one(self, b: Matrix) -> Tuple:
         """Add the lagrange multiplier required the average of stresses values equal to one.
 
-        :param b: Right hand side matrix. If in a statical modality it is the null column,
-        in dynamcal modality, has the components of the velocity for each edge.
+        :param b: Right hand side matrix. If in a statical modality it is the null column, \
+            in dynamcal modality, has the components of the velocity for each edge.
         :type b: Matrix
         :return: The new LHS and RHS matrices
         :rtype: Tuple
@@ -418,8 +418,8 @@ class ForceMatrix:
     def add_mean_one_before(self, b: Matrix) -> Tuple:
         """Add the lagrange multiplier required the average of stresses values equal to one.
 
-        :param b: Right hand side matrix. If in a statical modality it is the null column,
-        in dynamcal modality, has the components of the velocity for each edge.
+        :param b: Right hand side matrix. If in a statical modality it is the null column, \
+            in dynamcal modality, has the components of the velocity for each edge.
         :type b: Matrix
         :return: The new LHS and RHS matrices
         :rtype: Tuple
@@ -465,8 +465,8 @@ class ForceMatrix:
 
         :param b: Right hand side matrix. Zero in the statical case.
         :type b: Matrix
-        :param column_to_fix: Column number to be fixed, i.e edge stress. If None uses
-        the vertex with the most connections, defaults to None
+        :param column_to_fix: Column number to be fixed, i.e edge stress. If None uses \
+            the vertex with the most connections, defaults to None
         :type column_to_fix: int, optional
         :param value_to_fix_to: Value to fix the stress to, defaults to 1
         :type value_to_fix_to: float, optional

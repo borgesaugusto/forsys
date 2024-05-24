@@ -1,8 +1,8 @@
 # Configuration file for the Sphinx documentation builder.
 import sys
 import os
-# sys.path.insert(0, os.path.abspath('..'))
-# import forsys 
+sys.path.insert(0, os.path.abspath('..'))
+import forsys 
 
 project = 'ForSys'
 author = 'Augusto Borges'
@@ -17,7 +17,9 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.doctest',
     'sphinx.ext.autodoc',
-    'sphinx.ext.intersphinx'
+    'sphinx.ext.intersphinx',
+    'nbsphinx',
+    'nbsphinx_link'
     # 'sphinx.ext.duration',
 ]
 
@@ -40,5 +42,7 @@ autodoc_default_flags = ['members']
 autosummary_generate = True
 autosummary_imported_members = False
 autoclass_content = "both"
+
+nbsphinx_execute = 'never'
 
 autodoc_mock_imports = ['numpy', 'scipy', "dataclasses", "warnings"]
