@@ -1,6 +1,7 @@
 ForSys: a non-invasive open-source analysis software to infer stress from microscopic time series 
 =======================================================================================================
-[![codecov](https://codecov.io/gh/borgesaugusto/forsys/graph/badge.svg?token=09Z4YKV8IG)](https://codecov.io/gh/borgesaugusto/forsys)
+.. image:: https://codecov.io/gh/borgesaugusto/forsys/graph/badge.svg?token=09Z4YKV8IG
+   :target: https://codecov.io/gh/borgesaugusto/forsys
 
 ForSys is a software tool that allows stress and pressure inference in static and dynamic systems. 
 It is based on the analysis of static images as well as time series images, and it is non-invasive, meaning that it does not require any modification of the system under analysis. It only neeeds segmented microscopy images. 
