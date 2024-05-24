@@ -1,2 +1,4 @@
 sphinx-rtd-theme
+nbsphinx
+nbsphinx-link
 forsys
