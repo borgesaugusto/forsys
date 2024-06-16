@@ -64,10 +64,11 @@ class ForceMatrix:
                 self.big_edges_to_use, _ = self.get_angle_limited_edges()
         else:
             raise(NotImplementedError)
-        
-        tj_vertices = set([big_edge[0] for big_edge in self.big_edges_to_use])
-        last = set([big_edge[-1] for big_edge in self.big_edges_to_use])
-        tj_vertices.update(last)
+
+        tj_vertices = set()
+        for big_edge in self.big_edges_to_use:
+            tj_vertices.add(big_edge[0])
+            tj_vertices.add(big_edge[-1])
 
         self.tj_vertices = list(tj_vertices)
         self.matrix = self._build_matrix()
@@ -81,8 +82,10 @@ class ForceMatrix:
         :return: Stress inference matrix before least squares is applied
         :rtype: Matrix
         """
+        max_rows = len(self.tj_vertices) * 2
+        cols = len(self.big_edges_to_use) + len(self.externals_to_use) * 2
+        mat = np.empty(shape=(max_rows, cols))
         position_index = 0
-        self.matrix = Matrix(())
         for vid in self.tj_vertices:
             row_x, row_y = self.get_row(vid)
             non_zero_x = np.count_nonzero(row_x)
@@ -93,14 +96,11 @@ class ForceMatrix:
 
             if at_least_three and less_than_four_condition:
                 self.map_vid_to_row[vid] = position_index
+                mat[position_index] = row_x
+                mat[position_index + 1] = row_y
                 position_index += 2
-                if len(self.matrix) == 0:
-                    self.matrix = Matrix(( [row_x] ))
-                    self.matrix = self.matrix.row_insert(self.matrix.shape[0], Matrix(( [row_y] )))
-                else:
-                    self.matrix = self.matrix.row_insert(self.matrix.shape[0], Matrix(([row_x])))
-                    self.matrix = self.matrix.row_insert(self.matrix.shape[0], Matrix(([row_y])))
 
+        self.matrix = Matrix(mat[:position_index])
         return self.matrix
 
     def get_row(self, vid: int) -> Tuple:
@@ -111,14 +111,10 @@ class ForceMatrix:
         :return: The rows corresponding to the x and y components.
         :rtype: _type_
         """
-        # create the two rows of the A matrix.
+        # create the two rows of the A matrix (row_x, row_y)
         arrx, arry = self.get_vertex_equation(vid)
         arrxF, arryF = self.get_external_term(vid)
-
-        row_x = list(arrx)+list(arrxF)
-        row_y = list(arry)+list(arryF)
-
-        return row_x, row_y
+        return np.concatenate((arrx, arrxF)), np.concatenate((arry, arryF))
         
     def get_external_term(self, vid: int) -> Tuple:
         """Get the external forces corresponding to the giving vertex in row form to append
@@ -338,7 +334,7 @@ class ForceMatrix:
                             for vid in range(0, len(element)-1)]
             for e in edges_to_use:
                 self.frame.edges[e].tension = float(xres[index])
-        
+
         xres = xres[:-1]
         xres = self.get_solution_no_discarded(xres)
         self.force_dictionary = {}
