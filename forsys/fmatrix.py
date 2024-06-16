@@ -76,7 +76,7 @@ class ForceMatrix:
         self.velocity_matrix = None
 
 
-    def _build_matrix(self) -> Matrix:
+    def _build_matrix(self) -> np.ndarray:
         """Build the stress inference matrix row by row
 
         :return: Stress inference matrix before least squares is applied
@@ -100,8 +100,8 @@ class ForceMatrix:
                 mat[position_index + 1] = row_y
                 position_index += 2
 
-        self.matrix = Matrix(mat[:position_index])
-        return self.matrix
+        # return matrix with populated rows
+        return mat[:position_index]
 
     def get_row(self, vid: int) -> Tuple:
         """Create the general row by appending inference rows to external terms
@@ -256,24 +256,24 @@ class ForceMatrix:
             removed_index = None
         else:
             mprime, b = self.add_mean_one(b)
-            # mprime = self.matrix.T * self.matrix
-            # b = self.matrix.T * b
+            # mprime = self.matrix.T @ self.matrix
+            # b = self.matrix.T @ b
             removed_index = None
         
         b = Matrix([np.round(float(val), 3) for val in b])
         rounded_b = np.array(list(b.T), dtype=np.float64).round(4)
         self.rhs = rounded_b
 
-        mprime = np.array(mprime).astype(np.float64)
+        mprime = mprime.astype(np.float64)
         b = np.array(mp.matrix(b)).astype(np.float64)
         try:
             if solver_method == "lsq_linear":
-                solutions = scop.lsq_linear(np.array(mprime).astype(np.float64),
+                solutions = scop.lsq_linear(mprime,
                                             b,
                                             bounds=(0.0, np.inf))
                 xres = solutions["x"]
             elif solver_method == "lsq":
-                arguments = (np.array(mprime).astype(np.float64), np.array(b).astype(np.float64))
+                arguments = (mprime, b)
                 x0_original = kwargs.get("initial_condition", np.ones(len(self.frame.internal_big_edges)))
                 x0, removed_indices = self.get_new_initial_condition(x0_original, what="other")
                 x0 = [val for val in x0 if val > 0]
@@ -352,22 +352,20 @@ class ForceMatrix:
             extForces = {}
             for vid in self.externals_to_use:
                 current_border_id = np.where(np.array(self.frame.border_vertices).astype(int) == vid)[0]
-                current_row = self.matrix.row(self.map_vid_to_row[vid])
-                index = int(tote+current_border_id*2)
-                extForces[vid] = [current_row[index], current_row[int(index+1)]]
+                row_idx = self.map_vid_to_row[vid]
+                col_idx = int(tote + current_border_id * 2)
+                extForces[vid] = self.matrix[row_idx, col_idx: col_idx + 2].tolist()
 
             for index, _ in extForces.items():
-                name1 = "F"+str(index)+"x"
-                name2 = "F"+str(index)+"y"
                 val1 = round(xres[tote+i], 3) * extForces[index][0]
                 val2 = round(xres[tote+i+1], 3) * extForces[index][1]
-                self.force_dictionary[name1] = val1
-                self.force_dictionary[name2] = val2
+                self.force_dictionary[f'F{index}x'] = val1
+                self.force_dictionary[f'F{index}y'] = val2
                 i += 1
 
         return self.force_dictionary
 
-    def add_mean_one(self, b: Matrix) -> Tuple:
+    def add_mean_one(self, b: np.ndarray) -> Tuple:
         """Add the lagrange multiplier required the average of stresses values equal to one.
 
         :param b: Right hand side matrix. If in a statical modality it is the null column, \
@@ -380,38 +378,27 @@ class ForceMatrix:
         total_edges = mprime.shape[1]
         total_vertices = mprime.shape[0]
         total_borders = len(self.externals_to_use)
-        cMatrix = Matrix(np.concatenate((np.ones(total_edges),
-                                         np.zeros(total_borders*2)), axis=0))
-        mprime = mprime.row_insert(mprime.shape[0], cMatrix.T)
-        ## Now insert the two corresponding cols for the lagrange multpliers
-        cMatrix = Matrix(np.concatenate((np.ones(total_vertices),
-                                         np.zeros(total_borders*2),
-                                         np.zeros(1)), axis=0))
-        mprime = mprime.col_insert(mprime.shape[1], cMatrix)
 
-        zeros = Matrix(np.zeros(b.shape[1]))
-        b = b.row_insert(b.shape[0]+1, zeros)
-        b[b.shape[0]-1,b.shape[1]-1] = total_edges
+        cMatrix = np.array([1.] * total_edges + [0.] * (total_borders * 2))
+        mprime = np.vstack((mprime, cMatrix))
+        # Now insert the two corresponding cols for the lagrange multipliers
+        cMatrix = np.array([1.] * total_vertices + [0.] * (total_borders * 2) + [0.])
+        mprime = np.hstack((mprime, cMatrix.reshape(-1, 1)))
+        b = np.vstack((b, np.zeros(b.shape[1])))
+        b[-1, -1] = total_edges
 
         if total_borders != 0:
             # cmatrix forces
-            ones = np.ones(total_borders*2)
-            zeros = np.zeros(total_edges)
-            cMatrix = Matrix(np.concatenate((zeros, ones, np.zeros(1)), axis=0))
-            mprime = mprime.row_insert(mprime.shape[0]+1, cMatrix.T)
-            
-            ones = np.ones(total_borders*2)
-            zeros = np.zeros(total_edges)
-            additional_zeros = np.zeros(2) # +2 comes from the two inserted rows
-            cMatrix = Matrix(np.concatenate((zeros, ones, np.zeros(1)), axis=0))
-            mprime = mprime.col_insert(mprime.shape[1], cMatrix)
+            cMatrix = np.array([0.] * total_edges + [1.] * (total_borders * 2) + [0.])
+            mprime = np.hstack((mprime, cMatrix.reshape(-1, 1)))
+            cMatrix = np.concatenate((cMatrix, np.zeros(1)))
+            mprime = np.vstack((mprime, cMatrix))
 
-            zeros = Matrix(np.zeros(b.shape[1]))
-            b = b.row_insert(b.shape[0]+1, zeros)
-            b[b.shape[0]-1,b.shape[1]-1] = 0
+            b = np.vstack((b, np.zeros(b.shape[1])))
+
         return mprime, b
     
-    def add_mean_one_before(self, b: Matrix) -> Tuple:
+    def add_mean_one_before(self, b: np.ndarray) -> Tuple:
         """Add the lagrange multiplier required the average of stresses values equal to one.
 
         :param b: Right hand side matrix. If in a statical modality it is the null column, \
@@ -420,43 +407,34 @@ class ForceMatrix:
         :return: The new LHS and RHS matrices
         :rtype: Tuple
         """
-        mprime = self.matrix.T * self.matrix
-        b = self.matrix.T * b
+        mprime = self.matrix.T @ self.matrix
+        b = self.matrix.T @ b
         total_edges = mprime.shape[1]
         total_borders = len(self.externals_to_use)
-        ones = np.ones(total_edges)
-        zeros = np.zeros(total_borders*2)
-        additional_zero = np.zeros(1)
-        cMatrix = Matrix(np.concatenate((ones, zeros), axis=0))
-        mprime = mprime.row_insert(mprime.shape[0], cMatrix.T)
-        ## Now insert the two corresponding cols for the lagrange multpliers
-        cMatrix = Matrix(np.concatenate((ones, zeros, additional_zero), axis=0))
-        mprime = mprime.col_insert(mprime.shape[1], cMatrix)
 
-        zeros = Matrix(np.zeros(b.shape[1]))
-        b = b.row_insert(b.shape[0]+1, zeros)
-        b[b.shape[0]-1,b.shape[1]-1] = total_edges
+        cMatrix = np.array([1.] * total_edges + [0.] * (total_borders * 2))
+        mprime = np.hstack((mprime, cMatrix.reshape(-1, 1)))
+
+        # Now insert the two corresponding cols for the lagrange multpliers
+        cMatrix = np.concatenate((cMatrix, np.zeros(1)))
+        mprime = np.vstack((mprime, cMatrix))
+
+        b = np.vstack((b, np.zeros(b.shape[1])))
+        b[-1, -1] = total_edges
 
         if total_borders != 0:
             # cmatrix forces
-            ones = np.ones(total_borders*2)
-            zeros = np.zeros(total_edges)
-            cMatrix = Matrix(np.concatenate((zeros, ones, additional_zero), axis=0))
-            mprime = mprime.row_insert(mprime.shape[0]+1, cMatrix.T)
-            
-            ones = np.ones(total_borders*2)
-            zeros = np.zeros(total_edges)
-            additional_zeros = np.zeros(2) # +2 comes from the two inserted rows
-            cMatrix = Matrix(np.concatenate((zeros, ones, additional_zeros), axis=0))
-            mprime = mprime.col_insert(mprime.shape[1], cMatrix)
+            cMatrix = np.array([0.] * total_edges + [1.] * (total_borders * 2) + [0.])
+            mprime = np.hstack((mprime, cMatrix.reshape(-1, 1)))
 
-            zeros = Matrix(np.zeros(b.shape[1]))
-            b = b.row_insert(b.shape[0]+1, zeros)
-            b[b.shape[0]-1,b.shape[1]-1] = 0
+            cMatrix = np.concatenate((cMatrix, np.zeros(1)))
+            mprime = np.vstack((mprime, cMatrix))
+
+            b = np.vstack((b, np.zeros(b.shape[1])))
 
         return mprime, b
 
-    def fix_one_stress(self, b: Matrix, column_to_fix: int = None, value_to_fix_to: float = 1) -> Tuple:
+    def fix_one_stress(self, b: np.ndarray, column_to_fix: int = None, value_to_fix_to: float = 1) -> Tuple:
         """Fix one of the stresses values. This is helpful for establishing an scale.
 
         :param b: Right hand side matrix. Zero in the statical case.
@@ -471,16 +449,15 @@ class ForceMatrix:
         """
         # Replace column with the most connections
         if not column_to_fix:
-            non_zero_count = [np.count_nonzero(self.matrix.col(col_id)) 
-                            for col_id in range(0, self.matrix.shape[1])]
+            non_zero_count = np.count_nonzero(self.matrix, axis=0)
             max_index = np.argmax(non_zero_count)
-            b = b - value_to_fix_to * self.matrix.col(max_index)
-            self.matrix.col_del(max_index)
+            b = b - value_to_fix_to * self.matrix[:, max_index]
+            self.matrix = np.delete(self.matrix, max_index, 1)
         else:
             raise(NotImplementedError)
         
-        mprime = self.matrix.T * self.matrix
-        b = self.matrix.T * b
+        mprime = self.matrix.T @ self.matrix
+        b = self.matrix.T @ b
 
         return mprime, b, max_index
 
