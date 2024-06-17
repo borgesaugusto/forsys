@@ -315,7 +315,7 @@ class ForceMatrix:
                     raise ValueError("Negative values detected")
         except (ValueError, np.linalg.LinAlgError, TypeError) as e:
             print(f"Numerically solving due to the following error: {e}")
-            xres, _ = scop.nnls(mprime, b, maxiter=100000)
+            xres, _ = scop.nnls(mprime, b, maxiter=kwargs.get("nnls_max_iter"))
 
         if removed_index is not None:
             xres = np.concatenate(xres, np.ones(1))
