@@ -252,12 +252,9 @@ class ForceMatrix:
             removed_index = None
         elif solver_method == "lsq":
             mprime, b = self.add_mean_one(b)
-            # mprime = self.matrix
             removed_index = None
         else:
             mprime, b = self.add_mean_one(b)
-            # mprime = self.matrix.T @ self.matrix
-            # b = self.matrix.T @ b
             removed_index = None
         
         b = Matrix([np.round(float(val), 3) for val in b])
