@@ -45,7 +45,7 @@ class ForceMatrix:
         """
         self.map_vid_to_row = {}
         self.map_edge_to_column = {}
-        self.deletes = []
+        self.deletes = set()
 
         if type(self.externals_to_use) == str:
             if self.externals_to_use == 'all':
@@ -188,7 +188,7 @@ class ForceMatrix:
         #     combinations = itert.combinations(vertex_big_edges_versors, r=2)
         #     angles = [np.arccos(np.dot(*combination)) for combination in combinations]
         #     if np.max(angles) >= self.angle_limit:
-        #         self.deletes.append(vid)
+        #         self.deletes.add(vid)
         #         vertex_big_edges_versors = np.zeros((3, 2))
 
         for index, big_edge in enumerate(vertex_big_edges):
@@ -218,7 +218,7 @@ class ForceMatrix:
             combinations = itert.combinations(vertex_big_edges_versors, r=2)
             angles = [np.arccos(np.dot(*combination)) for combination in combinations]
             if np.max(angles) >= self.angle_limit:
-                self.deletes.append(vid)
+                self.deletes.add(vid)
         
         big_edges_to_use = copy.copy(self.frame.internal_big_edges_vertices)
         
