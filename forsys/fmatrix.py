@@ -1,13 +1,9 @@
 import numpy as np
 from dataclasses import dataclass
 from typing import Union, Tuple
-import scipy.optimize as scop
 import itertools as itert
-
-import lmfit as lmf
-
+import scipy.optimize as scop
 import copy
-
 import forsys.virtual_edges as ve
 import forsys.borders as borders
 from forsys.exceptions import BigEdgesBadlyCreated
@@ -267,6 +263,10 @@ class ForceMatrix:
                                             bounds=(0.0, np.inf))
                 xres = solutions["x"]
             elif solver_method == "lsq":
+                try:
+                    import lmfit as lmf
+                except ModuleNotFoundError:
+                    raise ModuleNotFoundError(f'lmfit is required for {solver_method=}')
                 arguments = (mprime, b)
                 x0_original = kwargs.get("initial_condition", np.ones(len(self.frame.internal_big_edges)))
                 x0, removed_indices = self.get_new_initial_condition(x0_original, what="other")
@@ -284,7 +284,6 @@ class ForceMatrix:
                     a_x = np.dot(A, _x)
                     vectorial_differences = a_x - b
                     return vectorial_differences * (1 + 0.5 * _x.std())
-
 
                 parameters = lmf.Parameters()
                 for index, val in enumerate(x0):
