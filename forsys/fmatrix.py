@@ -1,8 +1,6 @@
 import numpy as np
-from sympy import Matrix
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Union, Tuple
-from mpmath import mp
 import scipy.optimize as scop
 import itertools as itert
 
@@ -223,9 +221,7 @@ class ForceMatrix:
         big_edges_to_use = copy.copy(self.frame.internal_big_edges_vertices)
         
         for _, big_edge in enumerate(big_edges_vertices):
-            cond1 = big_edge[0] in self.deletes
-            cond2 = big_edge[-1] in self.deletes
-            if cond1 and cond2:
+            if (big_edge[0] in self.deletes) and (big_edge[-1] in self.deletes):
                 big_edges_to_use.remove(big_edge)
 
         return big_edges_to_use, self.deletes
@@ -256,13 +252,14 @@ class ForceMatrix:
         else:
             mprime, b = self.add_mean_one(b)
             removed_index = None
-        
-        b = Matrix([np.round(float(val), 3) for val in b])
-        rounded_b = np.array(list(b.T), dtype=np.float64).round(4)
-        self.rhs = rounded_b
+
+        b = b.astype(np.float64)
+
+        self.rhs = b.T.round(4)
 
         mprime = mprime.astype(np.float64)
-        b = np.array(mp.matrix(b)).astype(np.float64)
+        # flatten b to convert it to a vector. Rounding is to keep old behavior (not sure if it's useful)
+        b = b.astype(np.float64).flatten().round(3)
         try:
             if solver_method == "lsq_linear":
                 solutions = scop.lsq_linear(mprime,
@@ -303,15 +300,15 @@ class ForceMatrix:
                     solution = lmf.minimize(lmfit_cost,
                                             params=parameters,
                                             args=arguments)
-
-                xres = Matrix([solution.params[name].value for name in solution.params])
+                # TODO: replace Matrix by ndarray in this code
+                xres = [solution.params[name].value for name in solution.params]
 
                 # reinsert all the removed spaces
-                for index, value in removed_indices.items():
-                    xres = xres.row_insert(index, Matrix([-1]))
+                for index in removed_indices:
+                    xres = xres.insert(index, -1)
             else:
                 try:
-                    xres = Matrix(np.linalg.inv(mprime) * Matrix(b))
+                    xres = np.linalg.inv(mprime) @ b
                 except np.linalg.LinAlgError:
                     raise ValueError("Singular matrix")
                 
@@ -320,10 +317,9 @@ class ForceMatrix:
         except (ValueError, np.linalg.LinAlgError, TypeError) as e:
             print(f"Numerically solving due to the following error: {e}")
             xres, _ = scop.nnls(mprime, b, maxiter=100000)
-            xres = Matrix(xres)
 
         if removed_index is not None:
-            xres = xres.row_insert(removed_index, Matrix([1]))
+            xres = np.concatenate(xres, np.ones(1))
 
         for index, element in enumerate(self.big_edges_to_use):
             edges_to_use = [list(set(self.frame.vertices[element[vid]].ownEdges) & 
@@ -459,11 +455,10 @@ class ForceMatrix:
         return mprime, b, max_index
 
     def set_velocity_matrix(self, timeseries: Union[str, list] = None, **kwargs):
-        shapeM = self.matrix.shape
         vector_of_vectors = []
-        b = Matrix(np.zeros(shapeM[0]))
+        b = np.zeros((self.matrix.shape[0], 1))
         b_matrix = kwargs.get("b_matrix", None)
-        if timeseries and  (b_matrix == "velocity" or b_matrix == "acceleration"):
+        if timeseries and (b_matrix == "velocity" or b_matrix == "acceleration"):
             for vid in self.map_vid_to_row.keys():
                 if b_matrix == "velocity":
                     value = timeseries.calculate_velocity(vid, self.frame.frame_id)
@@ -471,9 +466,11 @@ class ForceMatrix:
                     value = timeseries.calculate_acceleration(vid, self.frame.frame_id)
                     if np.any(np.isnan(value)):
                         value = [0, 0]
+                else:
+                    raise NotImplementedError(f'{b_matrix=}')
                 j = self.map_vid_to_row[vid]
-                b[j] = value[0]
-                b[j+1] = value[1]
+                b[j, 0] = value[0]
+                b[j + 1, 0] = value[1]
                 vector_of_vectors.append(value)
 
         self.velocity_normalization = kwargs.get("velocity_normalization", 1)
@@ -481,34 +478,36 @@ class ForceMatrix:
             average_velocity = np.mean([np.linalg.norm(vector) for vector in vector_of_vectors])
         else:
             average_velocity = 1
-        
-        self.velocity_matrix_dimensional = np.array(list(b.T), dtype=np.float64).round(4)
+
+        self.velocity_matrix_dimensional = b.T.astype(np.float64).round(4)
         
         b = (b / average_velocity) * self.velocity_normalization
         
-        self.velocity_matrix = np.array(list(b.T), dtype=np.float64).round(4)
+        self.velocity_matrix = b.T.astype(np.float64).round(4)
 
         return b, average_velocity
     
-    def get_solution_no_discarded(self, xres: list) -> list:
-        """Get new solution adding zeros to the big edges that no longer exist
+    def get_solution_no_discarded(self, xres: np.ndarray) -> list:
+        """Get new solution adding -1 to the big edges that no longer exist
 
         :param x0: Original solution
         :type x0: list
-        :return: New list with solution for the inexesitant edges equal to zero
+        :return: New list with solution for the inexesitant edges equal to -1
         :rtype: list
         """
-        xres = Matrix(xres)
-        list_of_big_edges = [big_edge.get_vertices_ids() for big_edge in self.frame.internal_big_edges]
-        both_count = 0
-        for index, big_edge in enumerate(list_of_big_edges):
-            cond1 = big_edge[0] in self.deletes
-            cond2 = big_edge[-1] in self.deletes
-            if cond1 and cond2:
-                # xres[index] = -1
-                xres = xres.row_insert(index, Matrix([-1]))
-                both_count += 1
-        return xres
+        big_edges_vertices = [big_edge.get_vertices_ids() for big_edge in self.frame.internal_big_edges]
+        if len(big_edges_vertices) == len(xres):
+            return xres
+
+        xres_i = 0  # pointer to next value in xres
+        xres_new = np.empty(len(big_edges_vertices), dtype=xres.dtype)
+        for be_index, big_edge in enumerate(big_edges_vertices):
+            if (big_edge[0] in self.deletes) and (big_edge[-1] in self.deletes):
+                xres_new[be_index] = -1
+            else:
+                xres_new[be_index] = xres[xres_i]
+                xres_i += 1
+        return xres_new
     
     def get_new_initial_condition(self, x0: list, what="zero") -> list:
         """Get new initial condition adding zeros to or removing the big edges that no longer exist
@@ -522,9 +521,7 @@ class ForceMatrix:
         both_count = 0
         removed_indices = {}
         for index, big_edge in enumerate(list_of_big_edges):
-            cond1 = big_edge[0] in self.deletes
-            cond2 = big_edge[-1] in self.deletes
-            if cond1 and cond2:
+            if (big_edge[0] in self.deletes) and (big_edge[-1] in self.deletes):
                 removed_indices[index] = x0[index]
                 if what == "zero":
                     x0[index] = 0
