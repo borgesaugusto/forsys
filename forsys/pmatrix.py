@@ -1,12 +1,7 @@
-from dataclasses import dataclass
-import forsys.virtual_edges as ve
 import forsys.general_matrix as forsys_general_matrix
-
-from dataclasses import dataclass, field
-from typing import Union
 import numpy as np
-from sympy import Matrix
 from typing import Tuple
+
 
 class PressureMatrix(forsys_general_matrix.GeneralMatrix):
     """Child class to manage creating of the matrix system of equations
@@ -30,30 +25,27 @@ class PressureMatrix(forsys_general_matrix.GeneralMatrix):
         :return: Returns LHS matrix and RHS matrix
         :rtype: Tuple
         """
-        self.rhs_matrix = np.zeros(len(self.big_edges_to_use))
+        n_edges, n_cells = len(self.big_edges_to_use), len(self.frame.cells)
+        self.mapping_order = {key: enumid for enumid, key in enumerate(self.frame.cells)}
 
-        self.mapping_order = {value: enumid for enumid, value in enumerate(self.frame.cells.keys())}
-
+        self.rhs_matrix = np.empty(n_edges)
+        self.lhs_matrix = np.empty((n_edges, n_cells))
         for position_id, big_edge in enumerate(self.big_edges_to_use):
-            lhs_row, rhs_value =  self.get_row(big_edge)
-
+            lhs_row, rhs_value = self.get_row(big_edge)
             self.rhs_matrix[position_id] = rhs_value
-            if not self.lhs_matrix:
-                self.lhs_matrix = Matrix(lhs_row).T
-            else:
-                self.lhs_matrix = self.lhs_matrix.row_insert(self.lhs_matrix.shape[0],
-                                                             Matrix(lhs_row).T)
-        
-        self.removed_columns = []
-        for column in range(self.lhs_matrix.shape[1]):
-            if np.all([val == 0 for val in self.lhs_matrix.col(column)]):
-                self.removed_columns.append(column)
+            self.lhs_matrix[position_id] = lhs_row
 
-        ii = 0
-        for element in self.removed_columns:
-            self.lhs_matrix.col_del(element - ii)
-            # self.mapping_order["r_"+str(ii)] = element
-            ii += 1
+        # remove columns with all zeros
+        self.removed_columns = np.nonzero(np.all(self.lhs_matrix == 0, axis=0))[0].tolist()  # list of column indices
+        if self.removed_columns:
+            self.lhs_matrix = np.delete(self.lhs_matrix, self.removed_columns, axis=1)
+            # recreate mapping order, skipping removed cells
+            i = 0
+            self.mapping_order = {}
+            for enumid, key in enumerate(self.frame.cells):
+                if enumid not in self.removed_columns:
+                    self.mapping_order[key] = i
+                    i += 1
 
         return self.lhs_matrix, self.rhs_matrix
 
@@ -67,23 +59,18 @@ class PressureMatrix(forsys_general_matrix.GeneralMatrix):
         :return: Returns the left hand side row and the right hand side value.
         :rtype: Tuple
         """
-        total_number_cells = len(self.frame.cells)
-        lhs_row = np.zeros(total_number_cells)
-        rhs_value = 0
-
-        if len(big_edge.own_cells) > 2:
-            raise(NotImplementedError)
-        
-        c1_position = list(self.frame.cells.keys()).index(big_edge.own_cells[0])
-        c2_position = list(self.frame.cells.keys()).index(big_edge.own_cells[1])
-
-        # self.mapping_order[big_edge.own_cells[0]] = c1_position
-        # self.mapping_order[big_edge.own_cells[1]] = c2_position
+        lhs_row = np.zeros(len(self.mapping_order))  # n_cells
+        big_edge_cells = big_edge.own_cells
+        if len(big_edge_cells) != 2:
+            raise ValueError(f'big edge has own_cells={len(big_edge_cells)}, expecting 2')
 
         curvature = big_edge.calculate_total_curvature(normalized=False)
-        rhs_value = big_edge.tension * curvature    
+        rhs_value = big_edge.tension * curvature
 
-        if self.frame.cells[big_edge.own_cells[0]].get_area_sign() > 0:
+        c1_position = self.mapping_order[big_edge_cells[0]]
+        c2_position = self.mapping_order[big_edge_cells[1]]
+
+        if self.frame.cells[big_edge_cells[0]].get_area_sign() > 0:
             lhs_row[c1_position] = 1
             lhs_row[c2_position] = -1
         else:
@@ -91,4 +78,3 @@ class PressureMatrix(forsys_general_matrix.GeneralMatrix):
             lhs_row[c2_position] = 1
 
         return lhs_row, rhs_value
-
