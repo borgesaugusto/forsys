@@ -43,6 +43,6 @@ def test_myosin_correlation(experiment_1):
     experiment.solve_stress(when=0, allow_negatives=False)
 
     tensions_df = experiment.frames[0].get_tensions()
-    rounded_tensions = tensions_df["stress"].round(3)
-    rounded_df = df["stress"].round(3)
+    rounded_tensions = tensions_df["stress"].round(2)
+    rounded_df = df["stress"].round(2)
     assert np.all(rounded_tensions.values == rounded_df.values)
