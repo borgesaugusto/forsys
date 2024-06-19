@@ -1,15 +1,9 @@
 import numpy as np
-from sympy import Matrix
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Union, Tuple
-from mpmath import mp
-import scipy.optimize as scop
 import itertools as itert
-
-import lmfit as lmf
-
+import scipy.optimize as scop
 import copy
-
 import forsys.virtual_edges as ve
 import forsys.borders as borders
 from forsys.exceptions import BigEdgesBadlyCreated
@@ -45,7 +39,7 @@ class ForceMatrix:
         """
         self.map_vid_to_row = {}
         self.map_edge_to_column = {}
-        self.deletes = []
+        self.deletes = set()
 
         if type(self.externals_to_use) == str:
             if self.externals_to_use == 'all':
@@ -64,10 +58,11 @@ class ForceMatrix:
                 self.big_edges_to_use, _ = self.get_angle_limited_edges()
         else:
             raise(NotImplementedError)
-        
-        tj_vertices = set([big_edge[0] for big_edge in self.big_edges_to_use])
-        last = set([big_edge[-1] for big_edge in self.big_edges_to_use])
-        tj_vertices.update(last)
+
+        tj_vertices = set()
+        for big_edge in self.big_edges_to_use:
+            tj_vertices.add(big_edge[0])
+            tj_vertices.add(big_edge[-1])
 
         self.tj_vertices = list(tj_vertices)
         self.matrix = self._build_matrix()
@@ -75,14 +70,16 @@ class ForceMatrix:
         self.velocity_matrix = None
 
 
-    def _build_matrix(self) -> Matrix:
+    def _build_matrix(self) -> np.ndarray:
         """Build the stress inference matrix row by row
 
         :return: Stress inference matrix before least squares is applied
         :rtype: Matrix
         """
+        max_rows = len(self.tj_vertices) * 2
+        cols = len(self.big_edges_to_use) + len(self.externals_to_use) * 2
+        mat = np.empty(shape=(max_rows, cols))
         position_index = 0
-        self.matrix = Matrix(())
         for vid in self.tj_vertices:
             row_x, row_y = self.get_row(vid)
             non_zero_x = np.count_nonzero(row_x)
@@ -93,15 +90,12 @@ class ForceMatrix:
 
             if at_least_three and less_than_four_condition:
                 self.map_vid_to_row[vid] = position_index
+                mat[position_index] = row_x
+                mat[position_index + 1] = row_y
                 position_index += 2
-                if len(self.matrix) == 0:
-                    self.matrix = Matrix(( [row_x] ))
-                    self.matrix = self.matrix.row_insert(self.matrix.shape[0], Matrix(( [row_y] )))
-                else:
-                    self.matrix = self.matrix.row_insert(self.matrix.shape[0], Matrix(([row_x])))
-                    self.matrix = self.matrix.row_insert(self.matrix.shape[0], Matrix(([row_y])))
 
-        return self.matrix
+        # return matrix with populated rows
+        return mat[:position_index]
 
     def get_row(self, vid: int) -> Tuple:
         """Create the general row by appending inference rows to external terms
@@ -111,14 +105,10 @@ class ForceMatrix:
         :return: The rows corresponding to the x and y components.
         :rtype: _type_
         """
-        # create the two rows of the A matrix.
+        # create the two rows of the A matrix (row_x, row_y)
         arrx, arry = self.get_vertex_equation(vid)
         arrxF, arryF = self.get_external_term(vid)
-
-        row_x = list(arrx)+list(arrxF)
-        row_y = list(arry)+list(arryF)
-
-        return row_x, row_y
+        return np.concatenate((arrx, arrxF)), np.concatenate((arry, arryF))
         
     def get_external_term(self, vid: int) -> Tuple:
         """Get the external forces corresponding to the giving vertex in row form to append
@@ -192,7 +182,7 @@ class ForceMatrix:
         #     combinations = itert.combinations(vertex_big_edges_versors, r=2)
         #     angles = [np.arccos(np.dot(*combination)) for combination in combinations]
         #     if np.max(angles) >= self.angle_limit:
-        #         self.deletes.append(vid)
+        #         self.deletes.add(vid)
         #         vertex_big_edges_versors = np.zeros((3, 2))
 
         for index, big_edge in enumerate(vertex_big_edges):
@@ -222,14 +212,12 @@ class ForceMatrix:
             combinations = itert.combinations(vertex_big_edges_versors, r=2)
             angles = [np.arccos(np.dot(*combination)) for combination in combinations]
             if np.max(angles) >= self.angle_limit:
-                self.deletes.append(vid)
+                self.deletes.add(vid)
         
         big_edges_to_use = copy.copy(self.frame.internal_big_edges_vertices)
         
         for _, big_edge in enumerate(big_edges_vertices):
-            cond1 = big_edge[0] in self.deletes
-            cond2 = big_edge[-1] in self.deletes
-            if cond1 and cond2:
+            if (big_edge[0] in self.deletes) and (big_edge[-1] in self.deletes):
                 big_edges_to_use.remove(big_edge)
 
         return big_edges_to_use, self.deletes
@@ -256,28 +244,30 @@ class ForceMatrix:
             removed_index = None
         elif solver_method == "lsq":
             mprime, b = self.add_mean_one(b)
-            # mprime = self.matrix
             removed_index = None
         else:
             mprime, b = self.add_mean_one(b)
-            # mprime = self.matrix.T * self.matrix
-            # b = self.matrix.T * b
             removed_index = None
-        
-        b = Matrix([np.round(float(val), 3) for val in b])
-        rounded_b = np.array(list(b.T), dtype=np.float64).round(4)
-        self.rhs = rounded_b
 
-        mprime = np.array(mprime).astype(np.float64)
-        b = np.array(mp.matrix(b)).astype(np.float64)
+        b = b.astype(np.float64)
+
+        self.rhs = b.T.round(4)
+
+        mprime = mprime.astype(np.float64)
+        # flatten b to convert it to a vector. Rounding is to keep old behavior (not sure if it's useful)
+        b = b.astype(np.float64).flatten().round(3)
         try:
             if solver_method == "lsq_linear":
-                solutions = scop.lsq_linear(np.array(mprime).astype(np.float64),
+                solutions = scop.lsq_linear(mprime,
                                             b,
                                             bounds=(0.0, np.inf))
                 xres = solutions["x"]
             elif solver_method == "lsq":
-                arguments = (np.array(mprime).astype(np.float64), np.array(b).astype(np.float64))
+                try:
+                    import lmfit as lmf
+                except ModuleNotFoundError:
+                    raise ModuleNotFoundError(f'lmfit is required for {solver_method=}')
+                arguments = (mprime, b)
                 x0_original = kwargs.get("initial_condition", np.ones(len(self.frame.internal_big_edges)))
                 x0, removed_indices = self.get_new_initial_condition(x0_original, what="other")
                 x0 = [val for val in x0 if val > 0]
@@ -295,7 +285,6 @@ class ForceMatrix:
                     vectorial_differences = a_x - b
                     return vectorial_differences * (1 + 0.5 * _x.std())
 
-
                 parameters = lmf.Parameters()
                 for index, val in enumerate(x0):
                     naming = f"_{index}"
@@ -310,15 +299,15 @@ class ForceMatrix:
                     solution = lmf.minimize(lmfit_cost,
                                             params=parameters,
                                             args=arguments)
-
-                xres = Matrix([solution.params[name].value for name in solution.params])
+                # TODO: replace Matrix by ndarray in this code
+                xres = [solution.params[name].value for name in solution.params]
 
                 # reinsert all the removed spaces
-                for index, value in removed_indices.items():
-                    xres = xres.row_insert(index, Matrix([-1]))
+                for index in removed_indices:
+                    xres = xres.insert(index, -1)
             else:
                 try:
-                    xres = Matrix(np.linalg.inv(mprime) * Matrix(b))
+                    xres = np.linalg.inv(mprime) @ b
                 except np.linalg.LinAlgError:
                     raise ValueError("Singular matrix")
                 
@@ -326,11 +315,10 @@ class ForceMatrix:
                     raise ValueError("Negative values detected")
         except (ValueError, np.linalg.LinAlgError, TypeError) as e:
             print(f"Numerically solving due to the following error: {e}")
-            xres, _ = scop.nnls(mprime, b, maxiter=100000)
-            xres = Matrix(xres)
+            xres, _ = scop.nnls(mprime, b, maxiter=kwargs.get("nnls_max_iter"))
 
         if removed_index is not None:
-            xres = xres.row_insert(removed_index, Matrix([1]))
+            xres = np.concatenate(xres, np.ones(1))
 
         for index, element in enumerate(self.big_edges_to_use):
             edges_to_use = [list(set(self.frame.vertices[element[vid]].ownEdges) & 
@@ -338,7 +326,7 @@ class ForceMatrix:
                             for vid in range(0, len(element)-1)]
             for e in edges_to_use:
                 self.frame.edges[e].tension = float(xres[index])
-        
+
         xres = xres[:-1]
         xres = self.get_solution_no_discarded(xres)
         self.force_dictionary = {}
@@ -356,22 +344,20 @@ class ForceMatrix:
             extForces = {}
             for vid in self.externals_to_use:
                 current_border_id = np.where(np.array(self.frame.border_vertices).astype(int) == vid)[0]
-                current_row = self.matrix.row(self.map_vid_to_row[vid])
-                index = int(tote+current_border_id*2)
-                extForces[vid] = [current_row[index], current_row[int(index+1)]]
+                row_idx = self.map_vid_to_row[vid]
+                col_idx = int(tote + current_border_id * 2)
+                extForces[vid] = self.matrix[row_idx, col_idx: col_idx + 2].tolist()
 
             for index, _ in extForces.items():
-                name1 = "F"+str(index)+"x"
-                name2 = "F"+str(index)+"y"
                 val1 = round(xres[tote+i], 3) * extForces[index][0]
                 val2 = round(xres[tote+i+1], 3) * extForces[index][1]
-                self.force_dictionary[name1] = val1
-                self.force_dictionary[name2] = val2
+                self.force_dictionary[f'F{index}x'] = val1
+                self.force_dictionary[f'F{index}y'] = val2
                 i += 1
 
         return self.force_dictionary
 
-    def add_mean_one(self, b: Matrix) -> Tuple:
+    def add_mean_one(self, b: np.ndarray) -> Tuple:
         """Add the lagrange multiplier required the average of stresses values equal to one.
 
         :param b: Right hand side matrix. If in a statical modality it is the null column, \
@@ -384,38 +370,27 @@ class ForceMatrix:
         total_edges = mprime.shape[1]
         total_vertices = mprime.shape[0]
         total_borders = len(self.externals_to_use)
-        cMatrix = Matrix(np.concatenate((np.ones(total_edges),
-                                         np.zeros(total_borders*2)), axis=0))
-        mprime = mprime.row_insert(mprime.shape[0], cMatrix.T)
-        ## Now insert the two corresponding cols for the lagrange multpliers
-        cMatrix = Matrix(np.concatenate((np.ones(total_vertices),
-                                         np.zeros(total_borders*2),
-                                         np.zeros(1)), axis=0))
-        mprime = mprime.col_insert(mprime.shape[1], cMatrix)
 
-        zeros = Matrix(np.zeros(b.shape[1]))
-        b = b.row_insert(b.shape[0]+1, zeros)
-        b[b.shape[0]-1,b.shape[1]-1] = total_edges
+        cMatrix = np.array([1.] * total_edges + [0.] * (total_borders * 2))
+        mprime = np.vstack((mprime, cMatrix))
+        # Now insert the two corresponding cols for the lagrange multipliers
+        cMatrix = np.array([1.] * total_vertices + [0.] * (total_borders * 2) + [0.])
+        mprime = np.hstack((mprime, cMatrix.reshape(-1, 1)))
+        b = np.vstack((b, np.zeros(b.shape[1])))
+        b[-1, -1] = total_edges
 
         if total_borders != 0:
             # cmatrix forces
-            ones = np.ones(total_borders*2)
-            zeros = np.zeros(total_edges)
-            cMatrix = Matrix(np.concatenate((zeros, ones, np.zeros(1)), axis=0))
-            mprime = mprime.row_insert(mprime.shape[0]+1, cMatrix.T)
-            
-            ones = np.ones(total_borders*2)
-            zeros = np.zeros(total_edges)
-            additional_zeros = np.zeros(2) # +2 comes from the two inserted rows
-            cMatrix = Matrix(np.concatenate((zeros, ones, np.zeros(1)), axis=0))
-            mprime = mprime.col_insert(mprime.shape[1], cMatrix)
+            cMatrix = np.array([0.] * total_edges + [1.] * (total_borders * 2) + [0.])
+            mprime = np.hstack((mprime, cMatrix.reshape(-1, 1)))
+            cMatrix = np.concatenate((cMatrix, np.zeros(1)))
+            mprime = np.vstack((mprime, cMatrix))
 
-            zeros = Matrix(np.zeros(b.shape[1]))
-            b = b.row_insert(b.shape[0]+1, zeros)
-            b[b.shape[0]-1,b.shape[1]-1] = 0
+            b = np.vstack((b, np.zeros(b.shape[1])))
+
         return mprime, b
     
-    def add_mean_one_before(self, b: Matrix) -> Tuple:
+    def add_mean_one_before(self, b: np.ndarray) -> Tuple:
         """Add the lagrange multiplier required the average of stresses values equal to one.
 
         :param b: Right hand side matrix. If in a statical modality it is the null column, \
@@ -424,43 +399,34 @@ class ForceMatrix:
         :return: The new LHS and RHS matrices
         :rtype: Tuple
         """
-        mprime = self.matrix.T * self.matrix
-        b = self.matrix.T * b
+        mprime = self.matrix.T @ self.matrix
+        b = self.matrix.T @ b
         total_edges = mprime.shape[1]
         total_borders = len(self.externals_to_use)
-        ones = np.ones(total_edges)
-        zeros = np.zeros(total_borders*2)
-        additional_zero = np.zeros(1)
-        cMatrix = Matrix(np.concatenate((ones, zeros), axis=0))
-        mprime = mprime.row_insert(mprime.shape[0], cMatrix.T)
-        ## Now insert the two corresponding cols for the lagrange multpliers
-        cMatrix = Matrix(np.concatenate((ones, zeros, additional_zero), axis=0))
-        mprime = mprime.col_insert(mprime.shape[1], cMatrix)
 
-        zeros = Matrix(np.zeros(b.shape[1]))
-        b = b.row_insert(b.shape[0]+1, zeros)
-        b[b.shape[0]-1,b.shape[1]-1] = total_edges
+        cMatrix = np.array([1.] * total_edges + [0.] * (total_borders * 2))
+        mprime = np.hstack((mprime, cMatrix.reshape(-1, 1)))
+
+        # Now insert the two corresponding cols for the lagrange multpliers
+        cMatrix = np.concatenate((cMatrix, np.zeros(1)))
+        mprime = np.vstack((mprime, cMatrix))
+
+        b = np.vstack((b, np.zeros(b.shape[1])))
+        b[-1, -1] = total_edges
 
         if total_borders != 0:
             # cmatrix forces
-            ones = np.ones(total_borders*2)
-            zeros = np.zeros(total_edges)
-            cMatrix = Matrix(np.concatenate((zeros, ones, additional_zero), axis=0))
-            mprime = mprime.row_insert(mprime.shape[0]+1, cMatrix.T)
-            
-            ones = np.ones(total_borders*2)
-            zeros = np.zeros(total_edges)
-            additional_zeros = np.zeros(2) # +2 comes from the two inserted rows
-            cMatrix = Matrix(np.concatenate((zeros, ones, additional_zeros), axis=0))
-            mprime = mprime.col_insert(mprime.shape[1], cMatrix)
+            cMatrix = np.array([0.] * total_edges + [1.] * (total_borders * 2) + [0.])
+            mprime = np.hstack((mprime, cMatrix.reshape(-1, 1)))
 
-            zeros = Matrix(np.zeros(b.shape[1]))
-            b = b.row_insert(b.shape[0]+1, zeros)
-            b[b.shape[0]-1,b.shape[1]-1] = 0
+            cMatrix = np.concatenate((cMatrix, np.zeros(1)))
+            mprime = np.vstack((mprime, cMatrix))
+
+            b = np.vstack((b, np.zeros(b.shape[1])))
 
         return mprime, b
 
-    def fix_one_stress(self, b: Matrix, column_to_fix: int = None, value_to_fix_to: float = 1) -> Tuple:
+    def fix_one_stress(self, b: np.ndarray, column_to_fix: int = None, value_to_fix_to: float = 1) -> Tuple:
         """Fix one of the stresses values. This is helpful for establishing an scale.
 
         :param b: Right hand side matrix. Zero in the statical case.
@@ -475,25 +441,23 @@ class ForceMatrix:
         """
         # Replace column with the most connections
         if not column_to_fix:
-            non_zero_count = [np.count_nonzero(self.matrix.col(col_id)) 
-                            for col_id in range(0, self.matrix.shape[1])]
+            non_zero_count = np.count_nonzero(self.matrix, axis=0)
             max_index = np.argmax(non_zero_count)
-            b = b - value_to_fix_to * self.matrix.col(max_index)
-            self.matrix.col_del(max_index)
+            b = b - value_to_fix_to * self.matrix[:, max_index]
+            self.matrix = np.delete(self.matrix, max_index, 1)
         else:
             raise(NotImplementedError)
         
-        mprime = self.matrix.T * self.matrix
-        b = self.matrix.T * b
+        mprime = self.matrix.T @ self.matrix
+        b = self.matrix.T @ b
 
         return mprime, b, max_index
 
     def set_velocity_matrix(self, timeseries: Union[str, list] = None, **kwargs):
-        shapeM = self.matrix.shape
         vector_of_vectors = []
-        b = Matrix(np.zeros(shapeM[0]))
+        b = np.zeros((self.matrix.shape[0], 1))
         b_matrix = kwargs.get("b_matrix", None)
-        if timeseries and  (b_matrix == "velocity" or b_matrix == "acceleration"):
+        if timeseries and (b_matrix == "velocity" or b_matrix == "acceleration"):
             for vid in self.map_vid_to_row.keys():
                 if b_matrix == "velocity":
                     value = timeseries.calculate_velocity(vid, self.frame.frame_id)
@@ -501,9 +465,11 @@ class ForceMatrix:
                     value = timeseries.calculate_acceleration(vid, self.frame.frame_id)
                     if np.any(np.isnan(value)):
                         value = [0, 0]
+                else:
+                    raise NotImplementedError(f'{b_matrix=}')
                 j = self.map_vid_to_row[vid]
-                b[j] = value[0]
-                b[j+1] = value[1]
+                b[j, 0] = value[0]
+                b[j + 1, 0] = value[1]
                 vector_of_vectors.append(value)
 
         self.velocity_normalization = kwargs.get("velocity_normalization", 1)
@@ -511,34 +477,36 @@ class ForceMatrix:
             average_velocity = np.mean([np.linalg.norm(vector) for vector in vector_of_vectors])
         else:
             average_velocity = 1
-        
-        self.velocity_matrix_dimensional = np.array(list(b.T), dtype=np.float64).round(4)
+
+        self.velocity_matrix_dimensional = b.T.astype(np.float64).round(4)
         
         b = (b / average_velocity) * self.velocity_normalization
         
-        self.velocity_matrix = np.array(list(b.T), dtype=np.float64).round(4)
+        self.velocity_matrix = b.T.astype(np.float64).round(4)
 
         return b, average_velocity
     
-    def get_solution_no_discarded(self, xres: list) -> list:
-        """Get new solution adding zeros to the big edges that no longer exist
+    def get_solution_no_discarded(self, xres: np.ndarray) -> list:
+        """Get new solution adding -1 to the big edges that no longer exist
 
         :param x0: Original solution
         :type x0: list
-        :return: New list with solution for the inexesitant edges equal to zero
+        :return: New list with solution for the inexesitant edges equal to -1
         :rtype: list
         """
-        xres = Matrix(xres)
-        list_of_big_edges = [big_edge.get_vertices_ids() for big_edge in self.frame.internal_big_edges]
-        both_count = 0
-        for index, big_edge in enumerate(list_of_big_edges):
-            cond1 = big_edge[0] in self.deletes
-            cond2 = big_edge[-1] in self.deletes
-            if cond1 and cond2:
-                # xres[index] = -1
-                xres = xres.row_insert(index, Matrix([-1]))
-                both_count += 1
-        return xres
+        big_edges_vertices = [big_edge.get_vertices_ids() for big_edge in self.frame.internal_big_edges]
+        if len(big_edges_vertices) == len(xres):
+            return xres
+
+        xres_i = 0  # pointer to next value in xres
+        xres_new = np.empty(len(big_edges_vertices), dtype=xres.dtype)
+        for be_index, big_edge in enumerate(big_edges_vertices):
+            if (big_edge[0] in self.deletes) and (big_edge[-1] in self.deletes):
+                xres_new[be_index] = -1
+            else:
+                xres_new[be_index] = xres[xres_i]
+                xres_i += 1
+        return xres_new
     
     def get_new_initial_condition(self, x0: list, what="zero") -> list:
         """Get new initial condition adding zeros to or removing the big edges that no longer exist
@@ -552,9 +520,7 @@ class ForceMatrix:
         both_count = 0
         removed_indices = {}
         for index, big_edge in enumerate(list_of_big_edges):
-            cond1 = big_edge[0] in self.deletes
-            cond2 = big_edge[-1] in self.deletes
-            if cond1 and cond2:
+            if (big_edge[0] in self.deletes) and (big_edge[-1] in self.deletes):
                 removed_indices[index] = x0[index]
                 if what == "zero":
                     x0[index] = 0
