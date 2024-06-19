@@ -59,7 +59,7 @@ class ForSys():
         # TODO: add matrix caching
         self.force_matrices[when] = fmatrix.ForceMatrix(self.frames[when],
                                 # externals_to_use = self.frames[when].border_vertices,
-                                externals_to_use = kwargs.get("externals_to_use", "none"),
+                                externals_to_use = 'none',
                                 term=term,
                                 metadata=metadata,
                                 timeseries=self.mesh,
@@ -199,8 +199,7 @@ class ForSys():
         for vertex_id in list(set(vertex_to_delete)):
             del self.frames[frame_number].vertices[vertex_id]
 
-        del self.frames[frame_number].cells[cell_id]
-        # print("Finished deleting")
+        del self.frames[0].cells[cell_id]
 
         self.frames[frame_number] = fsframes.Frame(frame_number, 
                                                    self.frames[frame_number].vertices, 
