@@ -39,13 +39,6 @@ class PressureMatrix(forsys_general_matrix.GeneralMatrix):
         self.removed_columns = np.nonzero(np.all(self.lhs_matrix == 0, axis=0))[0].tolist()  # list of column indices
         if self.removed_columns:
             self.lhs_matrix = np.delete(self.lhs_matrix, self.removed_columns, axis=1)
-            # recreate mapping order, skipping removed cells
-            i = 0
-            self.mapping_order = {}
-            for enumid, key in enumerate(self.frame.cells):
-                if enumid not in self.removed_columns:
-                    self.mapping_order[key] = i
-                    i += 1
 
         return self.lhs_matrix, self.rhs_matrix
 
