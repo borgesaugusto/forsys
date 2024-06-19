@@ -95,7 +95,7 @@ class GeneralMatrix:
         ls_lhs_matrix = np.vstack((ls_lhs_matrix, np.ones(lhs_cols)))
 
         # Now insert the two corresponding cols for the lagrange multipliers
-        cMatrix = np.array([1.] * (lhs_rows - 1) + [0.])
+        cMatrix = np.array([1.] * lhs_rows + [0.])
         ls_lhs_matrix = np.hstack((ls_lhs_matrix, cMatrix.reshape(-1, 1)))
 
         ls_rhs_matrix = np.vstack((ls_rhs_matrix, np.zeros(ls_rhs_matrix.shape[1])))
