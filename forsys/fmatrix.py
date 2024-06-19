@@ -318,7 +318,7 @@ class ForceMatrix:
             xres, _ = scop.nnls(mprime, b, maxiter=kwargs.get("nnls_max_iter"))
 
         if removed_index is not None:
-            xres = np.concatenate(xres, np.ones(1))
+            xres = np.insert(xres, removed_index, 1.)
 
         for index, element in enumerate(self.big_edges_to_use):
             edges_to_use = [list(set(self.frame.vertices[element[vid]].ownEdges) & 
