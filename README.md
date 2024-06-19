@@ -1,5 +1,6 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11282555.svg)](https://doi.org/10.5281/zenodo.11282555)
-[![PyPI version](https://badge.fury.io/py/forsys.svg)](https://badge.fury.io/py/forsys)
+[![PyPI version](https://badge.fury.io/py/forsys.svg)](https://pypi.org/project/forsys/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/forsys)](https://pypi.org/project/forsys/)
 [![codecov](https://codecov.io/gh/borgesaugusto/forsys/graph/badge.svg?token=09Z4YKV8IG)](https://codecov.io/gh/borgesaugusto/forsys)
 [![Documentation Status](https://readthedocs.org/projects/forsys/badge/?version=latest)](https://forsys.readthedocs.io/en/latest/?badge=latest)
 # ForSys
