@@ -97,7 +97,7 @@ class GeneralMatrix:
         cMatrix = np.array([1.] * lhs_rows + [0.])
         lhs_matrix_ls = np.hstack((lhs_matrix_ls, cMatrix.reshape(-1, 1)))
 
-        rhs_matrix_ls = np.concatenate((rhs_matrix_ls, constraint))
+        rhs_matrix_ls = np.concatenate((rhs_matrix_ls, [constraint]))
 
         return lhs_matrix_ls, rhs_matrix_ls
 
