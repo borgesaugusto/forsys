@@ -1,6 +1,5 @@
 import numpy as np
 from sympy import Matrix
-from sympy import *
 from dataclasses import dataclass, field
 from typing import Union, Tuple
 from mpmath import mp
@@ -54,9 +53,8 @@ class ForceMatrix:
                 #                                                         self.frame.vertices)).flatten())
                 raise(NotImplementedError)
             elif self.externals_to_use == 'ext':
-                # self.externals_to_use = ve.get_border_from_angles_new(self.frame.big_edges_list, 
-                #                                                         self.frame.vertices)
-                self.externals_to_use = []                
+                self.externals_to_use = ve.get_border_from_angles_new(self.frame.big_edges_list, 
+                                                                        self.frame.vertices)
                 self.big_edges_to_use = self.frame.big_edges_list
             else:
                 # Only solve on the triple junctions
@@ -196,15 +194,17 @@ class ForceMatrix:
         #     if np.max(angles) >= self.angle_limit:
         #         self.deletes.append(vid)
         #         vertex_big_edges_versors = np.zeros((3, 2))
+
         for index, big_edge in enumerate(vertex_big_edges):
-            # if not big_edge.external and len(vertex.ownCells) > 2:
-            try:
-                pos = ve.eid_from_vertex(self.big_edges_to_use, big_edge.get_vertices_ids())
-                versor = vertex_big_edges_versors[index]
-                arrx[pos] = versor[0]
-                arry[pos] = versor[1]
-            except BigEdgesBadlyCreated:
-                continue
+            if not big_edge.external and len(vertex.ownCells) > 2:
+                try:
+                    pos = ve.eid_from_vertex(self.big_edges_to_use, big_edge.get_vertices_ids())
+                    versor = vertex_big_edges_versors[index]
+                    arrx[pos] = versor[0]
+                    arry[pos] = versor[1]
+                except BigEdgesBadlyCreated:
+                    continue
+
         return arrx, arry
     
     def get_angle_limited_edges(self):
@@ -326,12 +326,9 @@ class ForceMatrix:
                     raise ValueError("Negative values detected")
         except (ValueError, np.linalg.LinAlgError, TypeError) as e:
             print(f"Numerically solving due to the following error: {e}")
-            # print("Matrices: ")
-            # pprint(mprime)
-            # pprint(b)
-            # print("-----------------")
             xres, _ = scop.nnls(mprime, b, maxiter=100000)
             xres = Matrix(xres)
+
         if removed_index is not None:
             xres = xres.row_insert(removed_index, Matrix([1]))
 
