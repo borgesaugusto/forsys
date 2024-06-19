@@ -40,24 +40,24 @@ class GeneralMatrix:
         assert self.lhs_matrix is not None, "LHS matrix not set"
         assert self.rhs_matrix is not None, "RHS matrix not set"
 
-        ls_lhs_matrix = self.lhs_matrix.T @ self.lhs_matrix
-        ls_rhs_matrix = self.lhs_matrix.T @ self.rhs_matrix
+        lhs_matrix_ls = self.lhs_matrix.T @ self.lhs_matrix
+        rhs_matrix_ls = self.lhs_matrix.T @ self.rhs_matrix
 
         removed_index = None
         if kwargs.get("method") == "fix_stress":
-            ls_lhs_matrix, ls_rhs_matrix, removed_index = self.fix_one_stress(ls_lhs_matrix, ls_rhs_matrix)
+            lhs_matrix_ls, rhs_matrix_ls, removed_index = self.fix_one_stress(lhs_matrix_ls, rhs_matrix_ls)
         elif kwargs.get("method") == "lagrange_pressure":
-            ls_lhs_matrix, ls_rhs_matrix = self.add_lagrange_multiplier(ls_lhs_matrix, ls_rhs_matrix, 0)
+            lhs_matrix_ls, rhs_matrix_ls = self.add_lagrange_multiplier(lhs_matrix_ls, rhs_matrix_ls, 0)
         
-        ls_lhs_matrix = ls_lhs_matrix.astype(np.float64)
-        ls_rhs_matrix = ls_rhs_matrix.astype(np.float64)
+        lhs_matrix_ls = lhs_matrix_ls.astype(np.float64)
+        rhs_matrix_ls = rhs_matrix_ls.astype(np.float64)
 
         try:
-            xres = np.linalg.inv(ls_lhs_matrix) @ ls_rhs_matrix
+            xres = np.linalg.inv(lhs_matrix_ls) @ rhs_matrix_ls
 
             if np.any(xres[:-1] < 0) and not kwargs.get("allow_negatives", True):
                 print("Numerically solving due to negative values")
-                xres, _ = scop.nnls(ls_lhs_matrix, ls_rhs_matrix, maxiter=kwargs.get("nnls_max_iter"))
+                xres, _ = scop.nnls(lhs_matrix_ls, rhs_matrix_ls, maxiter=kwargs.get("nnls_max_iter"))
 
         except np.linalg.LinAlgError:
             # then try with nnls
@@ -75,47 +75,47 @@ class GeneralMatrix:
         return self.solution
 
     def add_lagrange_multiplier(self,
-                                ls_lhs_matrix: np.ndarray,
-                                ls_rhs_matrix: np.ndarray,
+                                lhs_matrix_ls: np.ndarray,
+                                rhs_matrix_ls: np.ndarray,
                                 constraint: Optional[float] = None
                                 ) -> Tuple:
         """Add a constraint to the matrix system through a Lagrange multiplier. 
         LHS and RHS matrices should be already in least-squares form.
 
-        :param ls_lhs_matrix: LHS matrix in least-squares form
-        :type ls_lhs_matrix: np.ndarray
-        :param ls_rhs_matrix: RHS matrix in least-squares form
-        :type ls_lhs_matrix: np.ndarray
+        :param lhs_matrix_ls: LHS matrix in least-squares form
+        :type lhs_matrix_ls: np.ndarray
+        :param rhs_matrix_ls: RHS matrix in least-squares form
+        :type lhs_matrix_ls: np.ndarray
         :param constraint: Value to give as constraint
         :type constraint: float
         :return: LHS and RHS matrices with the additional Lagrange multiplier.
         :rtype: Tuple
         """
-        lhs_rows, lhs_cols = ls_lhs_matrix.shape
-        ls_lhs_matrix = np.vstack((ls_lhs_matrix, np.ones(lhs_cols)))
+        lhs_rows, lhs_cols = lhs_matrix_ls.shape
+        lhs_matrix_ls = np.vstack((lhs_matrix_ls, np.ones(lhs_cols)))
 
         # Now insert the two corresponding cols for the lagrange multipliers
         cMatrix = np.array([1.] * lhs_rows + [0.])
-        ls_lhs_matrix = np.hstack((ls_lhs_matrix, cMatrix.reshape(-1, 1)))
+        lhs_matrix_ls = np.hstack((lhs_matrix_ls, cMatrix.reshape(-1, 1)))
 
-        ls_rhs_matrix = np.vstack((ls_rhs_matrix, np.zeros(ls_rhs_matrix.shape[1])))
+        rhs_matrix_ls = np.vstack((rhs_matrix_ls, np.zeros(rhs_matrix_ls.shape[1])))
         if constraint is not None:
-            ls_rhs_matrix[-1, -1] = constraint
+            rhs_matrix_ls[-1, -1] = constraint
 
-        return ls_lhs_matrix, ls_rhs_matrix
+        return lhs_matrix_ls, rhs_matrix_ls
 
     @staticmethod
-    def fix_one_stress(ls_lhs_matrix: np.ndarray,
-                       ls_rhs_matrix: np.ndarray,
+    def fix_one_stress(lhs_matrix_ls: np.ndarray,
+                       rhs_matrix_ls: np.ndarray,
                        column_to_fix: Optional[int] = None,
                        value_to_fix_to: float = 1.
                        ) -> Tuple:
         """Fix one of the values in the solution. This could be used to give a scale to the solution.
 
-        :param ls_lhs_matrix: LHS matrix in least-squares form
-        :type ls_lhs_matrix: np.ndarray
-        :param ls_rhs_matrix: RHS matrix in least-squares form
-        :type ls_rhs_matrix: np.ndarray
+        :param lhs_matrix_ls: LHS matrix in least-squares form
+        :type lhs_matrix_ls: np.ndarray
+        :param rhs_matrix_ls: RHS matrix in least-squares form
+        :type rhs_matrix_ls: np.ndarray
         :param column_to_fix: ID of unknown to fix, defaults to None
         :type column_to_fix: int, optional
         :param value_to_fix_to: Value to give the fixed unknown, defaults to 1
@@ -125,11 +125,11 @@ class GeneralMatrix:
         """
         # Replace column with the most connections
         if column_to_fix is None:
-            non_zero_count = np.count_nonzero(ls_lhs_matrix, axis=0)
+            non_zero_count = np.count_nonzero(lhs_matrix_ls, axis=0)
             max_index = np.argmax(non_zero_count)
-            ls_rhs_matrix = ls_rhs_matrix - value_to_fix_to * ls_lhs_matrix[:, max_index]
-            ls_lhs_matrix = np.delete(ls_lhs_matrix, max_index, 1)
+            rhs_matrix_ls = rhs_matrix_ls - value_to_fix_to * lhs_matrix_ls[:, max_index]
+            lhs_matrix_ls = np.delete(lhs_matrix_ls, max_index, 1)
         else:
             raise NotImplementedError(f'{column_to_fix=}')
 
-        return ls_lhs_matrix, ls_rhs_matrix, max_index
+        return lhs_matrix_ls, rhs_matrix_ls, max_index
