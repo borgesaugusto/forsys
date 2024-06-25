@@ -7,7 +7,7 @@ import copy
 import forsys.virtual_edges as ve
 import forsys.borders as borders
 from forsys.exceptions import BigEdgesBadlyCreated
-
+import warnings
 @dataclass
 class ForceMatrix:
     """
@@ -314,7 +314,7 @@ class ForceMatrix:
                 if np.any([x < 0 for x in xres[:-1]]) and not kwargs.get("allow_negatives", True):
                     raise ValueError("Negative values detected")
         except (ValueError, np.linalg.LinAlgError, TypeError) as e:
-            print(f"Numerically solving due to the following error: {e}")
+            warnings.warn(f"Numerically solving due to the following error: {e}")
             xres, _ = scop.nnls(mprime, b, maxiter=kwargs.get("nnls_max_iter"))
 
         if removed_index is not None:

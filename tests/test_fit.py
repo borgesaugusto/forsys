@@ -3,7 +3,7 @@ import os
 
 import numpy as np
 import forsys as fs
-
+import warnings
 from sklearn.metrics import mean_absolute_percentage_error, r2_score
 
 @pytest.fixture
@@ -92,7 +92,7 @@ def test_fit_furrow_movement_velocity_taubin(furrow):
     print("Dynamic furrow", all_r_values)
     assert np.all([1 > value > 0.94 for value in all_r_values])
 
-def test_fit_furrow_velocity_lsq_initial_last_val(furrow):
+def test_fit_furrow_velocity_lsq_initial_last_val(furrow, recwarn):
     all_r_values = []
     for ii in furrow.frames.keys():
         if ii == 0:
@@ -104,15 +104,18 @@ def test_fit_furrow_velocity_lsq_initial_last_val(furrow):
         furrow.solve_stress(when=ii,
                             b_matrix="velocity",
                             initial_condition=initial_condition,
-                            method="lsq")
+                            method="lsq")            
+            
         tensions_df = furrow.frames[ii].get_tensions()
         r_value = r2_score(tensions_df['gt'].values / tensions_df['gt'].mean(), 
                                     tensions_df['stress'].values / tensions_df['stress'].mean())
         all_r_values.append(r_value)
     print("Dynamic furrow using last", all_r_values)
+    assert len(recwarn) == 0, "Warnings raised while solving, probably LSQ went to numerical"
     assert np.all([1 > value > 0.92 for value in all_r_values])
 
-def test_fit_furrow_velocity_lsq_initial_gt(furrow):
+
+def test_fit_furrow_velocity_lsq_initial_gt(furrow, recwarn):
     all_r_values = []
     for ii in furrow.frames.keys():
         initial_condition = list(furrow.frames[ii].get_gt_tensions()["gt"].values / furrow.frames[ii].get_gt_tensions()["gt"].mean())
@@ -128,9 +131,10 @@ def test_fit_furrow_velocity_lsq_initial_gt(furrow):
         all_r_values.append(r_value)
     print("Dynamic furrow using GT", all_r_values)
     print(tensions_df)
+    assert len(recwarn) == 0, "Warnings raised while solving, probably LSQ went to numerical"
     assert np.all([1 > value > 0.94 for value in all_r_values])
 
-def test_fit_furrow_velocity_lsq_initial_one(furrow):
+def test_fit_furrow_velocity_lsq_initial_one(furrow, recwarn):
     all_r_values = []
     for ii in furrow.frames.keys():
         initial_condition = np.ones(len(furrow.frames[ii].get_gt_tensions()["gt"]))
@@ -152,10 +156,11 @@ def test_fit_furrow_velocity_lsq_initial_one(furrow):
         all_r_values.append(r_value)
     print("Dynamic furrow using Ones", all_r_values)
     print(tensions_df)
+    assert len(recwarn) == 0, "Warnings raised while solving, probably LSQ went to numerical"
     assert np.all([1 > value > 0.95 for value in all_r_values])
 
 @pytest.mark.skip(reason="Eliminating edges doesn't work with this normalization ")
-def test_fit_furrow_velocity_lsq_initial_gt_deleting10(furrow):
+def test_fit_furrow_velocity_lsq_initial_gt_deleting10(furrow, recwarn):
     all_r_values = []
     angle_limit = 180 * (1 - 0.1) * np.pi / 180
     for ii in furrow.frames.keys():
@@ -175,10 +180,11 @@ def test_fit_furrow_velocity_lsq_initial_gt_deleting10(furrow):
         all_r_values.append(r_value)
         print(f"t ={ii} with MAPE {mean_absolute_percentage_error(*arguments)}")
     print("Dynamic furrow using GT with 10% discard", all_r_values)
+    assert len(recwarn) == 0, "Warnings raised while solving, probably LSQ went to numerical"
     assert np.all([1 > value > 0.94 for value in all_r_values])
 
 
-def test_fit_furrow_velocity_lsq_initial_one_std(furrow):
+def test_fit_furrow_velocity_lsq_initial_one_std(furrow, recwarn):
     all_r_values = []
     for ii in furrow.frames.keys():
         initial_condition = np.ones(len(furrow.frames[ii].get_gt_tensions()["gt"]))
@@ -201,4 +207,5 @@ def test_fit_furrow_velocity_lsq_initial_one_std(furrow):
         all_r_values.append(r_value)
     print("Dynamic furrow using Ones", all_r_values)
     print(tensions_df)
+    assert len(recwarn) == 0, "Warnings raised while solving, probably LSQ went to numerical"
     assert np.all([1 > value > 0.95 for value in all_r_values])
