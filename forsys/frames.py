@@ -219,7 +219,7 @@ class Frame():
         """
         pressure_df = pd.DataFrame.from_dict({cid: cell.gt_pressure for cid, cell in self.cells.items()}.items()).rename(columns={0: "id", 1: "gt_pressure"})
         inferred_pressures = [cell.pressure for cell in self.cells.values()]
-        pressure_df["pressure"] = inferred_pressures
+        pressure_df["pressure"] = np.array(inferred_pressures).astype(float)
 
         return pressure_df
 
