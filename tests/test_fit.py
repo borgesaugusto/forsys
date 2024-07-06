@@ -66,7 +66,7 @@ def test_fit_last_furrow(furrow):
     r_value = r2_score(tensions_df['gt'].values / tensions_df['gt'].mean(), 
                                 tensions_df['stress'].values)
     print("Final furrow", r_value)
-    assert 1 > r_value > 0.93
+    assert 1 > r_value > 0.99
 
 
 def test_fit_noisy_last_furrow(noisy_last_furrow):
