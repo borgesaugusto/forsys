@@ -250,24 +250,28 @@ class SurfaceEvolver:
 
     def jitter_vertices(self,
                         scale: float,
+                        skip_big_edge_vertices: bool = True,
                         random_seed: Optional[int] = None
                         ) -> None:
-        """Adds gaussian noise to vertices that are connected by 2 edges
+        """Adds gaussian noise with stdev proportional to :param:`scale` to vertices
 
         :param scale: fraction of the distance between neighboring vertices to set as noise stdev
         :type scale: float
+        :param skip_big_edge_vertices: whether to skip vertices of big edges (e.g. triple junctions)
+        :type skip_big_edge_vertices: bool
         :param random_seed: (optional) rng seed for reproducibility
         :type random_seed: int | None
         """
+        from scipy.spatial.distance import euclidean
+
         rng = random.Random(random_seed)
         for v in self.vertices.values():
-            if len(v.ownEdges) != 2:
+            if skip_big_edge_vertices and (len(v.ownEdges) != 2):
                 continue  # only jitter vertices connected by 2 edges
-            nv1, nv2 = self.get_neighboring_vertices(v)
+            nvs = self.get_neighboring_vertices(v)
             # calculate additive noise stdev as the scale factor multiplied
-            # by the distance in between the two neighbors in each dimension
-            stdev_x = abs(nv1.x - nv2.x) * scale
-            stdev_y = abs(nv1.y - nv2.y) * scale
+            # by the distance between the vertex and its closest neighbor
+            stdev = scale * min(euclidean([v.x, v.y], [nv.x, nv.y]) for nv in nvs)
             # add gaussian noise to each coordinate
-            v.x += rng.normalvariate(0, stdev_x)
-            v.y += rng.normalvariate(0, stdev_y)
+            v.x += rng.normalvariate(0, stdev)
+            v.y += rng.normalvariate(0, stdev)
