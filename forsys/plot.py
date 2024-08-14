@@ -177,7 +177,7 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
             color = jet(forceValToPlot)
             ax.plot(   (edge.v1.x, edge.v2.x),
                         (edge.v1.y, edge.v2.y),
-                        color=color, linewidth=3)
+                        color=color, linewidth=0.5)
             
     if pressure:
         pressures = frame.get_pressures()["pressure"]
