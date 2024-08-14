@@ -317,6 +317,9 @@ class ForceMatrix:
             warnings.warn(f"Numerically solving due to the following error: {e}")
             xres, _ = scop.nnls(mprime, b, maxiter=kwargs.get("nnls_max_iter"))
 
+        if kwargs.get("verbose", False):
+            print("Residuals ||AX - B||: ", np.linalg.norm(mprime @ xres - b))
+
         if removed_index is not None:
             xres = np.insert(xres, removed_index, 1.)
 
