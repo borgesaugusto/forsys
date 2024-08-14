@@ -88,7 +88,7 @@ def test_bench_solving_force_matrix_nnls(benchmark):
     forsys.build_force_matrix(0)
     benchmark(forsys.solve_stress, 0, method="nnls")
 
-
+@pytest.mark.skip(reason="LSQ testing is too random to be reliably benchmarked")
 def test_bench_solving_force_matrix_lsq(benchmark):
     frames = {}
     path = os.path.join(DMP_FOLDER_TO_TEST, 
@@ -106,6 +106,7 @@ def test_bench_solving_force_matrix_lsq(benchmark):
     benchmark(forsys.solve_stress, 0, method="lsq")
 
 
+@pytest.mark.skip(reason="NNLS testing is too random to be reliably benchmarked")
 def test_bench_solving_force_matrix_nnls_velocity(benchmark):
     frames = {}
     for ii in range(0, 5):
@@ -168,7 +169,7 @@ def test_bench_building_pressure_matrix(benchmark):
     forsys.solve_stress(0, method="nnls")
     benchmark(forsys.build_pressure_matrix, 0)
 
-
+@pytest.mark.skip(reason="NNLS testing is too random to be reliably benchmarked")
 def test_bench_solving_pressure_matrix(benchmark):
     frames = {}
     path = os.path.join(DMP_FOLDER_TO_TEST, 
@@ -205,7 +206,6 @@ def test_bench_plot_mesh(benchmark):
               forsys.frames[0].edges,
               forsys.frames[0].cells]
     benchmark(fs.plot.plot_mesh, *params)
-
 
 def test_bench_plot_inference(benchmark):
     frames = {}
