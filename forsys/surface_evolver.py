@@ -2,8 +2,8 @@ from dataclasses import dataclass
 import pandas as pd
 import os
 import re
-from typing import Tuple
-
+from typing import Tuple, List, Optional
+import random
 import forsys.vertex as vertex
 import forsys.edge as edge
 import forsys.cell as cell
@@ -229,3 +229,49 @@ class SurfaceEvolver:
                 pressures[int(splitted[0])] = float(splitted[7])
         return pressures
 
+    def get_neighboring_vertices(self,
+                                 vertex: vertex.Vertex
+                                 ) -> List[vertex.Vertex]:
+        """Get a list of vertices connected by edges to a vertex of interest
+
+        :param vertex: vertex of interest (won't be included in the output list)
+        :type vertex: forsys.vertex.Vertex
+        :return: neighboring vertices
+        :rtype: list
+        """
+        neighbors = []
+        # loop over edges connected to this vertex
+        for eid in vertex.ownEdges:
+            edge = self.edges[eid]
+            # add the other vertex that's connected to each edge
+            neighbor = edge.v1 if (edge.v1.id != vertex.id) else edge.v2
+            neighbors.append(neighbor)
+        return neighbors
+
+    def jitter_vertices(self,
+                        scale: float,
+                        skip_big_edge_vertices: bool = True,
+                        random_seed: Optional[int] = None
+                        ) -> None:
+        """Adds gaussian noise with stdev proportional to :param:`scale` to vertices
+
+        :param scale: fraction of the distance between neighboring vertices to set as noise stdev
+        :type scale: float
+        :param skip_big_edge_vertices: whether to skip vertices of big edges (e.g. triple junctions)
+        :type skip_big_edge_vertices: bool
+        :param random_seed: (optional) rng seed for reproducibility
+        :type random_seed: int | None
+        """
+        from scipy.spatial.distance import euclidean
+
+        rng = random.Random(random_seed)
+        for v in self.vertices.values():
+            if skip_big_edge_vertices and (len(v.ownEdges) != 2):
+                continue  # only jitter vertices connected by 2 edges
+            nvs = self.get_neighboring_vertices(v)
+            # calculate additive noise stdev as the scale factor multiplied
+            # by the distance between the vertex and its closest neighbor
+            stdev = scale * min(euclidean([v.x, v.y], [nv.x, nv.y]) for nv in nvs)
+            # add gaussian noise to each coordinate
+            v.x += rng.normalvariate(0, stdev)
+            v.y += rng.normalvariate(0, stdev)
