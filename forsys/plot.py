@@ -113,8 +113,6 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
                    ground_truth: bool = False, maxForce: float = None,
                    minForce: float = None,
                    normalized: Union[bool, str] = False,
-                   mirror_y: bool = False,
-                   mirror_x: bool = False,
                    ax: mpl.axes.Axes = None,
                    **kwargs) -> Tuple:
     """Generate a plot of a tissue using the inferred tensions and pressures and return the plot object
@@ -131,23 +129,20 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
     :param normalized: "max" normalizes by the maximum force; "normal" normalizes to a \
         normal distribution centered in zero, defaults to False
     :type normalized: Union[bool, str], optional
-    :param mirror_y: Plot mirroring the y componenet, defaults to False
-    :type mirror_y: bool, optional
     :return: Matplotlib plot object
     :rtype: Tuple
     """
-    jet = plt.get_cmap('jet')
     if not ax:
-        _, ax = plt.subplots(1,1)
+        _, ax = plt.subplots(1, 1)
     if ground_truth:
         perturbation = 0.0
         all_forces = [edge.gt + np.random.uniform(-edge.gt*perturbation, edge.gt*perturbation) for edge in frame.edges.values() if edge.gt != 0]
     else:
         all_forces = [edge.tension for edge in frame.edges.values() if edge.tension != 0]
 
-    if maxForce == None:
+    if maxForce is None:
         maxForce = max(all_forces)
-    if minForce == None:
+    if minForce is None:
         minForce = min(all_forces)
 
     aveForce = np.mean(all_forces)
@@ -159,48 +154,67 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
         else:
             observable = edge.tension if not ground_truth else edge.gt
         if observable <= 0:
-            ax.plot(   (edge.v1.x, edge.v2.x),
-                        (edge.v1.y, edge.v2.y),
-                        color="black", linewidth=0.5, alpha=0.6)
+            ax.plot((edge.v1.x, edge.v2.x),
+                    (edge.v1.y, edge.v2.y),
+                    color="black", linewidth=0.5, alpha=0.6)
         else:
             if normalized == "normal":
                 forceValToPlot = (observable - aveForce) / stdForce
             elif normalized == "max":
                 forceValToPlot = observable / maxForce
+                min_stress = 0
+                max_stress = 1
             elif normalized == "relative":
                 forceValToPlot = (observable + minForce) / maxForce
             elif normalized == "absolute":
                 forceValToPlot = observable / kwargs.get("max_stress", 2)
+                min_stress = 0
+                max_stress = 2
             else:
                 forceValToPlot = observable/maxForce
-            
-            color = jet(forceValToPlot)
-            ax.plot(   (edge.v1.x, edge.v2.x),
-                        (edge.v1.y, edge.v2.y),
-                        color=color, linewidth=0.5)
-            
+                min_stress = 0
+                max_stress = 1
+
+            cmap_stress_name = kwargs.get("cmap_stress", "magma")
+            cmap_pressure_name = kwargs.get("cmap_pressure", "cividis")
+            cmap_stress = plt.get_cmap(cmap_stress_name)
+            # cmap_pressure = plt.get_cmap(cmap_pressure_name)
+
+            color_stress = cmap_stress(forceValToPlot)
+            stress_cb = plt.cm.ScalarMappable(cmap=cmap_stress_name,
+                                              norm=plt.Normalize(vmin=min_stress,
+                                                                 vmax=max_stress))
+            ax.plot((edge.v1.x, edge.v2.x),
+                    (edge.v1.y, edge.v2.y),
+                    color=color_stress, linewidth=0.5)
+
     if pressure:
         pressures = frame.get_pressures()["pressure"]
-        pressures_cb = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=pressures.min(), vmax=pressures.max()))
+        pressures_cb = plt.cm.ScalarMappable(cmap=cmap_pressure_name,
+                                             norm=plt.Normalize(vmin=pressures.min(),
+                                                                vmax=pressures.max()))
         for _, cell in frame.cells.items():
             color_to_fill = pressures_cb.to_rgba(float(cell.pressure))
             color_to_fill = mpl.colors.to_hex(color_to_fill)
             all_xs = [v.x for v in cell.get_cell_vertices()]
             all_ys = [v.y for v in cell.get_cell_vertices()]
             ax.fill(all_xs, all_ys, color_to_fill, alpha=0.4)
-        if kwargs.get("colorbar", False):
-            ax.colorbar(pressures_cb)
 
     plt.axis('off')
-    if mirror_y:
+    if kwargs.get("mirror_y", False):
         plt.gca().invert_yaxis()
-    if mirror_x:
+    if kwargs.get("mirror_x", False):
         plt.gca().invert_xaxis()
-    
+
     if kwargs.get("colorbar", False):
-        sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=0, vmax=1))
-        plt.colorbar(sm)
-    
+        cb_stress = plt.colorbar(stress_cb, ax=ax)
+        cb_stress.set_label("Stress [a.u.]")
+        cb_stress.set_ticks([])
+        if pressure:
+            cb_pressure = plt.colorbar(pressures_cb, ax=ax)
+            cb_pressure.set_label("Pressure [a.u.]")
+            cb_pressure.set_ticks([])
+
     plt.tight_layout()
     return _, ax
 
