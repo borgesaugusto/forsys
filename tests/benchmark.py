@@ -197,14 +197,12 @@ def test_bench_plot_mesh(benchmark):
     params = [0,
               surfaceEvolver.vertices,
               surfaceEvolver.edges,
-              surfaceEvolver.cells,              
+              surfaceEvolver.cells,
               0,
               True]
     frames[0] = fs.frames.Frame(*params)
     forsys = fs.ForSys(frames)
-    params = [forsys.frames[0].vertices,
-              forsys.frames[0].edges,
-              forsys.frames[0].cells]
+    params = [forsys.frames[0]]
     benchmark(fs.plot.plot_mesh, *params)
 
 def test_bench_plot_inference(benchmark):
