@@ -177,7 +177,7 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
             color = jet(forceValToPlot)
             ax.plot(   (edge.v1.x, edge.v2.x),
                         (edge.v1.y, edge.v2.y),
-                        color=color, linewidth=3)
+                        color=color, linewidth=1)
             
     if pressure:
         pressures = frame.get_pressures()["pressure"]
@@ -210,7 +210,7 @@ def plot_difference(frame, folder: str, step: str, **kwargs) -> None:
     Both the inferred value and the ground truth are required
 
     :param frame: Frame to use
-    :type frame: _type_
+    :type frame: fframes.Frame
     :param folder: Folder to save plot
     :type folder: str
     :param step: File name of the plot
@@ -265,23 +265,15 @@ def plot_force(freq: list, folder: str ='') -> None:
     plt.savefig(str(folder)+"log/forcesHist.png", dpi=500)
     plt.close()
 
-def plot_mesh(vertices: dict, edges: dict, cells: dict, 
-              name: str="0", folder: str=".", 
-              xlim: list=[], ylim: list=[], 
-              mirror_y: bool = False,
-              mirror_x: bool = False) -> None:
+def plot_mesh(frame: fframes.Frame,
+              **kwargs) -> Tuple:
+            #   xlim: list=[], ylim: list=[], 
+            #   mirror_y: bool = False,
+            #   mirror_x: bool = False) -> None:
     """Generate a plot of the mesh. Useful for visualizing IDs of cells, edges and vertices in the system.
 
-    :param vertices: Dictionary of vertices
-    :type vertices: dict
-    :param edges: Dictionary of edges
-    :type edges: dict
-    :param cells: Dictionary of cells
-    :type cells: dict
-    :param name: Name of output plot, defaults to "0"
-    :type name: str, optional
-    :param folder: Path to folder to save the plot, defaults to "."
-    :type folder: str, optional
+    :param frame: Frame to plot
+    :type frame: fframes.Frame
     :param xlim: Array of [x_min, x_max] to "zoom" in, defaults to []
     :type xlim: list, optional
     :param ylim: Array of [y_min, y_max] to "zoom" in, defaults to []
@@ -290,37 +282,52 @@ def plot_mesh(vertices: dict, edges: dict, cells: dict,
     :type mirror_y: bool, optional
     """
     fig, ax = plt.subplots(1,1)
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-    to_save = os.path.join(folder, name)
-    for v in vertices.values():
-        plt.scatter(v.x, v.y, s=2, color="black")
-        plt.annotate(str(v.id), [v.x, v.y], fontsize=2)
+    if kwargs.get("plot_vertices", False):
+        for v in frame.vertices.values():
+            plt.scatter(v.x, v.y, s=2, color="black")
+            if kwargs.get("plot_vertices_id", False):
+                plt.annotate(str(v.id), [v.x, v.y], fontsize=2)
 
-    for e in edges.values():
-        plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="black", linewidth=0.5)
-        plt.annotate(str(e.id), [(e.v1.x +  e.v2.x)/2 , (e.v1.y + e.v2.y)/2], fontweight="bold", fontsize=1)
+    for e in frame.edges.values():
+        if kwargs.get("plot_edges", False):
+            plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="black", linewidth=0.5)
+            if kwargs.get("plot_edges_id", False):
+                plt.annotate(str(e.id), [(e.v1.x +  e.v2.x)/2 , (e.v1.y + e.v2.y)/2], fontweight="bold", fontsize=1)
 
-    for c in cells.values():
+    for c in frame.cells.values():
         cm = c.get_cm()
         cxs = [v.x for v in c.vertices]
         cys = [v.y for v in c.vertices]
 
-        plt.fill(cxs, cys, alpha=0.25, color="gray")
-        plt.annotate(str(c.id), [cm[0], cm[1]])
+        color_palette = kwargs.get("color_palette", "gray")
+        if type(color_palette) is str:
+            cell_colors = {k_id: color_palette for k_id in frame.cells.keys()}
+        elif type(color_palette) is dict:
+            cell_colors = color_palette
+        else:
+            raise ValueError("Color palette must be a string or a dictionary")
+        # TODO add that if the id is not in the dictionary, it is colored in gray
+        try:
+            plt.fill(cxs, cys, alpha=0.25, color=cell_colors[c.id])
+        except KeyError:
+            plt.fill(cxs, cys, alpha=0.25, color="gray")
+        if kwargs.get("plot_cells_id", False):
+            plt.annotate(str(c.id), [cm[0], cm[1]], fontsize=5)
 
+    xlim = kwargs.get("xlim", [])
+    ylim = kwargs.get("ylim", [])
     if len(xlim) > 0:
         plt.xlim(xlim[0], xlim[1])
     if len(ylim) > 0:
         plt.ylim(ylim[0], ylim[1])
-    if mirror_y:
+    if kwargs.get("mirror_y", False):
         plt.gca().invert_yaxis()
-    if mirror_x:
+    if kwargs.get("mirror_x", False):
         plt.gca().invert_xaxis()
 
     plt.axis("off")
     return fig, ax  
-    
+
 
 def plot_equilibrium(mesh, step, folder, what="acceleration", normalized=False, cutoff=None):
     # According to how much acceleration is present, paint the tissue

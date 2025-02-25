@@ -25,7 +25,8 @@ class Cell:
     id: int
     vertices: list
     is_border: bool = False
-    
+    ctype: str = None
+
     gt_pressure: float = None
     pressure: float = None
     center_method: str = "dlite"
