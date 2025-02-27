@@ -265,7 +265,7 @@ class Skeleton:
         # triangles with TJs
         candidate_artifact_vertices = []
         for v in self.vertices.values():
-            if len(v.ownEdges) == 3 and len(v.ownCells) == 2:
+            if len(v.ownEdges) > len(v.ownCells):
                 # this is part of a triangle
                 candidate_artifact_vertices.append(v.id)
 
