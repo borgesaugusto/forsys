@@ -280,6 +280,7 @@ def plot_force(freq: list, folder: str ='') -> None:
     plt.close()
 
 def plot_mesh(frame: fframes.Frame,
+              ax: mpl.axes.Axes = None,
               **kwargs) -> Tuple:
             #   xlim: list=[], ylim: list=[], 
             #   mirror_y: bool = False,
@@ -295,7 +296,8 @@ def plot_mesh(frame: fframes.Frame,
     :param mirror_y: If True the tissue is plotted as a mirror image in the Y axis, defaults to False
     :type mirror_y: bool, optional
     """
-    fig, ax = plt.subplots(1,1)
+    if not ax:
+        _, ax = plt.subplots(1, 1)
     if kwargs.get("plot_vertices", False):
         for v in frame.vertices.values():
             plt.scatter(v.x, v.y, s=2, color="black")
@@ -340,7 +342,7 @@ def plot_mesh(frame: fframes.Frame,
         plt.gca().invert_xaxis()
 
     plt.axis("off")
-    return fig, ax  
+    return ax
 
 
 def plot_equilibrium(mesh, step, folder, what="acceleration", normalized=False, cutoff=None):

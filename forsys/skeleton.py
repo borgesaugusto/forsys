@@ -1,16 +1,18 @@
-from dataclasses import dataclass
 import numpy as np
-from PIL import Image
-import cv2
+from dataclasses import dataclass
 import itertools as iter
 from collections import Counter
 from typing import Tuple
+from warnings import warn
+import scipy.spatial as spspatial
+import collections
 
 import forsys.vertex as vertex
 import forsys.edge as edge
 import forsys.cell as cell
 import forsys.wkt as fwkt
 import forsys.virtual_edges as fvedges
+import forsys as fs
 
 @dataclass
 class Skeleton:
@@ -23,16 +25,37 @@ class Skeleton:
     :type mirror_y: bool, optional
     """
     fname: str
-
     mirror_y: bool = False
+    minimum_distance: float = 0
 
     def __post_init__(self):
-        with Image.open(self.fname).convert("L") as curr_image_file:
-            self.img_arr = np.array(curr_image_file)[1:-1, 1:-1]
+        if self.fname.endswith(".tif") or self.fname.endswith(".tiff"):
+            try:
+                from PIL import Image
+                import cv2
+            except ImportError:
+                raise ImportError("OpenCV and Pillow are required to read TIFF files")
 
-        # self.contours, _ = cv2.findContours(self.img_arr, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        self.contours, _ = cv2.findContours(self.img_arr, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-        self.contours = [np.vstack(p).squeeze() for p in self.contours][1:]
+            self.format = "tif"
+            with Image.open(self.fname).convert("L") as curr_image_file:
+                self.img_arr = np.array(curr_image_file)[1:-1, 1:-1]
+
+            # self.contours, _ = cv2.findContours(self.img_arr, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            self.contours, _ = cv2.findContours(self.img_arr, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+            self.contours = [np.vstack(p).squeeze() for p in self.contours][1:]
+        elif self.fname.endswith(".npy"):
+            self.format = "npy"
+            try:
+                from cellpose import utils
+            except ImportError:
+                raise ImportError("OpenCV and Pillow are required to read TIFF files")
+            np_data = np.load(self.fname,
+                              allow_pickle=True).item()
+            self.contours = utils.outlines_list(np_data['masks'])
+            self.contours = [np.vstack(p).squeeze() for p in self.contours][1:]
+        else:
+            raise ValueError("File format not supported")
+
         # check size of all areas and filter small ones
         all_cell_areas = [self.calculate_area(polygon) for polygon in self.contours]
         # if a cell has more than 5 times the average cell area (withouth the maximum)
@@ -45,6 +68,7 @@ class Skeleton:
         self.cell_id = 0
 
         if self.mirror_y:
+            warn("Legacy function, soon to be deprecated", DeprecationWarning, 2)
             self.max_y = float(max(list(iter.chain.from_iterable(
                 [list(zip(*c))[1] for c in self.contours]))))
 
@@ -94,14 +118,11 @@ class Skeleton:
             # create cells now
             self.cells[self.cell_id] = cell.Cell(self.cell_id, cell_vertices_list, {})
             self.cell_id += 1
-        
+
         if kwargs.get("reduce_amount", False):
             self.vertices, self.edges, self.cells = fwkt.reduce_amount(self.vertices,
                                                                     self.edges,
                                                                     self.cells)
-
-        self.all_big_edges = fvedges.create_edges_new(self.vertices,
-                                                      self.cells)
 
         for current_cell in self.cells.values():
             # if any of the vertices in the cell has a vertex with only one cell, that is an external cell
@@ -114,6 +135,122 @@ class Skeleton:
             else:
                 e.external = False
 
+        self.main_vertices_map = {}
+        if self.minimum_distance > 0:
+            # TODO: It would be more efficient to use a dynamic KDtree
+            # now create a KD-tree of the vertices
+            all_points = np.array([[v.x, v.y] for v in self.vertices.values()])
+            self.kdtree = spspatial.KDTree(all_points)
+            vids_joined = []
+            edges_to_delete = []
+            for vid, vobj in self.vertices.items():
+                # get all neighbors in the given distance, and join them to vid
+                # in one vertex
+                if vid not in vids_joined:
+                    # it is a main vertex
+                    print("--------------------")
+                    print("Processing vertex", vid)
+                    neighbors = self.kdtree.query_ball_point([vobj.x, vobj.y],
+                                                             self.minimum_distance)
+                    self.main_vertices_map[vid] = None
+                    joined_to_current_vid = []
+                else:
+                    continue
+                if len(neighbors) > 0:
+                    for nn in neighbors:
+                        # if the nn is is a main vertex, ignore
+                        nn_vid = self.coords_to_key[tuple(all_points[nn])]
+                        if nn_vid in self.main_vertices_map.keys() or nn_vid in vids_joined:
+                            continue
+                        else:
+                            for cid in self.vertices[nn_vid].ownCells:
+                                if cid in [0, 1, 2]:
+                                    print(f"Replacing vertex {nn_vid} with {vid} in cell {cid}")
+                                    print(vobj)
+                                    print(f"Amount of vertices in cell: {len([v.id for v in self.cells[cid].vertices])}")
+                                self.cells[cid].replace_vertex(self.vertices[nn_vid],
+                                                               self.vertices[vid])
+                            for eid in self.vertices[nn_vid].ownEdges:
+                                # print(f"Replacing vertex {nn_vid} with {vid} in edge {eid}, the edge had {self.edges[eid].get_vertices_id()}")
+                                self.edges[eid].replace_vertex(self.vertices[nn_vid],
+                                                               self.vertices[vid])
+                                # edges_to_delete.append(eid)
+                            vids_joined.append(nn_vid)
+                            joined_to_current_vid.append(nn_vid)
+
+                self.main_vertices_map[vid] = joined_to_current_vid
+
+            for eid, eobj in self.edges.items():
+                if (eobj.v1.id in vids_joined and eobj.v2.id in vids_joined) or eobj.v1.id == eobj.v2.id:
+                    edges_to_delete.append(eid)
+
+                elif bool(eobj.v1.id in vids_joined) ^ bool(eobj.v2.id in vids_joined):
+                    if eobj.v1.id in vids_joined:
+                        to_replace = eobj.v1.id
+                    elif eobj.v2.id in vids_joined:
+                        to_replace = eobj.v2.id
+                    else:
+                        raise ValueError("Inexistant vertex in the list of joined vertices")
+
+                    for main_v, joined_to_it in self.main_vertices_map.items():
+                        if to_replace in joined_to_it:
+                            # print(f"Replacing vertex {to_replace} with {main_v} in edge {eid}. The edge had {eobj.get_vertices_id()}")
+                            if (main_v in eobj.get_vertices_id()):
+                                edges_to_delete.append(eid)
+                            else:
+                                eobj.replace_vertex(self.vertices[to_replace],
+                                                    self.vertices[main_v])
+                            break
+                        # break
+
+
+            print(f"Vertices joined: {len(vids_joined)} out of {len(self.vertices)}")
+            print(f"Edges to delete: {len(edges_to_delete)} out of {len(self.edges)}")
+
+            for ee in edges_to_delete:
+                try:
+                    del self.edges[ee]
+                except KeyError:
+                    print(f"**WARNING** edge {ee} not in list of edges")
+
+            # check for repeated edges and same ones
+            # TODO: This should be verified before, instead of repeating
+            edges_to_delete = []
+            all_edges = [tuple(set(e.get_vertices_id())) for e in self.edges.values()]
+            all_edges_counter = collections.Counter(all_edges)
+            for current_edge, count in all_edges_counter.items():
+                if count > 1:
+                    edges_to_delete += [e.id for e in self.edges.values() if tuple(set(e.get_vertices_id())) == current_edge]
+                    edges_to_delete.pop()
+
+            for cid, cobj in self.cells.items():
+                cvertex = [v.id for v in cobj.vertices]
+                not_an_edge = [[cv, cvertex[ii+1]] for ii, cv in enumerate(cvertex[:-1]) if {cv, cvertex[ii+1]} not in [set(edge) for edge in all_edges]]
+                print(f"For cell {cid} the following edges are not in the list of edges: {not_an_edge}")
+
+            for ee in edges_to_delete:
+                try:
+                    del self.edges[ee]
+                except KeyError:
+                    print(f"**WARNING** edge {ee} not in list of edges")
+                    edges_to_delete.append(eid)
+
+            for nn in set(vids_joined):
+                del self.vertices[nn]
+
+
+
+        return self.vertices, self.edges, self.cells
+
+        self.all_big_edges = fvedges.create_edges_new(self.vertices,
+                                                      self.cells)
+        self.triangles_in_the_middle()
+
+        self.remove_artifacts()
+
+        return self.vertices, self.edges, self.cells
+
+    def triangles_in_the_middle(self) -> None:
         # triangles in the middle
         inner_edge_triangles = []
         num_elements = len(self.all_big_edges)
@@ -121,7 +258,7 @@ class Skeleton:
         last_part = [(e[-1], e[0]) for e in self.all_big_edges]
         first_last = first_part + last_part
         inner_edge_triangles = [k for k, v in Counter(first_last).items() if v > 1]
-        
+
         visited = []
         for index in range(len(inner_edge_triangles) - 1):
             if (inner_edge_triangles[index] in visited or
@@ -148,6 +285,7 @@ class Skeleton:
             del self.vertices[vertex_id_to_delete]
             visited.append(inner_edge_triangles[index])
 
+    def remove_artifacts(self) -> None:
         # get artifacts from the contour and apply T3 transitions to them
         all_artifact_vertices = list(self.get_artifacts())
 
@@ -188,7 +326,6 @@ class Skeleton:
         for cid in cells_to_remove:
             del self.cells[cid]
 
-        return self.vertices, self.edges, self.cells
 
     def add_vertices_to_current(self, artifact_vertices: list, current_artifact: list) -> list:
         """
@@ -298,10 +435,10 @@ class Skeleton:
             self.edge_id += 1
             self.edges_added.append((v1.id, v2.id))
 
-    def get_vertex_id_by_position(self, coordinates: list) -> int:
+    def get_vertex_id_by_position(self, coordinates: list, radius: float = 0) -> int:
         """
         Check whether vertices were already created using a hashmap
-        
+
         :param coordinates: tuple with the coordiantes of the vertex to check
         :type coordinates: list
 
@@ -312,6 +449,7 @@ class Skeleton:
             return self.coords_to_key[tuple(coordinates)]
         except KeyError:
             return -1
+
 
     def get_new_vid(self) -> int:
         """
