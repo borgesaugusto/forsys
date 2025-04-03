@@ -66,6 +66,7 @@ class ForceMatrix:
 
         self.tj_vertices = list(tj_vertices)
         self.matrix = self._build_matrix()
+        print(self.matrix)
         self.rhs = None
         self.velocity_matrix = None
 
@@ -89,6 +90,7 @@ class ForceMatrix:
             less_than_four_condition = less_than_four if self.metadata.get("ignore_four", False) else True
 
             if at_least_three and less_than_four_condition:
+                print(f"VID ORDER:, {vid}")
                 self.map_vid_to_row[vid] = position_index
                 mat[position_index] = row_x
                 mat[position_index + 1] = row_y

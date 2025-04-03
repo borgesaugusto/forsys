@@ -45,23 +45,22 @@ class Frame():
 
         self.big_edges_list = fs.virtual_edges.create_edges_new(self.vertices, self.cells)
         # create big edge objects
-        # for big_edge_id, big_edge in enumerate(self.big_edges_list):
-        #     vertices_objects = [self.vertices[vid] for vid in big_edge]
-        #     self.big_edges[big_edge_id] = fedge.BigEdge(big_edge_id, vertices_objects)
+        for big_edge_id, big_edge in enumerate(self.big_edges_list):
+            vertices_objects = [self.vertices[vid] for vid in big_edge]
+            self.big_edges[big_edge_id] = fedge.BigEdge(big_edge_id, vertices_objects)
 
         self.external_edges_id = [self.big_edges_list.index(e) 
                                     for e in fs.virtual_edges.get_border_edge(self.big_edges_list, 
                                                                 self.vertices)]
-        
-        # self.internal_big_edges_vertices = [edge for eid, edge in enumerate(self.big_edges_list) 
-        #                                 if eid not in self.external_edges_id and 
-        #                                 (len(self.vertices[edge[0]].ownCells) > 2 or  
-        #                                 len(self.vertices[edge[-1]].ownCells) > 2)]
-        # self.internal_big_edges = [self.big_edges[eid] for eid, edge in enumerate(self.big_edges_list) 
-        #                             if eid not in self.external_edges_id and 
-        #                             (len(self.vertices[edge[0]].ownCells) > 2 or  
-        #                             len(self.vertices[edge[-1]].ownCells) > 2)]
-        # 
+
+        self.internal_big_edges_vertices = [edge for eid, edge in enumerate(self.big_edges_list) 
+                                        if eid not in self.external_edges_id and 
+                                        (len(self.vertices[edge[0]].ownCells) > 2 or  
+                                        len(self.vertices[edge[-1]].ownCells) > 2)]
+        self.internal_big_edges = [self.big_edges[eid] for eid, edge in enumerate(self.big_edges_list) 
+                                    if eid not in self.external_edges_id and 
+                                    (len(self.vertices[edge[0]].ownCells) > 2 or  
+                                    len(self.vertices[edge[-1]].ownCells) > 2)]
         for _, cell in self.cells.items():
             cell.calculate_neighbors()
 

@@ -134,7 +134,10 @@ class Cell:
         :type vnew: object
         """
         vertices_ids = [v.id for v in self.vertices]
+        self.vertices[vertices_ids.index(vold.id)].remove_cell(self.id)
         if vnew.id in vertices_ids:
+            print(f"Vertices: {[v.id for v in self.vertices]}")
+            print(f"Warning: Vertex {vnew.id} already in cell {self.id}. Removing vertex {vold.id}")
             self.vertices.remove(vold)
         else:
             self.vertices[vertices_ids.index(vold.id)] = vnew

@@ -164,17 +164,11 @@ class Skeleton:
                             continue
                         else:
                             for cid in self.vertices[nn_vid].ownCells:
-                                if cid in [0, 1, 2]:
-                                    print(f"Replacing vertex {nn_vid} with {vid} in cell {cid}")
-                                    print(vobj)
-                                    print(f"Amount of vertices in cell: {len([v.id for v in self.cells[cid].vertices])}")
                                 self.cells[cid].replace_vertex(self.vertices[nn_vid],
                                                                self.vertices[vid])
                             for eid in self.vertices[nn_vid].ownEdges:
-                                # print(f"Replacing vertex {nn_vid} with {vid} in edge {eid}, the edge had {self.edges[eid].get_vertices_id()}")
                                 self.edges[eid].replace_vertex(self.vertices[nn_vid],
                                                                self.vertices[vid])
-                                # edges_to_delete.append(eid)
                             vids_joined.append(nn_vid)
                             joined_to_current_vid.append(nn_vid)
 
@@ -221,12 +215,8 @@ class Skeleton:
             for current_edge, count in all_edges_counter.items():
                 if count > 1:
                     edges_to_delete += [e.id for e in self.edges.values() if tuple(set(e.get_vertices_id())) == current_edge]
+                    # keep one
                     edges_to_delete.pop()
-
-            for cid, cobj in self.cells.items():
-                cvertex = [v.id for v in cobj.vertices]
-                not_an_edge = [[cv, cvertex[ii+1]] for ii, cv in enumerate(cvertex[:-1]) if {cv, cvertex[ii+1]} not in [set(edge) for edge in all_edges]]
-                print(f"For cell {cid} the following edges are not in the list of edges: {not_an_edge}")
 
             for ee in edges_to_delete:
                 try:
@@ -238,9 +228,27 @@ class Skeleton:
             for nn in set(vids_joined):
                 del self.vertices[nn]
 
+            # for cid, cobj in self.cells.items():
+                # cvertex = [v.id for v in cobj.vertices]
+                # not_an_edge = [[cv, cvertex[ii+1]] for ii, cv in enumerate(cvertex[:-1]) if {cv, cvertex[ii+1]} not in [set(edge) for edge in all_edges]]
+            for vid, vobj in self.vertices.items():
+                if len(vobj.ownEdges) == 2 and len(vobj.ownCells) == 3:
+                    print(f"**WARNING** vertex {vobj.id} has only 3 cells and 2 edges, deleting it")
+                    # replace with closer TJ
+                    connected = np.array([self.edges[e].get_vertices_id() for e in vobj.ownEdges]).reshape(-1)
+                    connected = np.unique(connected)
+                    cells_of_connected = [set(self.vertices[vertex_id].ownCells) for vertex_id in connected if self.vertices[vertex_id].id != vid]
+                    assert len(cells_of_connected) == 2, "More than two vertices connected to the vertex"
+                    connected = [c for c in connected if c != vobj.id and len(self.vertices[c].ownCells) == 3]
+                    print(f"Connected edges: {connected}, cells: {cells_of_connected}")
+                    assert len(connected) == 1, "More than one incorrect connection"
+                    cell_to_replace_in = cells_of_connected[0].symmetric_difference(cells_of_connected[1])
+                    assert len(cell_to_replace_in) == 1, "More than one cell to replace in"
+                    print(f"Replacing vertex {vobj.id} with {connected[0]} in cell {cell_to_replace_in}")
+                    self.cells[int(list(cell_to_replace_in)[0])].replace_vertex(vobj, self.vertices[connected[0]])
 
+                        # cobj.replace_vertex(vobj, vnew)
 
-        return self.vertices, self.edges, self.cells
 
         self.all_big_edges = fvedges.create_edges_new(self.vertices,
                                                       self.cells)
@@ -271,7 +279,8 @@ class Skeleton:
             if len(edge_0) > 3:
                 continue
             edge_1 = self.all_big_edges[edge_1_index]
-            vertex_id_to_delete = np.setdiff1d(edge_0, edge_1)[0]
+            # vertex_id_to_delete = list(set(edge_0).symmetric_difference(set(edge_1)))[0]
+            vertex_id_to_delete = np.intersect1d(edge_0, edge_1)[0]
 
             its_cells = self.vertices[vertex_id_to_delete].ownCells
             for cell_id in its_cells:
@@ -435,7 +444,7 @@ class Skeleton:
             self.edge_id += 1
             self.edges_added.append((v1.id, v2.id))
 
-    def get_vertex_id_by_position(self, coordinates: list, radius: float = 0) -> int:
+    def get_vertex_id_by_position(self, coordinates: list) -> int:
         """
         Check whether vertices were already created using a hashmap
 
