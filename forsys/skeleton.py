@@ -286,24 +286,103 @@ class Skeleton:
         self.all_big_edges = fvedges.create_edges_new(self.vertices,
                                                       self.cells)
 
-        self.triangles_in_the_middle()
+        print("------------------")
+        print("Deleting triangular holes")
+        self.triangular_holes()
+        print("------------------")
+        # self.triangles_in_the_middle()
         self.remove_artifacts()
 
         return self.vertices, self.edges, self.cells
 
-    # def triangular_holes(self):
-    #     for v in self.vertices.values():
-    #         if len(v.ownEdges) >= 3:
-    #             # this is could be a triangular hole
-    #             print(f"Vertex {v.id} could be a triangular hole")
-    #             # is it connected to two other TJ with only two cells ?
-    #             connected_edges_vertices = [self.edges[e].get_vertices_id() for e in v.ownEdges]
-    #             connected_to = np.array(connected_edges_vertices).reshape(-1)
-    #             connected_to = 
-    #             n_edges = [len(self.vertices[vid].ownEdges) >= 3 for vid in connected_to]
-    #             if np.sum(n_edges) >= 2:
-    #                 print(f"Vertex {v.id} is in a triangular hole")
-    #                 print(f"Connected to {connected_to}")
+    def triangular_holes(self):
+        vertices_of_triangles = {}
+        for v in self.vertices.values():
+            if len(v.ownEdges) >= 3:
+                # this is could be a triangular hole
+                # is it connected to two other TJ with only two cells ?
+                cells_per_nn = self.is_vertex_in_hole(v)
+                if len(cells_per_nn) > 0:
+                    # if all are TJs, join in one point
+                    # eq_3 = len(list(filter(lambda x: len(x.ownCells) == 3, cells_per_nn.values())))
+                    vertices_of_triangles[v.id] = list(cells_per_nn.keys())
+        # see if key is in at least 2 others
+        appearances = {}
+        for key, nns in vertices_of_triangles.items():
+            appeard_in = []
+            for key_2, nns2 in vertices_of_triangles.items():
+                if key in nns2 and key != key_2:
+                    appeard_in.append(key_2)
+            appearances[key] = appeard_in
+        triangles = []
+        middle_edge = []
+        for who, where in appearances.items():
+            triangle = []
+            if len(where) >= 2:
+                triangle = sorted([who] + where)
+                if triangle not in triangles:
+                    triangles.append(triangle)
+            elif len(where) == 0:
+                # this is triangle in the middle of an edge
+                middle_edge.append(who)
+        # remove the one that are in the middle of the edge
+        for middle in middle_edge:
+            for ee in self.vertices[middle].ownEdges:
+                vertices_ids = self.edges[ee].get_vertices_id()
+                print(vertices_ids)
+                vertex_to_delete = vertices_ids[0] if vertices_ids[0] != middle else vertices_ids[1]
+                print(f"Deleting vertex {vertex_to_delete} in middle {middle}")
+                if len(self.vertices[vertex_to_delete].ownCells) == 1:
+                    # this is the one
+                    break
+
+            for cell_id in self.vertices[vertex_to_delete].ownCells:
+                self.cells[cell_id].replace_vertex(self.vertices[vertex_to_delete],
+                                                   self.vertices[middle])
+            its_edges = list(self.vertices[vertex_to_delete].ownEdges)
+            for edge_id in its_edges:
+                del self.edges[edge_id]
+
+            del self.vertices[vertex_to_delete]
+
+        print()
+        print(triangles)
+        # remove the triangles
+        # Join the vertices in the triangles in the centroid
+        for triangle in triangles:
+            print(f"Triangle: {triangle}")
+            # get the centroid
+            centroid = np.mean([self.vertices[v].get_coords() for v in triangle], axis=0)
+            print(f"Centroid: {centroid}")
+            new_vid = self.get_new_vid()
+            self.vertices[new_vid] = vertex.Vertex(int(new_vid),
+                                                   centroid[0],
+                                                   centroid[1])
+            # replace the vertices with the new one
+            for v in triangle:
+                its_edges = list(self.vertices[v].ownEdges)
+                for edge_id in its_edges:
+                    self.edges[edge_id].replace_vertex(self.vertices[v],
+                                                       self.vertices[new_vid])
+                for cell_id in self.vertices[v].ownCells:
+                    self.cells[cell_id].replace_vertex(self.vertices[v],
+                                                       self.vertices[new_vid])
+                del self.vertices[v]
+        print(f"Triangles: {triangles}")
+
+
+    def is_vertex_in_hole(self, v: fs.vertex.Vertex) -> dict:
+        connected_edges_vertices = [self.edges[e].get_vertices_id() for e in v.ownEdges]
+        connected_to = np.array(connected_edges_vertices).reshape(-1)
+        connected_to = list(filter(lambda x: x != v.id, connected_to))
+        # do at least two of them have only two cells?
+        cells_per_nn = {vv: self.vertices[vv] for vv in connected_to}
+        leq_2 = len(list(filter(lambda x: len(x.ownCells) <= 2, cells_per_nn.values())))
+        eq_1 = len(list(filter(lambda x: len(x.ownCells) == 1, cells_per_nn.values())))
+        if leq_2 >= 2 and eq_1 != 2 and len(v.ownCells) == 2:
+            return cells_per_nn
+        else:
+            return {}
 
     def get_cell_intersection(self, vobj) -> list:
         connected_edges_vertices = [self.edges[e].get_vertices_id() for e in vobj.ownEdges]
@@ -312,10 +391,8 @@ class Skeleton:
         intersection = set.intersection(*cells_belonging)
         return list(intersection)
 
-
     def triangles_in_the_middle(self) -> None:
         # triangles in the middle
-        # import pdb; pdb.set_trace()
         inner_edge_triangles = []
         num_elements = len(self.all_big_edges)
         first_part = [(e[0], e[-1]) for e in self.all_big_edges]
@@ -343,7 +420,7 @@ class Skeleton:
                 self.cells[cell_id].replace_vertex(self.vertices[vertex_id_to_delete],
                                                    self.vertices[edge_0[0]])
 
-            its_edges = self.vertices[vertex_id_to_delete].ownEdges
+            its_edges = list(self.vertices[vertex_id_to_delete].ownEdges)
             for edge_id in its_edges:
                 del self.edges[edge_id]
 

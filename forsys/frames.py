@@ -61,6 +61,7 @@ class Frame():
                                     if eid not in self.external_edges_id and 
                                     (len(self.vertices[edge[0]].ownCells) > 2 or  
                                     len(self.vertices[edge[-1]].ownCells) > 2)]
+
         for _, cell in self.cells.items():
             cell.calculate_neighbors()
 
