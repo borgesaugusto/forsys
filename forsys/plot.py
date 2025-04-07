@@ -298,15 +298,39 @@ def plot_mesh(frame: fframes.Frame,
     """
     if not ax:
         _, ax = plt.subplots(1, 1)
-    if kwargs.get("plot_vertices", False):
+    if kwargs.get("plot_vertices", False) and not kwargs.get("plot_tjs", False):
         for v in frame.vertices.values():
             plt.scatter(v.x, v.y, s=2, color="black")
             if kwargs.get("plot_vertices_id", False):
                 plt.annotate(str(v.id), [v.x, v.y], fontsize=2)
 
+    if kwargs.get("plot_tjs", False):
+        for v in frame.vertices.values():
+            if len(v.ownEdges) >= 3:
+                plt.scatter(v.x, v.y, s=2, color="black")
+                if kwargs.get("plot_vertices_id", False):
+                    plt.annotate(str(v.id), [v.x, v.y], fontsize=2)
+    
+    if kwargs.get("plot_versors", False):
+        for v in frame.vertices.values():
+            if len(v.ownEdges) >= 3:
+                for versor in ve.get_versors(frame.vertices, frame.edges, v.id):
+                    plt.arrow(v.x,
+                              v.y,
+                              versor[0] * 5,
+                              versor[1] * 5,
+                              color="green",
+                              alpha=0.5,
+                              zorder=1000)
+
     for e in frame.edges.values():
         if kwargs.get("plot_edges", False):
-            plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="black", linewidth=0.5)
+            plt.plot([e.v1.x, e.v2.x],
+                     [e.v1.y, e.v2.y],
+                     color="black",
+                     linewidth=0.5,
+                     alpha=0.6)
+
             if kwargs.get("plot_edges_id", False):
                 plt.annotate(str(e.id), [(e.v1.x +  e.v2.x)/2 , (e.v1.y + e.v2.y)/2], fontweight="bold", fontsize=1)
 
@@ -465,7 +489,7 @@ def plot_time_connections_two_times(mesh: ftimes.TimeSeries, t0: int, tf: int,
         if True:
             v1_id = mesh.get_point_id_by_map(v0.id, t0, tf)
             v1 = mesh.time_series[tf].vertices[v1_id]
-            
+
             plt.scatter(v0.x, v0.y, s=5, color="black")
             plt.scatter(v1.x, v1.y, s=5, color="green")
 
@@ -818,4 +842,4 @@ def plot_big_edges(frame, **kwargs) -> Tuple:
     if kwargs.get("mirror_x", False):
         plt.gca().invert_xaxis()
 
-    return fig, ax  
+    return fig, ax

@@ -43,11 +43,11 @@ class Cell:
             v.add_cell(self.id)
 
         self.center_x, self.center_y = ve.calculate_circle_center(vertices=self.vertices, method=self.center_method)
-        
+
     def __del__(self):
         for v in self.vertices:
             v.remove_cell(self.id)
-        
+
     def get_cell_vertices(self) -> list:
         """
         Get the list of vertices corresponding to the cell
@@ -67,7 +67,7 @@ class Cell:
         :rtype: object
         """
         return self.vertices[(self.vertices.index(v) + self.get_area_sign()) % len(self.vertices)]
-    
+
     def get_previous_vertex(self, v: object) -> object:
         """
         Get the previous vertex from a given one in the cell ordering
@@ -78,7 +78,7 @@ class Cell:
         :rtype: object
         """
         return self.vertices[(self.vertices.index(v) - self.get_area_sign())% len(self.vertices)]
-        
+
     def get_cm(self) -> list:
         """
         Get the centroid of the cell
@@ -134,10 +134,9 @@ class Cell:
         :type vnew: object
         """
         vertices_ids = [v.id for v in self.vertices]
-        self.vertices[vertices_ids.index(vold.id)].remove_cell(self.id)
+        # self.vertices[vertices_ids.index(vold.id)].remove_cell(self.id)
         if vnew.id in vertices_ids:
-            print(f"Vertices: {[v.id for v in self.vertices]}")
-            print(f"Warning: Vertex {vnew.id} already in cell {self.id}. Removing vertex {vold.id}")
+            # print(f"Warning: Vertex {vnew.id} already in cell {self.id}. Removing vertex {vold.id}")
             self.vertices.remove(vold)
         else:
             self.vertices[vertices_ids.index(vold.id)] = vnew
@@ -161,9 +160,8 @@ class Cell:
         current_cells.remove(self.id)
         self.neighbors = current_cells
         return self.neighbors
-    
 
-    def get_edges(self):
+    def get_edges(self) -> list:
         cell_edges = []
         for vnum in range(0, len(self.vertices) - 1):
             local_edges = list(set(self.vertices[vnum].ownEdges) &
