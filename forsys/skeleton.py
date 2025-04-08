@@ -147,8 +147,6 @@ class Skeleton:
                 # in one vertex
                 if vid not in vids_joined:
                     # it is a main vertex
-                    print("--------------------")
-                    print("Processing vertex", vid)
                     neighbors = self.kdtree.query_ball_point([vobj.x, vobj.y],
                                                              self.minimum_distance)
                     self.main_vertices_map[vid] = None
@@ -186,9 +184,6 @@ class Skeleton:
                         raise ValueError("Inexistant vertex in the list of joined vertices")
 
                     for main_v, joined_to_it in self.main_vertices_map.items():
-                        # if main_v == 368 or main_v == 1764 or main_v == 350:
-                        #     print(f"Main vertex: {main_v}, joined to it: {joined_to_it}, to replace: {to_replace}")
-                        #     import pdb; pdb.set_trace()
                         if to_replace in joined_to_it:
                             if (main_v in eobj.get_vertices_id()):
                                 edges_to_delete.append(eid)
@@ -196,11 +191,6 @@ class Skeleton:
                                 eobj.replace_vertex(self.vertices[to_replace],
                                                     self.vertices[main_v])
                             break
-
-
-            print(f"Vertices joined: {len(vids_joined)} out of {len(self.vertices)}")
-            print(f"Edges to delete: {len(edges_to_delete)} out of {len(self.edges)}")
-
             for ee in edges_to_delete:
                 try:
                     del self.edges[ee]
@@ -216,11 +206,8 @@ class Skeleton:
             for current_edge, count in all_edges_counter.items():
                 if count > 1:
                     edges_to_delete += [e.id for e in self.edges.values() if tuple(sorted(e.get_vertices_id())) == current_edge]
-                    # edges_to_delete += [e.id for e in self.edges.values() if tuple(set(e.get_vertices_id())) == current_edge[::-1]]
                     # keep one
                     edges_to_delete.pop()
-                    # if 3660 in edges_to_delete:
-                    #     import pdb; pdb.set_trace()
 
             for ee in edges_to_delete:
                 try:
@@ -231,7 +218,6 @@ class Skeleton:
             for nn in set(vids_joined):
                 del self.vertices[nn]
 
-            # self.triangular_holes()
             # list of all eddges indexing as tuples
             all_edges = {tuple(sorted(e.get_vertices_id())): e.id for e in self.edges.values()}
             non_edges = {tuple(sorted(e.get_vertices_id())): 0 for e in self.edges.values()}
@@ -246,22 +232,17 @@ class Skeleton:
                     next_vertex = cobj.get_next_vertex(i_obj)
                     previous_vertex = cobj.get_previous_vertex(i_obj)
                     if tuple(sorted([i_obj.id, next_vertex.id])) not in all_edges.keys():
-                        print("Figuring out which vertex to replace")
-                        print(cvertices)
                         intersection_own = self.get_cell_intersection(i_obj)
                         intersection_other = self.get_cell_intersection(next_vertex)
-                        print(f"Intersection own: {intersection_own}. Intersection other: {intersection_other}")
 
                         if cid in intersection_own and cid not in intersection_other:
                             # replace the vertex in the cell
-                            print(f"Replacing {next_vertex.id} with {i_obj.id} in cell {cid}")
                             cobj.replace_vertex(next_vertex, i_obj)
                             next_vertex.remove_cell(cid)
                             i_obj.add_cell(cid)
                             new_pair = tuple(sorted([i_obj.id, previous_vertex.id]))
                             removed_vertices.append(next_vertex.id)
                         elif cid not in intersection_own and cid in intersection_other:
-                            print(f"Replacing {i_obj.id} with {next_vertex.id} in cell {cid}")
                             cobj.replace_vertex(i_obj, next_vertex)
                             next_vertex.add_cell(cid)
                             i_obj.remove_cell(cid)
@@ -269,27 +250,18 @@ class Skeleton:
                             removed_vertices.append(i_obj.id)
                         else:
                             raise ValueError("No vertex in the cell intersection")
-                        print(f"New pair: {new_pair}")
-                        # if new_pair == (368, 1764):
-                            # import pdb; pdb.set_trace()
                         non_edges[new_pair] += 1
                     else:
                         non_edges[tuple(sorted([i_obj.id, next_vertex.id]))] += 1
 
             for n_eid, n_eid_count in non_edges.items():
                 if n_eid_count == 0:
-                    # print(f"Edge {n_eid} never visited")
                     del self.edges[all_edges[n_eid]]
-
-        # I need to detect possible 4-vertices artifacts
 
         self.all_big_edges = fvedges.create_edges_new(self.vertices,
                                                       self.cells)
 
-        print("------------------")
-        print("Deleting triangular holes")
         self.triangular_holes()
-        print("------------------")
         # self.triangles_in_the_middle()
         self.remove_artifacts()
 
@@ -304,7 +276,6 @@ class Skeleton:
                 cells_per_nn = self.is_vertex_in_hole(v)
                 if len(cells_per_nn) > 0:
                     # if all are TJs, join in one point
-                    # eq_3 = len(list(filter(lambda x: len(x.ownCells) == 3, cells_per_nn.values())))
                     vertices_of_triangles[v.id] = list(cells_per_nn.keys())
         # see if key is in at least 2 others
         appearances = {}
@@ -329,9 +300,7 @@ class Skeleton:
         for middle in middle_edge:
             for ee in self.vertices[middle].ownEdges:
                 vertices_ids = self.edges[ee].get_vertices_id()
-                print(vertices_ids)
                 vertex_to_delete = vertices_ids[0] if vertices_ids[0] != middle else vertices_ids[1]
-                print(f"Deleting vertex {vertex_to_delete} in middle {middle}")
                 if len(self.vertices[vertex_to_delete].ownCells) == 1:
                     # this is the one
                     break
@@ -345,15 +314,10 @@ class Skeleton:
 
             del self.vertices[vertex_to_delete]
 
-        print()
-        print(triangles)
-        # remove the triangles
         # Join the vertices in the triangles in the centroid
         for triangle in triangles:
-            print(f"Triangle: {triangle}")
             # get the centroid
             centroid = np.mean([self.vertices[v].get_coords() for v in triangle], axis=0)
-            print(f"Centroid: {centroid}")
             new_vid = self.get_new_vid()
             self.vertices[new_vid] = vertex.Vertex(int(new_vid),
                                                    centroid[0],
@@ -362,14 +326,16 @@ class Skeleton:
             for v in triangle:
                 its_edges = list(self.vertices[v].ownEdges)
                 for edge_id in its_edges:
-                    self.edges[edge_id].replace_vertex(self.vertices[v],
-                                                       self.vertices[new_vid])
+                    if self.edges[edge_id].get_vertices_id()[0] in triangle and \
+                        self.edges[edge_id].get_vertices_id()[1] in triangle:
+                        del self.edges[edge_id]
+                    else:
+                        self.edges[edge_id].replace_vertex(self.vertices[v],
+                                                           self.vertices[new_vid])
                 for cell_id in self.vertices[v].ownCells:
                     self.cells[cell_id].replace_vertex(self.vertices[v],
                                                        self.vertices[new_vid])
                 del self.vertices[v]
-        print(f"Triangles: {triangles}")
-
 
     def is_vertex_in_hole(self, v: fs.vertex.Vertex) -> dict:
         connected_edges_vertices = [self.edges[e].get_vertices_id() for e in v.ownEdges]
@@ -391,42 +357,42 @@ class Skeleton:
         intersection = set.intersection(*cells_belonging)
         return list(intersection)
 
-    def triangles_in_the_middle(self) -> None:
-        # triangles in the middle
-        inner_edge_triangles = []
-        num_elements = len(self.all_big_edges)
-        first_part = [(e[0], e[-1]) for e in self.all_big_edges]
-        last_part = [(e[-1], e[0]) for e in self.all_big_edges]
-        first_last = first_part + last_part
-        inner_edge_triangles = [k for k, v in Counter(first_last).items() if v > 1]
-
-        visited = []
-        for index in range(len(inner_edge_triangles) - 1):
-            if (inner_edge_triangles[index] in visited or
-                inner_edge_triangles[index][::-1] in visited):
-                continue
-
-            edge_0_index = first_last.index(inner_edge_triangles[index]) % num_elements
-            edge_1_index = first_last.index(inner_edge_triangles[(index + 1)]) % num_elements
-            edge_0 = self.all_big_edges[edge_0_index]
-            if len(edge_0) > 3:
-                continue
-            edge_1 = self.all_big_edges[edge_1_index]
-            vertex_id_to_delete = list(set(edge_0).symmetric_difference(set(edge_1)))[0]
-            # vertex_id_to_delete = np.intersect1d(edge_0, edge_1)[0]
-
-            its_cells = self.vertices[vertex_id_to_delete].ownCells
-            for cell_id in its_cells:
-                self.cells[cell_id].replace_vertex(self.vertices[vertex_id_to_delete],
-                                                   self.vertices[edge_0[0]])
-
-            its_edges = list(self.vertices[vertex_id_to_delete].ownEdges)
-            for edge_id in its_edges:
-                del self.edges[edge_id]
-
-            del self.vertices[vertex_id_to_delete]
-            visited.append(inner_edge_triangles[index])
-        print(f"Deleted {len(visited)} triangles in the middle of the system")
+    # def triangles_in_the_middle(self) -> None:
+    #     # triangles in the middle
+    #     inner_edge_triangles = []
+    #     num_elements = len(self.all_big_edges)
+    #     first_part = [(e[0], e[-1]) for e in self.all_big_edges]
+    #     last_part = [(e[-1], e[0]) for e in self.all_big_edges]
+    #     first_last = first_part + last_part
+    #     inner_edge_triangles = [k for k, v in Counter(first_last).items() if v > 1]
+    #
+    #     visited = []
+    #     for index in range(len(inner_edge_triangles) - 1):
+    #         if (inner_edge_triangles[index] in visited or
+    #             inner_edge_triangles[index][::-1] in visited):
+    #             continue
+    #
+    #         edge_0_index = first_last.index(inner_edge_triangles[index]) % num_elements
+    #         edge_1_index = first_last.index(inner_edge_triangles[(index + 1)]) % num_elements
+    #         edge_0 = self.all_big_edges[edge_0_index]
+    #         if len(edge_0) > 3:
+    #             continue
+    #         edge_1 = self.all_big_edges[edge_1_index]
+    #         vertex_id_to_delete = list(set(edge_0).symmetric_difference(set(edge_1)))[0]
+    #         # vertex_id_to_delete = np.intersect1d(edge_0, edge_1)[0]
+    #
+    #         its_cells = self.vertices[vertex_id_to_delete].ownCells
+    #         for cell_id in its_cells:
+    #             self.cells[cell_id].replace_vertex(self.vertices[vertex_id_to_delete],
+    #                                                self.vertices[edge_0[0]])
+    #
+    #         its_edges = list(self.vertices[vertex_id_to_delete].ownEdges)
+    #         for edge_id in its_edges:
+    #             del self.edges[edge_id]
+    #
+    #         del self.vertices[vertex_id_to_delete]
+    #         visited.append(inner_edge_triangles[index])
+    #     print(f"Deleted {len(visited)} triangles in the middle of the system")
 
     def remove_artifacts(self) -> None:
         # get artifacts from the contour and apply T3 transitions to them
@@ -468,9 +434,6 @@ class Skeleton:
         # remove the cell
         for cid in cells_to_remove:
             del self.cells[cid]
-
-        print(f"Deleted {len(cells_to_remove)} cells with only one vertex")
-
 
     def add_vertices_to_current(self, artifact_vertices: list, current_artifact: list) -> list:
         """
