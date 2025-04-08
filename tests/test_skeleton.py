@@ -47,3 +47,10 @@ def test_triangle_holes(triangle_holes):
 
     assert len(triangle_holes.vertices[2243].ownEdges) == 3
     assert len(triangle_holes.vertices[2243].ownCells) == 3
+
+
+def test_wrong_format():
+    filename = os.path.join("tests", "data", "skeleton", "wrong_format.format")
+    with pytest.raises(ValueError):
+        fs.skeleton.Skeleton(filename,
+                             minimum_distance=0)
