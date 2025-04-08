@@ -42,7 +42,7 @@ def test_bench_creating_forsys(benchmark):
 
 def test_bench_building_force_matrix_dlitefit(benchmark):
     frames = {}
-    path = os.path.join(DMP_FOLDER_TO_TEST, 
+    path = os.path.join(DMP_FOLDER_TO_TEST,
                         f"step_{24}.dmp")
     surfaceEvolver = fs.surface_evolver.SurfaceEvolver(path)
     params = [0,
@@ -131,6 +131,14 @@ def test_bench_read_skeleton(benchmark):
                         "experimental", 
                         f"exp_1.tif")
     benchmark(fs.skeleton.Skeleton, path, mirror_y=False)
+
+
+def test_bench_read_npy(benchmark):
+    path = os.path.join("tests",
+                        "data",
+                        "skeleton", 
+                        "triangle_holes.npy")
+    benchmark(fs.skeleton.Skeleton, path, mirror_y=False, minimum_distance=10)
 
 
 def test_bench_create_lattice(benchmark):
