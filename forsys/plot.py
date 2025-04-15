@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import os
 import numpy as np
+import forsys as fs
+
 import forsys.virtual_edges as ve
 import forsys.frames as fframes
 import forsys.edge as fedges
@@ -10,6 +12,7 @@ import forsys.myosin as fmyo
 from typing import Union, Tuple
 from copy import deepcopy
 import PIL
+import tifffile as tif
 
 
 def plot_with_stress_custom(frame: fframes.Frame, step: str, folder: str, stress_dictionary: dict, 
@@ -215,6 +218,8 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
             cb_pressure.set_label("Pressure [a.u.]")
             cb_pressure.set_ticks([])
 
+    if kwargs.get("aspect_ratio", None):
+        plt.gca().set_aspect(kwargs.get("aspect_ratio"))
     plt.tight_layout()
     return _, ax
 
@@ -734,7 +739,7 @@ def plot_stress_tensor(frame: fframes.Frame, folder: str, fname: str,
             rescaled_eigenvalues = eigensystem[0] / eigen_norm
         component1 = scale_factor * rescaled_eigenvalues[0] * eigensystem[1][:, 0]
         component2 = scale_factor * rescaled_eigenvalues[1] * eigensystem[1][:, 1]
-        
+
         axis_1_x = [positions[0] - component1[0], positions[0], positions[0] + component1[0]]
         axis_1_y = [positions[1] - component1[1], positions[1], positions[1] + component1[1]]
         axis_2_x = [positions[0] - component2[0], positions[0], positions[0] + component2[0]]
@@ -793,7 +798,6 @@ def plot_skeleton(frame: fframes.Frame, save_folder: str, **kwargs) -> None:
     size_x = int(max_x - min_x)
     size_y = int(max_y - min_y)
 
-
     image_array = np.zeros((size_y + 10, size_x + 10))
 
     for vx, vy in list(all_vertices):
@@ -805,8 +809,67 @@ def plot_skeleton(frame: fframes.Frame, save_folder: str, **kwargs) -> None:
     im.save(save_folder)
 
 
+def plot_inference_as_tiff(forsys: fs.ForSys,
+                           image_sizes: list,
+                           save_folder: str,
+                           **kwargs) -> None:
+    """Generate a plot of a tissue using the inferred tensions and pressures
+        and save it as a tiff. If multiple more than one frame exists, the
+        image is saved as a stack
+
+    :param forsys: ForSys object with all the frames already solved
+    :type frame: fs.ForSys
+    :param pressure: If True pressures are plotted in the inner space of the cells.
+    :type pressure: bool
+    """
+    stack = []
+    original_images = kwargs.get("original_images", [])
+    for time, frame in forsys.frames.items():
+        original_size = image_sizes[time]
+        image_array = np.zeros((original_size[1], original_size[0]))
+
+        if kwargs.get("use_all", True):
+            edges_to_use = list(frame.big_edges.values())
+        else:
+            edges_to_use = frame.internal_big_edges
+
+        # from 0 to 255
+        max_tension = np.max([big_edge.tension for big_edge in edges_to_use])
+
+        for _, big_edge in enumerate(edges_to_use):
+            vertices, _ = fmyo.get_interpolation(big_edge,
+                                                 layers=kwargs.get("layers",
+                                                                   0))
+            for vx, vy in vertices:
+                if big_edge.external:
+                    image_array[int(vy), int(vx)] = kwargs.get("external_color", 255)
+                else:
+                    image_array[int(vy), int(vx)] = (big_edge.tension / max_tension) * 255
+        if original_images:
+            original_image = original_images[time]
+            image_array_original = np.array(original_image)
+            complete_frame = np.array([image_array_original, image_array])
+        else:
+            complete_frame = np.array([image_array])
+        stack.append(complete_frame)
+
+    stack = np.array(stack).astype(np.uint8)
+    print(f"Complete size: {stack.shape}")
+    tif.imwrite(save_folder,
+                stack,
+                imagej=True,
+                # TODO: add resolution from original image
+                # resolution=(1, 1),
+                metadata={
+                        "mode": "composite",
+                        "axes": "TCYX",
+                        "Channel": {"Name": ["Microscopy", "Stress"]}
+                },
+                )
+
+
 def plot_big_edges(frame, **kwargs) -> Tuple:
-    fig, ax = plt.subplots(1,1)
+    fig, ax = plt.subplots(1, 1)
 
     for v in frame.vertices.values():
         if len(v.ownEdges) > 2:
@@ -814,13 +877,13 @@ def plot_big_edges(frame, **kwargs) -> Tuple:
             plt.annotate(str(v.id), [v.x, v.y], fontsize=2)
 
     for e in frame.edges.values():
-        plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="orange", linewidth=0.5)
+        plt.plot([e.v1.x, e.v2.x],
+                 [e.v1.y, e.v2.y], color="orange", linewidth=0.5)
 
     for be in frame.big_edges.values():
         x_cm = np.mean(be.xs)
         y_cm = np.mean(be.ys)
         plt.annotate(str(be.big_edge_id), [x_cm , y_cm], fontweight="bold", fontsize=5, color="blue", alpha=0.4)
-
 
     for c in frame.cells.values():
         cm = c.get_cm()

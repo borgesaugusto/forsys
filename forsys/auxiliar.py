@@ -46,14 +46,13 @@ def load_initial_guess(guess_file, min_time, max_time):
         with open(guess_file) as jfile:
             initial_guess = json.load(jfile)
             initial_guess = {int(k): {int(kin): vin for kin, vin in v.items()} for k, v in initial_guess.items()}
-    except FileNotFoundError:
+    except (FileNotFoundError, TypeError):
         initial_guess = {}
         print("No guess file, using zero guess")
-    
     number_of_frames = max_time - min_time
 
     initial_guess = {k: {} for k in range(number_of_frames)
-                    if k not in initial_guess.keys()} | initial_guess
+                     if k not in initial_guess.keys()} | initial_guess
     return initial_guess
 
 
