@@ -31,6 +31,14 @@ The software is open-source.
    In vivo static inference <examples/static_in_vivo>
    In vivo time lapse inference <examples/dynamic_in_vivo>
 
+
+.. toctree::
+   :maxdepth: 2
+   :caption: User Guide
+
+   command_line
+   gui
+
 .. toctree::
    :maxdepth: 3
    :caption: About
