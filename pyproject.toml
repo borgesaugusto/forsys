@@ -4,19 +4,24 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "forsys"
-version = "1.0.1"
+version = "1.1.0"
 description = "A tissue stress and cell pressure inference package with dynamical information"
 readme = "README.md"
 authors = [{ name = "Augusto Borges", email = "borges.augustoar@gmail.com" }]
 # license = { file = "LICENSE.md" }
 classifiers = [
-    "Intended Audience :: Science/Research"
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "Programming Language :: Python",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Physics"
 ]
 keywords = ["systems biology", "stress", "pressure", "inference"]
 dependencies = [
     "matplotlib >= 3.6.0",
     "numpy >= 1.23.0, <2.0",
     "opencv_python_headless >= 4.5.0.0",
+    "cellpose >= 3.1.1.1",
     "pandas >= 1.4.2",
     "Pillow >= 9.3.0",
     "circle-fit >= 0.2.1",

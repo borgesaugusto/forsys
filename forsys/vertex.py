@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 
-@dataclass 
+
+@dataclass
 class Vertex:
     """
     Class representation of the vertices objects.
@@ -18,14 +19,14 @@ class Vertex:
     :param own_big_edges: Unique identifier of the vertex
     :type own_big_edges: int
     """
-    
+
     id: int
     x: float
     y: float
     ownEdges: list = field(default_factory=list)
     ownCells: list = field(default_factory=list)
     own_big_edges: list = field(default_factory=list)
-    
+
     def get_coords(self) -> list:
         """
         Return an array with the [x, y] coordinates of the vertex
@@ -50,7 +51,7 @@ class Vertex:
         else:
             self.ownCells.append(cid)
             return True
-        
+
     def remove_cell(self, cid: int) -> list:
         """
         Remove a given cell from the list of cells that include this vertex
@@ -81,7 +82,7 @@ class Vertex:
         else:
             self.ownEdges.append(eid)
             return True
-    
+
     def remove_edge(self, eid: int) -> list:
         """
         Remove a given edge from the list of edges that include this vertex
@@ -110,7 +111,7 @@ class Vertex:
         else:
             self.own_big_edges.append(beid)
             return True
-    
+
     def remove_big_edge(self, beid: int) -> list:
         """
         Remove a given big edge from the list of big edges that include this vertex

@@ -29,13 +29,12 @@ class SmallEdge:
     def __post_init__(self):
         """ Constructor method
         """
-        self.verticesArray = [self.v1, self.v2]
-        for v in self.verticesArray:
+        for v in self.get_vertices_array():
             v.add_edge(self.id)
         assert self.v1.id != self.v2.id, f"edge {self.id} with the same vertex twice"
 
     def __del__(self):
-        for v in self.verticesArray:
+        for v in self.get_vertices_array():
             if self.id in v.ownEdges:
                 v.remove_edge(self.id)
 
@@ -79,13 +78,12 @@ class SmallEdge:
         :type vnew: object
         """
         who = 0 if self.v1.id == vold.id else 1
-        self.verticesArray[who].ownEdges.remove(self.id)
+        self.get_vertices_array()[who].remove_edge(self.id)
         if who == 0:
             self.v1 = vnew
         else:
             self.v2 = vnew
-        self.verticesArray[who] = vnew
-        self.verticesArray[who].add_edge(self.id)
+        self.get_vertices_array()[who].add_edge(self.id)
 
     def get_vector(self) -> list:
         """

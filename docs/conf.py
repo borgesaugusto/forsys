@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath('..'))
 project = 'ForSys'
 author = 'Augusto Borges'
 
-version = '0.4.0'
+version = '1.1.0'
 
 # -- General configuration
 

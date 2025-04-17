@@ -52,7 +52,7 @@ class Frame():
         self.external_edges_id = [self.big_edges_list.index(e) 
                                     for e in fs.virtual_edges.get_border_edge(self.big_edges_list, 
                                                                 self.vertices)]
-        
+
         self.internal_big_edges_vertices = [edge for eid, edge in enumerate(self.big_edges_list) 
                                         if eid not in self.external_edges_id and 
                                         (len(self.vertices[edge[0]].ownCells) > 2 or  
@@ -61,7 +61,7 @@ class Frame():
                                     if eid not in self.external_edges_id and 
                                     (len(self.vertices[edge[0]].ownCells) > 2 or  
                                     len(self.vertices[edge[-1]].ownCells) > 2)]
-        
+
         for _, cell in self.cells.items():
             cell.calculate_neighbors()
 
