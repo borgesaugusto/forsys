@@ -24,6 +24,28 @@ def furrow():
     forsys = fs.ForSys(frames, cm=False)
     yield forsys
 
+
+@pytest.fixture(params=[True, False])
+def noisy_last_furrow(request):
+    t = 7
+    surfaceEvolver = fs.surface_evolver.SurfaceEvolver(os.path.join(
+        "tests",
+        "data",
+        "furrow_gauss_velocity",
+        f"stage{t}.dmp"))
+    surfaceEvolver.jitter_vertices(scale=0.1,
+                                   skip_big_edge_vertices=request.param,
+                                   random_seed=42)
+    frame = fs.frames.Frame(t,
+                            surfaceEvolver.vertices,
+                            surfaceEvolver.edges,
+                            surfaceEvolver.cells,
+                            time=t,
+                            gt=True)
+    forsys = fs.ForSys({t: frame}, cm=False)
+    yield forsys
+
+
 def test_fit_initial_furrow(furrow):
     furrow.build_force_matrix(when=0)
     furrow.solve_stress(when=0)
@@ -46,7 +68,17 @@ def test_fit_last_furrow(furrow):
     r_value = r2_score(tensions_df['gt'].values / tensions_df['gt'].mean(), 
                                 tensions_df['stress'].values)
     print("Final furrow", r_value)
-    assert 1 > r_value > 0.93
+    assert 1 > r_value > 0.99
+
+
+def test_fit_noisy_last_furrow(noisy_last_furrow):
+    noisy_last_furrow.build_force_matrix(when=7)
+    noisy_last_furrow.solve_stress(when=7)
+    tensions_df = noisy_last_furrow.frames[7].get_tensions()
+    r_value = r2_score(tensions_df['gt'].values / tensions_df['gt'].mean(),
+                       tensions_df['stress'].values)
+    print("noisy_furrow", r_value)
+    assert 0.85 > r_value > 0.75
 
 
 def test_fit_last_furrow_taubin(furrow):
