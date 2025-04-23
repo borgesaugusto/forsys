@@ -3,7 +3,13 @@ GUI Reference
 
 Installation in Fiji
 --------------------
-...
+To install the Fiji plugin, inside Fiji go to Help > Update > Manage update sites.
+Then select the option "Add update site" and add the following URL: 
+
+`https://sites.imagej.net/ForSys`
+
+Then select the ForSys update site and click on "Apply changes". For more information, you can
+read more about `Plugins <https://imagej.net/plugins/>`_ in the Fiji documentation.
 
 Usage
 -----

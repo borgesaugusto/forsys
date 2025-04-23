@@ -4,11 +4,17 @@ Command line interface
 Generalities
 ------------
 ForSys can be run using its Command Line Interface, by invoking:
-  .. code-block:: bash
-     
-     python -m forsys
 
-Using the -h option allows for help to be displayed. 
+.. code-block:: bash
+     
+ python -m forsys
+
+Using the -h option allows for help to be displayed. This is only possible from version 1.1.0 onwards.
+To check which version you are running, you can use:
+
+.. code-block:: bash
+
+  python -m forsys -v
 
 Example
 -------
@@ -17,9 +23,9 @@ Static inference
 The following command would execute ForSys in "/path/to/input_folder" using the "nnls" method,
 using the static modality, in only the first microscopy. Saving the results in "/path/to/save_folder"
 
-   .. code-block:: bash
+.. code-block:: bash
 
-    python -m forsys -f /path/to/input_folder -m nnls -mt 0 -sf /path/to/save_folder
+  python -m forsys -f /path/to/input_folder -m nnls -mt 0 -sf /path/to/save_folder
 
 Dynamic inference
 ^^^^^^^^^^^^^^^^^
@@ -27,9 +33,9 @@ The following command would execute ForSys in "/path/to/input_folder" using the 
 in the dynamic modality, for the first 5 timepoints. The connections files is located in "/path/to/connections.json"
 The results are saved in "/path/to/save_folder"
 
-   .. code-block:: bash
+.. code-block:: bash
 
-    python -m forsys -f /path/to/input_folder -m nnls -mt 5 -sf /path/to/save_folder --dynamic -cc /path/to/connections.json
+  python -m forsys -f /path/to/input_folder -m nnls -mt 5 -sf /path/to/save_folder --dynamic -cc /path/to/connections.json
 
 
 Current flags
