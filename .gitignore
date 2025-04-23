@@ -1,6 +1,5 @@
 res/
 *.pyc
-*.png
 *.log
 .coverage
 bk_*

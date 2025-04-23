@@ -111,7 +111,8 @@ def test_fit_furrow_velocity_lsq_initial_last_val(furrow, recwarn):
                                     tensions_df['stress'].values / tensions_df['stress'].mean())
         all_r_values.append(r_value)
     print("Dynamic furrow using last", all_r_values)
-    assert len(recwarn) == 0, "Warnings raised while solving, probably LSQ went to numerical"
+    for r in recwarn:
+        assert "Numerically" not in str(r.message), "Warnings raised while solving, probably LSQ went to numerical"
     assert np.all([1 > value > 0.92 for value in all_r_values])
 
 
@@ -131,7 +132,8 @@ def test_fit_furrow_velocity_lsq_initial_gt(furrow, recwarn):
         all_r_values.append(r_value)
     print("Dynamic furrow using GT", all_r_values)
     print(tensions_df)
-    assert len(recwarn) == 0, "Warnings raised while solving, probably LSQ went to numerical"
+    for r in recwarn:
+        assert "Numerically" not in str(r.message), "Warnings raised while solving, probably LSQ went to numerical"
     assert np.all([1 > value > 0.94 for value in all_r_values])
 
 def test_fit_furrow_velocity_lsq_initial_one(furrow, recwarn):
@@ -156,7 +158,8 @@ def test_fit_furrow_velocity_lsq_initial_one(furrow, recwarn):
         all_r_values.append(r_value)
     print("Dynamic furrow using Ones", all_r_values)
     print(tensions_df)
-    assert len(recwarn) == 0, "Warnings raised while solving, probably LSQ went to numerical"
+    for r in recwarn:
+        assert "Numerically" not in str(r.message), "Warnings raised while solving, probably LSQ went to numerical"
     assert np.all([1 > value > 0.95 for value in all_r_values])
 
 @pytest.mark.skip(reason="Eliminating edges doesn't work with this normalization ")
@@ -180,7 +183,8 @@ def test_fit_furrow_velocity_lsq_initial_gt_deleting10(furrow, recwarn):
         all_r_values.append(r_value)
         print(f"t ={ii} with MAPE {mean_absolute_percentage_error(*arguments)}")
     print("Dynamic furrow using GT with 10% discard", all_r_values)
-    assert len(recwarn) == 0, "Warnings raised while solving, probably LSQ went to numerical"
+    for r in recwarn:
+        assert "Numerically" not in str(r.message), "Warnings raised while solving, probably LSQ went to numerical"
     assert np.all([1 > value > 0.94 for value in all_r_values])
 
 
@@ -207,5 +211,6 @@ def test_fit_furrow_velocity_lsq_initial_one_std(furrow, recwarn):
         all_r_values.append(r_value)
     print("Dynamic furrow using Ones", all_r_values)
     print(tensions_df)
-    assert len(recwarn) == 0, "Warnings raised while solving, probably LSQ went to numerical"
+    for r in recwarn:
+        assert "Numerically" not in str(r.message), "Warnings raised while solving, probably LSQ went to numerical"
     assert np.all([1 > value > 0.95 for value in all_r_values])

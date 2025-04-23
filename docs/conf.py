@@ -1,7 +1,7 @@
 # Configuration file for the Sphinx documentation builder.
-import sys
-import os
-sys.path.insert(0, os.path.abspath('..'))
+# import sys
+# import os
+# sys.path.insert(0, os.path.abspath('..'))
 
 project = 'ForSys'
 author = 'Augusto Borges'
@@ -43,5 +43,5 @@ autosummary_imported_members = False
 autoclass_content = "both"
 
 nbsphinx_execute = 'never'
-
+pygments_style = 'sphinx'
 autodoc_mock_imports = ['numpy', 'scipy', "dataclasses", "warnings"]
