@@ -50,8 +50,9 @@ class Skeleton:
             self.format = "npy"
             np_data = np.load(self.fname,
                               allow_pickle=True).item()
+            masks = np_data["masks"]
             if self.expand > 0:
-                masks = skimage.segmentation.expand_labels(np_data["masks"],
+                masks = skimage.segmentation.expand_labels(masks,
                                                            distance=self.expand)
 
             self.contours = []
@@ -66,15 +67,9 @@ class Skeleton:
                 which = np.argmax([c.shape[0] for c in current_contour])
                 to_add = current_contour[which].astype(int).squeeze()
                 self.contours.append(to_add)
-            if self.expand == 0:
-                assert np.all([np.array_equal(self.contours[ii], cp_contours[ii]) for ii in range(len(self.contours))])
         else:
             raise ValueError("File format not supported")
 
-        # check size of all areas and filter small ones
-        all_cell_areas = [self.calculate_area(polygon) for polygon in self.contours]
-        ave_cell_area = np.mean(np.sort(all_cell_areas)[:-1])
-        self.contours = [polygon for polygon in self.contours if self.calculate_area(polygon) < 5 * ave_cell_area]
         # initialize the counters
         self.vertex_id = 0
         self.edge_id = 0
@@ -102,6 +97,14 @@ class Skeleton:
 
         rescale = kwargs.get("rescale", [1, 1])
         offset = kwargs.get("offset", [0, 0])
+
+        if kwargs.get("max_cell_size", 0) != 0:
+            all_cell_areas = [self.calculate_area(polygon)
+                             for polygon in self.contours]
+            ave_cell_area = np.mean(np.sort(all_cell_areas)[:-1])
+            self.contours = [polygon for polygon in self.contours
+                             if self.calculate_area(polygon) <
+                             kwargs.get("max_cell_size") * ave_cell_area]
 
         for _, polygon in enumerate(self.contours):
             cell_vertices_list = []
