@@ -76,8 +76,8 @@ class Vertex:
         """
 
         if eid in self.ownEdges:
-            print(eid, self.ownEdges)
-            print("edge already in vertex")
+            # print(eid, self.ownEdges)
+            # print("edge already in vertex")
             return False
         else:
             self.ownEdges.append(eid)
