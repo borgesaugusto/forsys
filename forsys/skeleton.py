@@ -10,6 +10,8 @@ import numpy as np
 import cv2
 from PIL import Image
 
+import matplotlib.pyplot as plt
+
 import forsys.vertex as vertex
 import forsys.edge as edge
 import forsys.cell as cell
@@ -51,19 +53,39 @@ class Skeleton:
             np_data = np.load(self.fname,
                               allow_pickle=True).item()
             masks = np_data["masks"]
+            print(masks.shape)
+            print(f"There are {len(masks)}")
+            border_id = -1
             if self.expand > 0:
+                # add an additional mask of everything
+                border_contour = skimage.measure.label(masks != 0)
+                border_expand = skimage.segmentation.expand_labels(border_contour,
+                                                                  distance=2)
+                binary_mask_border = border_expand == 1
+                polygon_contour, _ = cv2.findContours(binary_mask_border.astype(np.uint8),
+                                                 cv2.RETR_TREE,
+                                                 cv2.CHAIN_APPROX_NONE)
+                which = np.argmax([c.shape[0] for c in polygon_contour])
+                border_polygon = polygon_contour[which].astype(int).squeeze()
+
+                border_id = np.max(masks) + 1
+                for element in border_polygon:
+                    masks[element[1], element[0]] = border_id
+
                 masks = skimage.segmentation.expand_labels(masks,
                                                            distance=self.expand)
 
             self.contours = []
             for cell_n in np.unique(masks)[1:]:
+                if cell_n == border_id:
+                    continue
                 binary_mask = masks == cell_n
                 if binary_mask.sum() > 0:
                     current_contour, _ = cv2.findContours(binary_mask.astype(np.uint8),
                                                      cv2.RETR_TREE,
                                                      cv2.CHAIN_APPROX_NONE)
 
-                assert len(current_contour) == 1, f"More than one contour found for cell {cell_n}"
+                # assert len(current_contour) == 1, f"More than one contour found for cell {cell_n}"
                 which = np.argmax([c.shape[0] for c in current_contour])
                 to_add = current_contour[which].astype(int).squeeze()
                 self.contours.append(to_add)
@@ -74,6 +96,11 @@ class Skeleton:
         self.vertex_id = 0
         self.edge_id = 0
         self.cell_id = 0
+
+        # plot contours
+        for cid, contour in enumerate(self.contours):
+            plt.plot(contour[:, 0], contour[:, 1], label=f"contour {cid}")
+            plt.savefig("../res_test/contours.png", dpi=500)
 
         if self.mirror_y:
             warn("Legacy function, soon to be deprecated", DeprecationWarning, 2)
