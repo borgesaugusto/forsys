@@ -53,8 +53,6 @@ class Skeleton:
             np_data = np.load(self.fname,
                               allow_pickle=True).item()
             masks = np_data["masks"]
-            print(masks.shape)
-            print(f"There are {len(masks)}")
             border_id = -1
             if self.expand > 0:
                 # add an additional mask of everything
@@ -96,11 +94,6 @@ class Skeleton:
         self.vertex_id = 0
         self.edge_id = 0
         self.cell_id = 0
-
-        # plot contours
-        for cid, contour in enumerate(self.contours):
-            plt.plot(contour[:, 0], contour[:, 1], label=f"contour {cid}")
-            plt.savefig("../res_test/contours.png", dpi=500)
 
         if self.mirror_y:
             warn("Legacy function, soon to be deprecated", DeprecationWarning, 2)
