@@ -125,7 +125,7 @@ def generate_mesh(vertices, edges, cells, ne=4, **kwargs):
 def eid_from_vertex(earr, vbel):
     # ret = []
     for j in range(0, len(earr)):
-        if len(list(set(earr[j]) & set(vbel))) >= 2:
+        if len(list(set(earr[j]) & set(vbel))) > 2:
             return j
     raise BigEdgesBadlyCreated()
 
