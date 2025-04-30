@@ -10,8 +10,6 @@ import numpy as np
 import cv2
 from PIL import Image
 
-import matplotlib.pyplot as plt
-
 import forsys.vertex as vertex
 import forsys.edge as edge
 import forsys.cell as cell
