@@ -298,7 +298,6 @@ class Skeleton:
                                                       self.cells)
 
         self.triangular_holes()
-        # self.triangles_in_the_middle()
         self.remove_artifacts()
 
         return self.vertices, self.edges, self.cells
