@@ -4,20 +4,25 @@ from collections import Counter
 from typing import Tuple
 from warnings import warn
 import scipy.spatial as spspatial
+import skimage as skimage
 import collections
 import numpy as np
+import cv2
+from PIL import Image
 
 import forsys.vertex as vertex
 import forsys.edge as edge
 import forsys.cell as cell
 import forsys.wkt as fwkt
 import forsys.virtual_edges as fvedges
+
 import forsys as fs
 
 @dataclass
 class Skeleton:
     """
-    Reads and parses TIFF skekeletons using OpenCV implementation to detect polygons
+    Reads and parses TIFF skeletons or CellPose npy files
+    using OpenCV implementation to detect polygons
 
     :param fname: Path to segmented image
     :type fname: str
@@ -27,41 +32,62 @@ class Skeleton:
     fname: str
     mirror_y: bool = False
     minimum_distance: float = 0
+    expand: int = 0
 
     def __post_init__(self):
+        # TODO: Unify NPY and TIF, as they use similar OpenCV methods
         if self.fname.endswith(".tif") or self.fname.endswith(".tiff"):
-            try:
-                from PIL import Image
-                import cv2
-            except ImportError:
-                raise ImportError("OpenCV and Pillow are required to read TIFF files")
-
             self.format = "tif"
             with Image.open(self.fname).convert("L") as curr_image_file:
                 self.img_arr = np.array(curr_image_file)[1:-1, 1:-1]
 
-            # self.contours, _ = cv2.findContours(self.img_arr, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-            self.contours, _ = cv2.findContours(self.img_arr, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+            self.contours, _ = cv2.findContours(self.img_arr,
+                                                cv2.RETR_TREE,
+                                                # cv2.CHAIN_APPROX_SIMPLE,
+                                                cv2.CHAIN_APPROX_NONE)
             self.contours = [np.vstack(p).squeeze() for p in self.contours][1:]
         elif self.fname.endswith(".npy"):
             self.format = "npy"
-            try:
-                from cellpose import utils
-            except ImportError:
-                raise ImportError("OpenCV and Pillow are required to read TIFF files")
             np_data = np.load(self.fname,
                               allow_pickle=True).item()
-            self.contours = utils.outlines_list(np_data['masks'])
-            self.contours = [np.vstack(p).squeeze() for p in self.contours][0:]
+            masks = np_data["masks"]
+            border_id = -1
+            if self.expand > 0:
+                # add an additional mask of everything
+                border_contour = skimage.measure.label(masks != 0)
+                border_expand = skimage.segmentation.expand_labels(border_contour,
+                                                                  distance=2)
+                binary_mask_border = border_expand == 1
+                polygon_contour, _ = cv2.findContours(binary_mask_border.astype(np.uint8),
+                                                 cv2.RETR_TREE,
+                                                 cv2.CHAIN_APPROX_NONE)
+                which = np.argmax([c.shape[0] for c in polygon_contour])
+                border_polygon = polygon_contour[which].astype(int).squeeze()
+
+                border_id = np.max(masks) + 1
+                for element in border_polygon:
+                    masks[element[1], element[0]] = border_id
+
+                masks = skimage.segmentation.expand_labels(masks,
+                                                           distance=self.expand)
+
+            self.contours = []
+            for cell_n in np.unique(masks)[1:]:
+                if cell_n == border_id:
+                    continue
+                binary_mask = masks == cell_n
+                if binary_mask.sum() > 0:
+                    current_contour, _ = cv2.findContours(binary_mask.astype(np.uint8),
+                                                     cv2.RETR_TREE,
+                                                     cv2.CHAIN_APPROX_NONE)
+
+                # assert len(current_contour) == 1, f"More than one contour found for cell {cell_n}"
+                which = np.argmax([c.shape[0] for c in current_contour])
+                to_add = current_contour[which].astype(int).squeeze()
+                self.contours.append(to_add)
         else:
             raise ValueError("File format not supported")
 
-        # check size of all areas and filter small ones
-        all_cell_areas = [self.calculate_area(polygon) for polygon in self.contours]
-        # if a cell has more than 5 times the average cell area (withouth the maximum)
-        # remove it
-        ave_cell_area = np.mean(np.sort(all_cell_areas)[:-1])
-        self.contours = [polygon for polygon in self.contours if self.calculate_area(polygon) < 5 * ave_cell_area]
         # initialize the counters
         self.vertex_id = 0
         self.edge_id = 0
@@ -89,6 +115,14 @@ class Skeleton:
 
         rescale = kwargs.get("rescale", [1, 1])
         offset = kwargs.get("offset", [0, 0])
+
+        if kwargs.get("max_cell_size", 0) != 0:
+            all_cell_areas = [self.calculate_area(polygon)
+                             for polygon in self.contours]
+            ave_cell_area = np.mean(np.sort(all_cell_areas)[:-1])
+            self.contours = [polygon for polygon in self.contours
+                             if self.calculate_area(polygon) <
+                             kwargs.get("max_cell_size") * ave_cell_area]
 
         for _, polygon in enumerate(self.contours):
             cell_vertices_list = []
@@ -262,7 +296,6 @@ class Skeleton:
                                                       self.cells)
 
         self.triangular_holes()
-        # self.triangles_in_the_middle()
         self.remove_artifacts()
 
         return self.vertices, self.edges, self.cells

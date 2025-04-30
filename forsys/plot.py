@@ -189,7 +189,7 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
                                                                  vmax=max_stress))
             ax.plot((edge.v1.x, edge.v2.x),
                     (edge.v1.y, edge.v2.y),
-                    color=color_stress, linewidth=0.5)
+                    color=color_stress, linewidth=1)
 
     if pressure:
         pressures = frame.get_pressures()["pressure"]
