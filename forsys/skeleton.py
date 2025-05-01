@@ -18,6 +18,8 @@ import forsys.virtual_edges as fvedges
 
 import forsys as fs
 
+import matplotlib.pyplot as plt
+
 @dataclass
 class Skeleton:
     """
@@ -154,6 +156,7 @@ class Skeleton:
             self.cell_id += 1
 
         if kwargs.get("reduce_amount", False):
+            warn("Legacy function, soon to be deprecated", DeprecationWarning, 2)
             self.vertices, self.edges, self.cells = fwkt.reduce_amount(self.vertices,
                                                                     self.edges,
                                                                     self.cells)
@@ -169,128 +172,88 @@ class Skeleton:
             else:
                 e.external = False
 
-        self.main_vertices_map = {}
+        # self.plot_here("pre_map")
         if self.minimum_distance > 0:
+            new_vertices = {}
+            new_edges = {}
+            map_mains_to_nn = {}
+            to_connect = {}
+            new_vid = 0
+            # new_eid = 0
+            created_edges = []
             # TODO: It would be more efficient to use a dynamic KDtree
+            self.main_vertices_map = {}
             all_points = np.array([[v.x, v.y] for v in self.vertices.values()])
             self.kdtree = spspatial.KDTree(all_points)
-            vids_joined = []
-            edges_to_delete = []
+            already_mapped = set()
             for vid, vobj in self.vertices.items():
+                if vid in already_mapped:
+                    continue
                 # get all neighbors in the given distance, and join them to vid
                 # in one vertex
-                if vid not in vids_joined:
-                    # it is a main vertex
-                    neighbors = self.kdtree.query_ball_point([vobj.x, vobj.y],
-                                                             self.minimum_distance)
-                    self.main_vertices_map[vid] = None
-                    joined_to_current_vid = []
-                else:
-                    continue
-
+                neighbors = self.kdtree.query_ball_point([vobj.x, vobj.y],
+                                                         self.minimum_distance)
+                self.main_vertices_map[vid] = None
+                new_vertex_x = np.mean([self.vertices[nn].x for nn in neighbors])
+                new_vertex_y = np.mean([self.vertices[nn].y for nn in neighbors])
+                new_vertices[new_vid] = vertex.Vertex(int(new_vid),
+                                                      new_vertex_x,
+                                                      new_vertex_y)
+                map_mains_to_nn[new_vid] = neighbors
+                # Check cell inside the bubble
+                cells_in = np.unique(np.array([self.vertices[vid].ownCells for vid in neighbors]).reshape(-1))
+                # identify which are the edges connected to vertices outside
+                # the bubble
+                edges_to_connect = [nn for nn in neighbors
+                                    if nn in to_connect.keys()]
+                if vid in to_connect.keys() and vid not in edges_to_connect:
+                    edges_to_connect.append(vid)
+                for edges_id in edges_to_connect:
+                    if edges_id in already_mapped:
+                        continue
+                    new_edges, created_id = self.create_edge_mindis(to_connect[edges_id],
+                                                                    new_vid,
+                                                                    new_vertices,
+                                                                    new_edges,
+                                                                    created_edges)
                 for nn in neighbors:
-                    # if the nn is is a main vertex, ignore
-                    nn_vid = self.coords_to_key[tuple(all_points[nn])]
-                    if nn_vid in self.main_vertices_map.keys() or nn_vid in vids_joined:
+                    if nn in already_mapped:
                         continue
-                    else:
-                        for cid in self.vertices[nn_vid].ownCells:
-                            self.cells[cid].replace_vertex(self.vertices[nn_vid],
-                                                           self.vertices[vid])
-                        for eid in self.vertices[nn_vid].ownEdges:
-                            self.edges[eid].replace_vertex(self.vertices[nn_vid],
-                                                           self.vertices[vid])
-                        vids_joined.append(nn_vid)
-                        joined_to_current_vid.append(nn_vid)
+                    for e_id in self.vertices[nn].ownEdges:
+                        both_ids = self.edges[e_id].get_vertices_id()
+                        if (both_ids[0] not in neighbors or
+                           both_ids[1] not in neighbors) and \
+                           vid not in both_ids and \
+                           nn not in to_connect.keys():
+                            # Connected outside the bubble
+                            other = self.edges[e_id].get_other_vertex_id(nn)
+                            # if other in already_mapped:
+                            #     already_mapped.remove(other)
+                            to_connect[other] = new_vid
+                if new_vid == 400 or new_vid == 324 or new_vid == 323:
+                    print("New vertex: ", new_vid)
+                    print("Neighbors: ", neighbors)
+                    print("Cells in: ", cells_in)
+                    print("Edges to connect: ", edges_to_connect)
+                    print("After edges to connect", [nn for nn in neighbors
+                                                     if nn in to_connect.keys()]
+)
+                    print("Edges connect to...", [to_connect[edges_id] for edges_id in edges_to_connect])
+                    __import__('pdb').set_trace()
+                new_vid += 1
+                if 6660 in neighbors or vid == 6660:
+                    print("HERE ADDED")
+                    __import__('pdb').set_trace()
+                already_mapped.update(neighbors)
+                already_mapped.add(vid)
+            # __import__('pdb').set_trace()
 
-                self.main_vertices_map[vid] = joined_to_current_vid
+            self.vertices = new_vertices
+            self.edges = new_edges
+            print("To connect: ", to_connect)
+            print("Number of edges: ", len(self.edges))
+            self.plot_here("after_mapping")
 
-            for eid, eobj in self.edges.items():
-                if (eobj.v1.id in vids_joined and eobj.v2.id in vids_joined) or eobj.v1.id == eobj.v2.id:
-                    edges_to_delete.append(eid)
-
-                elif bool(eobj.v1.id in vids_joined) ^ bool(eobj.v2.id in vids_joined):
-                    if eobj.v1.id in vids_joined:
-                        to_replace = eobj.v1.id
-                    elif eobj.v2.id in vids_joined:
-                        to_replace = eobj.v2.id
-                    else:
-                        raise ValueError("Inexistant vertex in the list of joined vertices")
-
-                    for main_v, joined_to_it in self.main_vertices_map.items():
-                        if to_replace in joined_to_it:
-                            if (main_v in eobj.get_vertices_id()):
-                                edges_to_delete.append(eid)
-                            else:
-                                eobj.replace_vertex(self.vertices[to_replace],
-                                                    self.vertices[main_v])
-                            break
-            for ee in edges_to_delete:
-                try:
-                    del self.edges[ee]
-                except KeyError:
-                    print(f"**WARNING** edge {ee} not in list of edges")
-
-            # check for repeated edges and same ones
-            # TODO: This should be verified before, instead of repeating
-            edges_to_delete = []
-            # all_edges = [tuple(set(e.get_vertices_id())) for e in self.edges.values()]
-            all_edges = [tuple(sorted(e.get_vertices_id())) for e in self.edges.values()]
-            all_edges_counter = collections.Counter(all_edges)
-            for current_edge, count in all_edges_counter.items():
-                if count > 1:
-                    edges_to_delete += [e.id for e in self.edges.values() if tuple(sorted(e.get_vertices_id())) == current_edge]
-                    # keep one
-                    edges_to_delete.pop()
-
-            for ee in edges_to_delete:
-                try:
-                    del self.edges[ee]
-                except KeyError:
-                    print(f"**WARNING** edge {ee} not in list of edges")
-
-            for nn in set(vids_joined):
-                del self.vertices[nn]
-
-            # list of all eddges indexing as tuples
-            all_edges = {tuple(sorted(e.get_vertices_id())): e.id for e in self.edges.values()}
-            non_edges = {tuple(sorted(e.get_vertices_id())): 0 for e in self.edges.values()}
-            removed_vertices = []
-            # find unused edges
-            for cid, cobj in self.cells.items():
-                cvertices = [c.id for c in cobj.vertices]
-                for i_vid, vid in enumerate(cvertices):
-                    if vid in removed_vertices:
-                        continue
-                    i_obj = self.vertices[vid]
-                    next_vertex = cobj.get_next_vertex(i_obj)
-                    previous_vertex = cobj.get_previous_vertex(i_obj)
-                    if tuple(sorted([i_obj.id, next_vertex.id])) not in all_edges.keys():
-                        intersection_own = self.get_cell_intersection(i_obj)
-                        intersection_other = self.get_cell_intersection(next_vertex)
-
-                        if cid in intersection_own and cid not in intersection_other:
-                            # replace the vertex in the cell
-                            cobj.replace_vertex(next_vertex, i_obj)
-                            next_vertex.remove_cell(cid)
-                            i_obj.add_cell(cid)
-                            new_pair = tuple(sorted([i_obj.id, previous_vertex.id]))
-                            removed_vertices.append(next_vertex.id)
-                        elif cid not in intersection_own and cid in intersection_other:
-                            cobj.replace_vertex(i_obj, next_vertex)
-                            next_vertex.add_cell(cid)
-                            i_obj.remove_cell(cid)
-                            new_pair = tuple(sorted([next_vertex.id, previous_vertex.id]))
-                            removed_vertices.append(i_obj.id)
-                        else:
-                            raise ValueError("No vertex in the cell intersection")
-                        non_edges[new_pair] += 1
-                    else:
-                        non_edges[tuple(sorted([i_obj.id, next_vertex.id]))] += 1
-
-            for n_eid, n_eid_count in non_edges.items():
-                if n_eid_count == 0:
-                    del self.edges[all_edges[n_eid]]
 
         self.all_big_edges = fvedges.create_edges_new(self.vertices,
                                                       self.cells)
@@ -299,6 +262,48 @@ class Skeleton:
         self.remove_artifacts()
 
         return self.vertices, self.edges, self.cells
+
+    def plot_here(self, name):
+        for v in self.vertices.values():
+            plt.scatter(v.x, v.y, s=0.5, color="blue")
+            plt.annotate(str(v.id), [v.x, v.y], fontsize=2)
+
+        for e in self.edges.values():
+            plt.plot([e.v1.x, e.v2.x],
+                     [e.v1.y, e.v2.y],
+                     color="black",
+                     linewidth=0.5,
+                     alpha=0.6)
+
+        plt.tight_layout()
+        plt.savefig(f"../res_refactor/{name}.png", dpi=600)
+        plt.close()
+
+    @staticmethod
+    def create_edge_mindis(v1_id: int,
+                           v2_id: int,
+                           new_vertices: dict,
+                           new_edges: dict,
+                           created_edges: list) -> Tuple[dict, int]:
+        e_vert = [v1_id, v2_id]
+        try:
+            new_eid = max(new_edges.keys()) + 1
+        except ValueError:
+            new_eid = 0
+        if frozenset(e_vert) in created_edges:
+            # print(f"Edge {e_vert} already created,"
+            #       f"joining {v1_id} and {v2_id}")
+            return new_edges, -1
+        new_edges[new_eid] = edge.SmallEdge(new_eid,
+                                            new_vertices[e_vert[0]],
+                                            new_vertices[e_vert[1]])
+        created_edges.append(set(e_vert))
+        return new_edges, new_eid
+
+    def stragglers(self):
+        # if there are vertices with only one connection,
+        # join them to the nearset and disappear
+        ...
 
     def triangular_holes(self):
         vertices_of_triangles = {}

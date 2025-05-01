@@ -56,8 +56,11 @@ class SmallEdge:
         :return: ID of the vertex
         :rtype: int
         """
-        assert one in self.get_vertices_id(), "vertex not in asked edge"
-        return self.v1.id if one == self.v2.id else self.v2.id
+        # assert one in self.get_vertices_id(), "vertex not in asked edge"
+        if one not in self.get_vertices_id():
+            return False
+        else:
+            return self.v1.id if one == self.v2.id else self.v2.id
 
     def get_vertices_array(self) -> list:
         """
