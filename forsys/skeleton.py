@@ -161,16 +161,6 @@ class Skeleton:
                                                                     self.edges,
                                                                     self.cells)
 
-        for current_cell in self.cells.values():
-            # if any of the vertices in the cell has a vertex with only one cell, that is an external cell
-            if np.any([len(v.ownCells) == 1 for v in current_cell.vertices]):
-                current_cell.is_border = True
-        for e in self.edges.values():
-            # if at least one of the vertices have only one cell, this is an external edge
-            if len(e.v1.ownCells) == 1 or len(e.v2.ownCells) == 1:
-                e.external = True
-            else:
-                e.external = False
 
         # self.plot_here("pre_map")
         if self.minimum_distance > 0:
@@ -178,6 +168,7 @@ class Skeleton:
             new_edges = {}
             map_mains_to_nn = {}
             to_connect = {}
+            cells_vertices = {}
             new_vid = 0
             # new_eid = 0
             created_edges = []
@@ -202,16 +193,20 @@ class Skeleton:
                 map_mains_to_nn[new_vid] = neighbors
                 # Check cell inside the bubble
                 cells_in = np.unique(np.array([self.vertices[vid].ownCells for vid in neighbors]).reshape(-1))
+                for cell_id in cells_in:
+                    if cell_id not in cells_vertices.keys():
+                        cells_vertices[cell_id] = []
+                    cells_vertices[cell_id].append(new_vid)
                 # identify which are the edges connected to vertices outside
                 # the bubble
-                edges_to_connect = [nn for nn in neighbors
-                                    if nn in to_connect.keys()]
-                if vid in to_connect.keys() and vid not in edges_to_connect:
-                    edges_to_connect.append(vid)
-                for edges_id in edges_to_connect:
-                    if edges_id in already_mapped:
+                vertices_to_connect = [nn for nn in neighbors
+                                       if nn in to_connect.keys()]
+                if vid in to_connect.keys() and vid not in vertices_to_connect:
+                    vertices_to_connect.append(vid)
+                for vconnect_id in vertices_to_connect:
+                    if vconnect_id in already_mapped:
                         continue
-                    new_edges, created_id = self.create_edge_mindis(to_connect[edges_id],
+                    new_edges, created_id = self.create_edge_mindis(to_connect[vconnect_id],
                                                                     new_vid,
                                                                     new_vertices,
                                                                     new_edges,
@@ -227,26 +222,14 @@ class Skeleton:
                            nn not in to_connect.keys():
                             # Connected outside the bubble
                             other = self.edges[e_id].get_other_vertex_id(nn)
-                            # if other in already_mapped:
-                            #     already_mapped.remove(other)
                             to_connect[other] = new_vid
-                if new_vid == 400 or new_vid == 324 or new_vid == 323:
-                    print("New vertex: ", new_vid)
-                    print("Neighbors: ", neighbors)
-                    print("Cells in: ", cells_in)
-                    print("Edges to connect: ", edges_to_connect)
-                    print("After edges to connect", [nn for nn in neighbors
-                                                     if nn in to_connect.keys()]
-)
-                    print("Edges connect to...", [to_connect[edges_id] for edges_id in edges_to_connect])
-                    __import__('pdb').set_trace()
                 new_vid += 1
-                if 6660 in neighbors or vid == 6660:
-                    print("HERE ADDED")
-                    __import__('pdb').set_trace()
                 already_mapped.update(neighbors)
                 already_mapped.add(vid)
-            # __import__('pdb').set_trace()
+            self.cells = {}
+            for cell_id, vertices in cells_vertices.items():
+                self.cells[cell_id] = cell.Cell(cell_id,
+                                                [new_vertices[v] for v in vertices])
 
             self.vertices = new_vertices
             self.edges = new_edges
@@ -254,9 +237,19 @@ class Skeleton:
             print("Number of edges: ", len(self.edges))
             self.plot_here("after_mapping")
 
+        for current_cell in self.cells.values():
+            # if any of the vertices in the cell has a vertex with only one cell, that is an external cell
+            if np.any([len(v.ownCells) == 1 for v in current_cell.vertices]):
+                current_cell.is_border = True
+        for e in self.edges.values():
+            # if at least one of the vertices have only one cell, this is an external edge
+            if len(e.v1.ownCells) == 1 or len(e.v2.ownCells) == 1:
+                e.external = True
+            else:
+                e.external = False
 
-        self.all_big_edges = fvedges.create_edges_new(self.vertices,
-                                                      self.cells)
+        # self.all_big_edges = fvedges.create_edges_new(self.vertices,
+        #                                               self.cells)
 
         self.triangular_holes()
         self.remove_artifacts()
@@ -274,6 +267,14 @@ class Skeleton:
                      color="black",
                      linewidth=0.5,
                      alpha=0.6)
+
+        for c in self.cells.values():
+            cm = c.get_cm()
+            cxs = [v.x for v in c.vertices]
+            cys = [v.y for v in c.vertices]
+
+            plt.fill(cxs, cys, alpha=0.25)
+            plt.annotate(str(c.id), [cm[0], cm[1]], fontsize=5)
 
         plt.tight_layout()
         plt.savefig(f"../res_refactor/{name}.png", dpi=600)
