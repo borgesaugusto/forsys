@@ -189,7 +189,7 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
                                                                  vmax=max_stress))
             ax.plot((edge.v1.x, edge.v2.x),
                     (edge.v1.y, edge.v2.y),
-                    color=color_stress, linewidth=1)
+                    color=color_stress, linewidth=2)
 
     if pressure:
         pressures = frame.get_pressures()["pressure"]
@@ -237,11 +237,11 @@ def plot_difference(frame, folder: str, step: str, **kwargs) -> None:
     """
     plt.close()
     jet = plt.get_cmap('jet')
-    _, ax = plt.subplots(1,1)
+    _, ax = plt.subplots(1, 1)
 
     if not os.path.exists(folder):
         os.makedirs(folder)
-    
+
     all_myosin = [edge.gt for edge in frame.edges.values()]
     all_myosin_max = max(all_myosin)
 
@@ -251,7 +251,7 @@ def plot_difference(frame, folder: str, step: str, **kwargs) -> None:
             plt.plot(   (edge.v1.x, edge.v2.x),
                         (edge.v1.y, edge.v2.y),
                         color="black", linewidth=0.5, alpha=0.6)      
-            
+
         else:
             color = jet(difference_to_plot)
             plt.plot(   (edge.v1.x, edge.v2.x),
@@ -260,11 +260,11 @@ def plot_difference(frame, folder: str, step: str, **kwargs) -> None:
     plt.axis('off')
     if kwargs.get("mirror_y", False):
         plt.gca().invert_yaxis()
-    
+
     if kwargs.get("colorbar", False):
         sm = plt.cm.ScalarMappable(cmap="jet", norm=plt.Normalize(vmin=0, vmax=1))
         plt.colorbar(sm)
-    
+
     name = os.path.join(folder, str(step) + ".png")
     plt.tight_layout()
     plt.savefig(name, dpi=500)
@@ -319,13 +319,20 @@ def plot_mesh(frame: fframes.Frame,
     if kwargs.get("plot_versors", False):
         for v in frame.vertices.values():
             if len(v.ownEdges) >= 3:
-                for versor in ve.get_versors(frame.vertices, frame.edges, v.id):
+                vertex_big_edges = [frame.big_edges[beid] for beid in v.own_big_edges]
+                vertex_big_edges_versors = [big_edge.get_vector_from_vertex(v.id,
+                                                                            fit_method="dlite") for big_edge in vertex_big_edges]
+                # for versor in ve.get_versors(frame.vertices, frame.edges, v.id):
+                for vector in vertex_big_edges_versors:
+                    size = np.linalg.norm(vector)
+                    versor = vector / size
                     plt.arrow(v.x,
                               v.y,
-                              versor[0] * 5,
-                              versor[1] * 5,
+                              versor[0] * 10,
+                              versor[1] * 10,
                               color="green",
-                              alpha=0.5,
+                              width=4,
+                              alpha=0.7,
                               zorder=1000)
 
     for e in frame.edges.values():

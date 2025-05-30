@@ -475,7 +475,7 @@ class ForceMatrix:
                 b[j + 1, 0] = value[1]
                 vector_of_vectors.append(value)
 
-        self.velocity_normalization = kwargs.get("velocity_normalization", 1)
+        self.velocity_normalization = kwargs.get("velocity_normalization", 0.1)
         if len(vector_of_vectors) != 0 and kwargs.get("adimensional_velocity",  False):
             average_velocity = np.mean([np.linalg.norm(vector) for vector in vector_of_vectors])
         else:
