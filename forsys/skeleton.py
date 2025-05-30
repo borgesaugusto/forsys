@@ -294,8 +294,13 @@ class Skeleton:
 
         self.all_big_edges = fvedges.create_edges_new(self.vertices,
                                                       self.cells)
+        if self.format == "npy":
+            # triangles in the middle
+            self.triangular_holes()
+        else:
+            # triangles in the middle
+            self.triangles_in_the_middle()
 
-        self.triangular_holes()
         self.remove_artifacts()
 
         return self.vertices, self.edges, self.cells
@@ -390,41 +395,41 @@ class Skeleton:
         intersection = set.intersection(*cells_belonging)
         return list(intersection)
 
-    # def triangles_in_the_middle(self) -> None:
-    #     # triangles in the middle
-    #     inner_edge_triangles = []
-    #     num_elements = len(self.all_big_edges)
-    #     first_part = [(e[0], e[-1]) for e in self.all_big_edges]
-    #     last_part = [(e[-1], e[0]) for e in self.all_big_edges]
-    #     first_last = first_part + last_part
-    #     inner_edge_triangles = [k for k, v in Counter(first_last).items() if v > 1]
-    #
-    #     visited = []
-    #     for index in range(len(inner_edge_triangles) - 1):
-    #         if (inner_edge_triangles[index] in visited or
-    #             inner_edge_triangles[index][::-1] in visited):
-    #             continue
-    #
-    #         edge_0_index = first_last.index(inner_edge_triangles[index]) % num_elements
-    #         edge_1_index = first_last.index(inner_edge_triangles[(index + 1)]) % num_elements
-    #         edge_0 = self.all_big_edges[edge_0_index]
-    #         if len(edge_0) > 3:
-    #             continue
-    #         edge_1 = self.all_big_edges[edge_1_index]
-    #         vertex_id_to_delete = list(set(edge_0).symmetric_difference(set(edge_1)))[0]
-    #         # vertex_id_to_delete = np.intersect1d(edge_0, edge_1)[0]
-    #
-    #         its_cells = self.vertices[vertex_id_to_delete].ownCells
-    #         for cell_id in its_cells:
-    #             self.cells[cell_id].replace_vertex(self.vertices[vertex_id_to_delete],
-    #                                                self.vertices[edge_0[0]])
-    #
-    #         its_edges = list(self.vertices[vertex_id_to_delete].ownEdges)
-    #         for edge_id in its_edges:
-    #             del self.edges[edge_id]
-    #
-    #         del self.vertices[vertex_id_to_delete]
-    #         visited.append(inner_edge_triangles[index])
+    def triangles_in_the_middle(self) -> None:
+        # triangles in the middle
+        inner_edge_triangles = []
+        num_elements = len(self.all_big_edges)
+        first_part = [(e[0], e[-1]) for e in self.all_big_edges]
+        last_part = [(e[-1], e[0]) for e in self.all_big_edges]
+        first_last = first_part + last_part
+        inner_edge_triangles = [k for k, v in Counter(first_last).items() if v > 1]
+
+        visited = []
+        for index in range(len(inner_edge_triangles) - 1):
+            if (inner_edge_triangles[index] in visited or
+                inner_edge_triangles[index][::-1] in visited):
+                continue
+
+            edge_0_index = first_last.index(inner_edge_triangles[index]) % num_elements
+            edge_1_index = first_last.index(inner_edge_triangles[(index + 1)]) % num_elements
+            edge_0 = self.all_big_edges[edge_0_index]
+            if len(edge_0) > 3:
+                continue
+            edge_1 = self.all_big_edges[edge_1_index]
+            vertex_id_to_delete = list(set(edge_0).symmetric_difference(set(edge_1)))[0]
+            # vertex_id_to_delete = np.intersect1d(edge_0, edge_1)[0]
+
+            its_cells = self.vertices[vertex_id_to_delete].ownCells
+            for cell_id in its_cells:
+                self.cells[cell_id].replace_vertex(self.vertices[vertex_id_to_delete],
+                                                   self.vertices[edge_0[0]])
+
+            its_edges = list(self.vertices[vertex_id_to_delete].ownEdges)
+            for edge_id in its_edges:
+                del self.edges[edge_id]
+
+            del self.vertices[vertex_id_to_delete]
+            # visited.append(inner_edge_triangles[index])
     #     print(f"Deleted {len(visited)} triangles in the middle of the system")
 
     def remove_artifacts(self) -> None:
