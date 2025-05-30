@@ -47,7 +47,7 @@ Installing from source
 
 .. code-block:: bash
 
-  git clone git@github.com:borgesaugusto/forsys.git
+  git clone https://github.com/borgesaugusto/forsys.git
 
 2. Change to the directory
 

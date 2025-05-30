@@ -8,7 +8,7 @@
 
 ---
 ## What is ForSys ?
-Forsys can infer membrane stress and cell pressure from a skeletonized microscopy image or a time series.
+ForSys can infer membrane stress and cell pressure from a skeletonized microscopy image or a time series.
 
 ##  Documentation: 
 Available at
