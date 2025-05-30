@@ -4,7 +4,7 @@ GUI Reference
 Installation in Fiji
 --------------------
 To install the Fiji plugin, inside Fiji go to Help > Update > Manage update sites.
-Then select the option "Add update site" and add the following URL: 
+Then select the option "Add unlisted site" and add the following URL: 
 
 `https://sites.imagej.net/ForSys`
 
@@ -28,23 +28,9 @@ Usage
 
 Considerations
 ----------------
-ForSys expects the Input Folder to have a structure like
-
-.. code-block:: none
-
-    /path/to/input_folder
-        ├── 1 
-        │   └── handCorrection.tif
-        ├── 2
-        │   └── handCorrection.tif
-        ├── 3
-        │   └── handCorrection.tif
-        ├── 1.tif
-        ├── 2.tif
-        ├── 3.tif
-        └── connections.json
-
-The JSON file with the connections is optional, it can also be in the parent folder.
+- ForSys expects the Input Folder to have a certain structure.
+- The JSON file with the connections is optional, and it can also be in the parent folder.
+Information about this can be found in the :doc:`generalities` section.
 
 
 GUI Options

@@ -36,8 +36,10 @@ The software is open-source.
    :maxdepth: 2
    :caption: User Guide
 
+   generalities
    command_line
    gui
+   faq
 
 .. toctree::
    :maxdepth: 3
