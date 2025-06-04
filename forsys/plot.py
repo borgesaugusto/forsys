@@ -189,7 +189,7 @@ def plot_inference(frame: fframes.Frame, pressure: bool = False,
                                                                  vmax=max_stress))
             ax.plot((edge.v1.x, edge.v2.x),
                     (edge.v1.y, edge.v2.y),
-                    color=color_stress, linewidth=1)
+                    color=color_stress, linewidth=2)
 
     if pressure:
         pressures = frame.get_pressures()["pressure"]
@@ -457,9 +457,12 @@ def plot_time_connections(mesh: ftimes.TimeSeries, initial_time: int, final_time
                 if v.id in real_vertices_ids1 or v.id in mesh.time_series[t].border_vertices:
                     plt.scatter(v.x, v.y, s=5,color="black")
                     plt.annotate(str(v.id), [v.x, v.y], fontsize=4, color="black")
-                    acceleration = mesh.calculate_velocity(v.id, t)
+                    acceleration = mesh.calculate_displacement(v.id, t)
 
-                    plt.arrow(v.x, v.y, acceleration[0], acceleration[1], color="red")
+                    plt.arrow(v.x,
+                              v.y, 
+                              acceleration[0] * 1,
+                              acceleration[1] * 1, color="red")
             
 
             for v in mesh.time_series[t+1].vertices.values():
