@@ -48,33 +48,33 @@ Current flags
   * - **Flag** 
     - **Description**
   * - -h, -\-help
-    - Shows help message
+    - Shows help message.
   * - -f, -\-folder <FOLDER>
     - Path to the folder containing the input images.
   * - -d, -\-dynamic
-    - Whether to use dynamic inference. Default is static
+    - Whether to use dynamic inference. Default is static.
   * - -m, -\-method <METHOD>
-    - Method to use for inference. Options are: 'nnls', 'lsq' and 'lsq_linear. Default is 'nnls'
+    - Method to use for inference. Options are: 'nnls', 'lsq' and 'lsq_linear. Default is 'nnls'.
   * - -vn, -\-velocity_normalization <NORMALIZATION>
-    - Velocity normalization factor (only used in dynamic mode). Default is 0.1
+    - Velocity normalization factor (only used in dynamic mode). Default is 0.1.
   * - -mt, -\-max_time <MAX_TIME>
-    - Maximum time step to infer. Default is 0.1
+    - Maximum time step to infer. Default is 0.
   * - -sf, -\-save_folder <SAVE_FOLDER>
     - Path to the folder in which to save the output. Default is the same as the input folder.
   * - -cc, -\-composite
-    - Whether to create composite image with the original microscopies
+    - Whether to create composite image with the original microscopies.
   * - -p, -\-pngs
-    - Whether to create forsys output of each frame
+    - Whether to create forsys output of each frame.
   * - -c, -\-connections <CONNECTIONS_FILE>
-    - Path to the connections file (optional)
+    - Path to the connections file.
   * - -ar, -\-aspect_ratio <ASPECT_RATIO>
-    - Aspect ratio of the PNG images. Default is 1
+    - Aspect ratio of the PNG images. Default is 1.
   * - -y, -\-pressure
-    - Plot pressure in the PNG images
+    - Plot pressure in the PNG images.
   * - -cb, -\-colorbar
-    - Plot colorbar in the PNG images
+    - Plot colorbar in the PNG images.
   * - -v, -\-version
-    - Show the version of the package
+    - Show the version of the package.
 
   
 
