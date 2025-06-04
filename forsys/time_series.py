@@ -248,7 +248,7 @@ class TimeSeries():
             # last time, use backward
             if self.mapping[initial_time - 1] == None:
                 raise DifferentTissueException()
-            tt1 = initial_time - 1       
+            tt1 = initial_time - 1
         else:
             tt1 = initial_time + 1
 
@@ -271,6 +271,49 @@ class TimeSeries():
             ti = 0
 
         return (np.array([v1.x, v1.y]) - np.array([v0.x, v0.y])) / (tf - ti)
+
+    def calculate_displacement(self, point: int, initial_time: str) -> np.ndarray:
+        """
+        Calculate the velocity of a given vertex. Forward finite difference is used, 
+        except the last point where backward is used.
+
+        :param point: ID of the desired vertex at the initial time
+        :type point: int
+        :param initial_time: Frame number to use as initial
+        :type initial_time: str
+        :raises DifferentTissueException: _description_
+        :raises DifferentTissueException: _description_
+        :return: X and Y components of the velocity
+        :rtype: np.ndarray
+        """
+        v0 = self.time_series[initial_time].vertices[point]
+        if initial_time == len(self.time_series) - 1:
+            # last time, use backward
+            if self.mapping[initial_time - 1] == None:
+                raise DifferentTissueException()
+            tt1 = initial_time - 1
+        else:
+            tt1 = initial_time + 1
+
+            if self.mapping[initial_time] == None:
+                raise DifferentTissueException()
+
+
+        try:
+            v1 = self.time_series[tt1].vertices[self.get_point_id_by_map(point, initial_time, tt1)]
+        except KeyError:
+            # fictious vertex to give velocity zero
+            v1 = fvertex.Vertex(-1, v0.x, v0.y)
+        
+
+        try:
+            ti = self.time_series[int(initial_time)].time
+            tf = self.time_series[tt1].time
+        except KeyError:
+            tf = 1
+            ti = 0
+
+        return (np.array([v1.x, v1.y]) - np.array([v0.x, v0.y]))
 
     def whole_tissue_acceleration(self, initial_time: int) -> dict:
         """

@@ -142,6 +142,7 @@ class BigEdge:
                                            or len(self.vertices[-1].ownCells) > 2 else False
         self.external = True if np.any(vertices_own_cells) or not has_junction_at_extremes \
             else False
+        
 
     def calculate_curvature(self) -> float:
         """
@@ -275,3 +276,12 @@ class BigEdge:
 
         v1 = self.get_vertex_object_by_id(next_vid)
         return [v1.x - v0.x, v1.y - v0.y]
+
+    def get_length(self):
+        """
+        Get the length of the big edge
+
+        :return: Length of the big edge
+        :rtype: float
+        """
+        return np.sum(np.sqrt(np.diff(self.xs)**2 + np.diff(self.ys)**2))
