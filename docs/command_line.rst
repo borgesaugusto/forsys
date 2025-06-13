@@ -35,7 +35,7 @@ The results are saved in "/path/to/save_folder"
 
 .. code-block:: bash
 
-  python -m forsys -f /path/to/input_folder -m nnls -mt 5 -sf /path/to/save_folder --dynamic -cc /path/to/connections.json
+  python -m forsys -f /path/to/input_folder -m nnls -mt 5 -sf /path/to/save_folder --dynamic -c /path/to/connections.json
 
 
 Current flags
@@ -65,6 +65,8 @@ Current flags
     - Whether to create composite image with the original microscopies.
   * - -p, -\-pngs
     - Whether to create forsys output of each frame.
+  * - -pc, -\-plot_connections
+    - Whether to plot the connections based on the connections file.
   * - -c, -\-connections <CONNECTIONS_FILE>
     - Path to the connections file.
   * - -ar, -\-aspect_ratio <ASPECT_RATIO>
