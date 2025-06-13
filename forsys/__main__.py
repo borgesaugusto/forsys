@@ -48,14 +48,19 @@ if __name__ == '__main__':
     parser.add_argument("-v", "--version", action="version",
                         version=f"ForSys version {importlib.metadata.version('forsys')}",
                         help="Show the version of forsys")
+    parser.add_argument("-pc", "--plot_connections", action="store_true",
+                        help="Plot connections without solving the system. \
+                        Useful for debugging purposes.")
 
     args = parser.parse_args()
 
     if args.save_folder is not None:
         if not os.path.exists(args.save_folder):
             os.makedirs(args.save_folder)
-        if not os.path.exists(os.path.join(args.save_folder, "pngs")):
+        if args.pngs and not os.path.exists(os.path.join(args.save_folder, "pngs")):
             os.makedirs(os.path.join(args.save_folder, "pngs"))
+        if args.plot_connections and not os.path.exists(os.path.join(args.save_folder, "connections")):
+            os.makedirs(os.path.join(args.save_folder, "connections"))
 
         save_to_tiff = os.path.join(args.save_folder,
                                     "forsys_output.tif")
@@ -69,7 +74,8 @@ if __name__ == '__main__':
     # DATA_FOLDER = os.path.dirname(args.folder)
 
     print("This is forsys version ", importlib.metadata.version("forsys"))
-    print(f"Running in Dynamic modality {args.dynamic}.",
+    modality = "dynamic" if args.dynamic else "static"
+    print(f"Running in {modality} modality.",
           f"VN = {args.velocity_normalization}",
           f"Method = {args.method}",)
 
@@ -78,33 +84,73 @@ if __name__ == '__main__':
                                                    min_time=0,
                                                    max_time=args.max_time)
 
-    microscopies = sorted(list(filter(lambda x: x.endswith(".tif"),
-                                      os.listdir(args.folder))))
+    elements_in_folder = os.listdir(args.folder)
+    # find microscopies
+    # microscopies = sorted(list(filter(lambda x: x.endswith(".tif"),
+    #                                   elements_in_folder)))
+    # print(f"microscopies found: {microscopies}")
+    # print("No .tif files found in the folder. ")
+    sub_folders = filter(lambda x: os.path.isdir(os.path.join(args.folder,
+                                                              x)),
+                         elements_in_folder)
+    sub_folders = sorted(list(sub_folders))
+
+    # if len(microscopies) != 0:
+    #     segmentations = {k: [] for k, val in enumerate(microscopies)}
+    # else:
+    #     segmentations = {}
+    #
+    # files_dict = {}
+    segmentations = {}
+    for sf in sub_folders:
+        elements_in_sf = os.listdir(os.path.join(args.folder, sf))
+        tif_elements = list(filter(lambda x: x.endswith(".tif"),
+                                   elements_in_sf))
+        npy_elements = list(filter(lambda x: x.endswith(".npy"),
+                                   elements_in_sf))
+        if "handCorrection.tif" in tif_elements:
+            element_tif = os.path.join(args.folder, sf, "handCorrection.tif")
+            segmentations[sf] = element_tif
+        elif "handCorrection.npy" in npy_elements:
+            element_npy = os.path.join(args.folder, sf, "handCorrection.npy")
+            segmentations[sf] = element_npy
+        elif len(tif_elements) == 1:
+            segmentations[sf] = os.path.join(args.folder,
+                                             sf,
+                                             tif_elements[0])
+        elif len(npy_elements) == 1:
+            segmentations[sf] = os.path.join(args.folder,
+                                             sf,
+                                             npy_elements[0])
+        else:
+            print(f"No suitable or too many segmentations found in {sf}. Skipping.")
+
     if args.dynamic:
-        print("Dynamic inference")
-        if len(microscopies) == 1:
+        if len(segmentations) == 1:
             print("Only one microscopy found. Inference will be static")
 
     frames = {}
     time = 0
     image_sizes = []
     original_images = []
-    for microscopy in microscopies:
+    # for microscopy in microscopies_tif:
+    for microscopy_name, segmentation_file in segmentations.items():
         if args.composite:
-            im_ori_fp = Image.open(os.path.join(args.folder, microscopy))
-            im_ori = np.array(im_ori_fp)
-            original_images.append(im_ori)
-            im_ori_fp.close()
+            microscopy_path = os.path.join(args.folder, f"{microscopy_name}.tif")
+            if os.path.exists(microscopy_path):
+                im_ori_fp = Image.open(microscopy_path)
+                image_sizes.append(im_ori_fp.size)
+                im_ori = np.array(im_ori_fp)
+                original_images.append(im_ori)
+                im_ori_fp.close()
+            else:
+                raise FileNotFoundError(
+                    f"Original microscopy image {microscopy_name}.tif not found in the folder.")
 
-        im = Image.open(os.path.join(args.folder, microscopy))
-        image_sizes.append(im.size)
-        im.close()
-
-        tiff_file = os.path.join(args.folder,
-                                 microscopy[:-4],
-                                 "handCorrection.tif")
-
-        skeleton = fs.skeleton.Skeleton(tiff_file, mirror_y=False)
+        # tiff_file = os.path.join(args.folder,
+        #                          microscopy[:-4],
+        #                          "handCorrection.tif")
+        skeleton = fs.skeleton.Skeleton(segmentation_file, mirror_y=False)
         vertices, edges, cells = skeleton.create_lattice()
         vertices, edges, cells, _ = fs.virtual_edges.generate_mesh(vertices,
                                                                    edges,
@@ -115,17 +161,30 @@ if __name__ == '__main__':
                                        edges,
                                        cells,
                                        time=time)
-        forsys = fs.ForSys(frames, initial_guess=initial_guess,)
+        time += 1
+        if time == args.max_time:
+            break
 
-        if args.dynamic:
-            all_velocities = forsys.get_system_velocity_per_frame()
-            ave_velocity_to_normalize = np.mean(all_velocities)
-        else:
-            ave_velocity_to_normalize = 1
+    forsys = fs.ForSys(frames, initial_guess=initial_guess,)
+    print(f"Found {len(forsys.frames)} frames in the system.")
 
-        velocity_normalization = ((args.velocity_normalization /
-                                  ave_velocity_to_normalize)
-                                  if args.dynamic else 0)
+    if args.plot_connections:
+        print("Plotting connections without solving the system.")
+        fs.plot.plot_time_connections(forsys.mesh, 0, len(forsys.frames),
+                                      folder=os.path.join(args.save_folder,
+                                                          "connections"))
+
+    if args.dynamic:
+        all_velocities = forsys.get_system_velocity_per_frame()
+        ave_velocity_to_normalize = np.mean(all_velocities)
+    else:
+        ave_velocity_to_normalize = 1
+
+    velocity_normalization = ((args.velocity_normalization /
+                              ave_velocity_to_normalize)
+                              if args.dynamic else 0)
+
+    for time in frames.keys():
         forsys.build_force_matrix(when=time)
         forsys.solve_stress(when=time,
                             b_matrix="dynamic" if args.dynamic else "static",
@@ -136,9 +195,6 @@ if __name__ == '__main__':
                             allow_negatives=False)
         forsys.build_pressure_matrix(when=time)
         forsys.solve_pressure(when=time, method="lagrange_pressure")
-        if time == args.max_time:
-            break
-        time += 1
 
     print("Plotting...")
     if args.pngs:

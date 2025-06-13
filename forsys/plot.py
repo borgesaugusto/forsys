@@ -481,7 +481,7 @@ def plot_time_connections(mesh: ftimes.TimeSeries, initial_time: int, final_time
                 plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="green", alpha=0.2)
             for e in mesh.time_series[t].edges.values():
                 plt.plot([e.v1.x, e.v2.x], [e.v1.y, e.v2.y], color="black", alpha=0.2)
-                
+
             plt.savefig(os.path.join(folder, str(t)+".png"), dpi=500)
             plt.clf()
 
