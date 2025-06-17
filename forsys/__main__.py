@@ -51,6 +51,11 @@ if __name__ == '__main__':
     parser.add_argument("-pc", "--plot_connections", action="store_true",
                         help="Plot connections without solving the system. \
                         Useful for debugging purposes.")
+    parser.add_argument("-ms", "--max_size", type=int,
+                        help="Maximum multiplier for cellular size. \
+                        used to filter out cells that are too big. Default is \
+                        no limit",
+                        default=np.inf)
 
     args = parser.parse_args()
 
@@ -71,7 +76,6 @@ if __name__ == '__main__':
                                     "forsys_output.tif")
         save_to_png = os.path.join(os.path.dirname(args.folder),
                                    "forsys_output.png")
-    # DATA_FOLDER = os.path.dirname(args.folder)
 
     print("This is forsys version ", importlib.metadata.version("forsys"))
     modality = "dynamic" if args.dynamic else "static"
@@ -86,21 +90,11 @@ if __name__ == '__main__':
 
     elements_in_folder = os.listdir(args.folder)
     # find microscopies
-    # microscopies = sorted(list(filter(lambda x: x.endswith(".tif"),
-    #                                   elements_in_folder)))
-    # print(f"microscopies found: {microscopies}")
-    # print("No .tif files found in the folder. ")
     sub_folders = filter(lambda x: os.path.isdir(os.path.join(args.folder,
                                                               x)),
                          elements_in_folder)
     sub_folders = sorted(list(sub_folders))
 
-    # if len(microscopies) != 0:
-    #     segmentations = {k: [] for k, val in enumerate(microscopies)}
-    # else:
-    #     segmentations = {}
-    #
-    # files_dict = {}
     segmentations = {}
     for sf in sub_folders:
         elements_in_sf = os.listdir(os.path.join(args.folder, sf))
@@ -135,23 +129,20 @@ if __name__ == '__main__':
     original_images = []
     # for microscopy in microscopies_tif:
     for microscopy_name, segmentation_file in segmentations.items():
-        if args.composite:
-            microscopy_path = os.path.join(args.folder, f"{microscopy_name}.tif")
-            if os.path.exists(microscopy_path):
-                im_ori_fp = Image.open(microscopy_path)
-                image_sizes.append(im_ori_fp.size)
+        microscopy_path = os.path.join(args.folder, f"{microscopy_name}.tif")
+        if os.path.exists(microscopy_path):
+            im_ori_fp = Image.open(microscopy_path)
+            image_sizes.append(im_ori_fp.size)
+            if args.composite:
                 im_ori = np.array(im_ori_fp)
                 original_images.append(im_ori)
                 im_ori_fp.close()
-            else:
-                raise FileNotFoundError(
-                    f"Original microscopy image {microscopy_name}.tif not found in the folder.")
+        else:
+            im_for_size = Image.open(segmentation_file)
+            image_sizes.append(im_for_size.size)
 
-        # tiff_file = os.path.join(args.folder,
-        #                          microscopy[:-4],
-        #                          "handCorrection.tif")
         skeleton = fs.skeleton.Skeleton(segmentation_file, mirror_y=False)
-        vertices, edges, cells = skeleton.create_lattice()
+        vertices, edges, cells = skeleton.create_lattice(max_cell_size=args.max_size)
         vertices, edges, cells, _ = fs.virtual_edges.generate_mesh(vertices,
                                                                    edges,
                                                                    cells,
@@ -173,6 +164,7 @@ if __name__ == '__main__':
         fs.plot.plot_time_connections(forsys.mesh, 0, len(forsys.frames),
                                       folder=os.path.join(args.save_folder,
                                                           "connections"))
+        exit()
 
     if args.dynamic:
         all_velocities = forsys.get_system_velocity_per_frame()
