@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "forsys"
-version = "1.1.2rc0"
+version = "1.1.2rc1"
 description = "A tissue stress and cell pressure inference package with dynamical information"
 readme = "README.md"
 authors = [{ name = "Augusto Borges", email = "borges.augustoar@gmail.com" }]

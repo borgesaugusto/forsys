@@ -56,7 +56,7 @@ if __name__ == '__main__':
                         used to filter out cells that are too big. Default is \
                         no limit",
                         default=np.inf)
-    parser.add_argument("-o", "--output_csv", actions="store_true",
+    parser.add_argument("-o", "--output_csv", action="store_true",
                         help="Output the results to a CSV file.")
 
     args = parser.parse_args()
@@ -142,13 +142,19 @@ if __name__ == '__main__':
                 original_images.append(im_ori)
                 im_ori_fp.close()
         else:
-            if microscopy_name.endswith(".npy"):
-                im_ori_fp = np.load(segmentation_file)
-                image_sizes.append(im_ori_fp.shape[:2])
-            # im_for_size = Image.open(segmentation_file)
-            # image_sizes.append(im_for_size.size)
+            if segmentation_file.endswith(".npy"):
+                im_for_size = np.load(segmentation_file,
+                                      allow_pickle=True).item()
+                shaper = im_for_size["masks"].shape
+                image_sizes.append(shaper[::-1])
 
-        skeleton = fs.skeleton.Skeleton(segmentation_file, mirror_y=False)
+        if segmentation_file.endswith(".npy"):
+            options = {"mirror_y": False,
+                       "minimum_distance": 5,
+                       "expand": 50}
+        else:
+            options = {"mirror_y": False}
+        skeleton = fs.skeleton.Skeleton(segmentation_file, **options)
         vertices, edges, cells = skeleton.create_lattice(max_cell_size=args.max_size)
         vertices, edges, cells, _ = fs.virtual_edges.generate_mesh(vertices,
                                                                    edges,
@@ -195,6 +201,16 @@ if __name__ == '__main__':
         forsys.build_pressure_matrix(when=time)
         forsys.solve_pressure(when=time, method="lagrange_pressure")
 
+        if args.output_csv:
+            print("Outputting results to CSV file.")
+            cell_df, force_df = fs.auxiliar.create_csvs(forsys.frames[time])
+            cell_df.to_csv(os.path.join(args.save_folder, "csvs",
+                                        f"cells_{time}.csv"),
+                           index=False)
+            force_df.to_csv(os.path.join(args.save_folder, "csvs",
+                                         f"stress_{time}.csv"),
+                            index=False)
+
     print("Plotting...")
     if args.pngs:
         for time in frames.keys():
@@ -212,66 +228,6 @@ if __name__ == '__main__':
 
             plt.savefig(save_to_png.replace(".png", f"_{time}.png"), dpi=500)
 
-    if args.output_csv:
-        import pandas as pd
-        print("Outputting results to CSV file.")
-        tensions = []
-        lengths = []
-        positions_x = []
-        positions_y = []
-        be_ids = []
-        curvatures = []
-
-        cell_ids = []
-        areas = []
-        perimeters = []
-        numbers_of_neighs = []
-        cell_posx = []
-        cell_posy = []
-        pressures = []
-
-        for cellid, cell in frames[time].cells.items():
-            cell_ids.append(cellid)
-            areas.append(abs(cell.get_area()))
-            perimeters.append(cell.get_perimeter())
-            numbers_of_neighs.append(len(cell.calculate_neighbors()))
-            cell_posx.append(cell.get_cm()[0])
-            cell_posy.append(cell.get_cm()[1])
-            pressures.append(cell.pressure)
-
-        cell_df = pd.DataFrame({
-               "id": cell_ids,
-               "area": areas,
-               "perimeter": perimeters,
-               "position_x": cell_posx,
-               "position_y": cell_posy,
-               "pressure": pressures,
-               "number_of_neighbors": numbers_of_neighs,
-        })
-        cell_df.to_csv(os.path.join(args.save_folder, "csvs",
-                                    f"cells_{time}.csv"),
-                       index=False)
-
-        for beid, big_edge in frames[time].big_edges.items():
-            tensions.append(big_edge.tension)
-            lengths.append(big_edge.get_length())
-            positions_x.append(np.mean(big_edge.xs))
-            positions_y.append(np.mean(big_edge.ys))
-            be_ids.append(big_edge.big_edge_id)
-            curvatures.append(big_edge.calculate_total_curvature())
-
-            force_df = pd.DataFrame({
-                "id": be_ids,
-                "tension": tensions,
-                "length": lengths,
-                "position_x": positions_x,
-                "position_y": positions_y,
-                "curvature": curvatures,
-            })
-
-    force_df.to_csv(os.path.join(args.save_folder, "csvs",
-                                 f"stress_{time}.csv"),
-                    index=False)
 
     # Now tiff
     fs.plot.plot_inference_as_tiff(forsys,
@@ -280,3 +236,5 @@ if __name__ == '__main__':
                                    layers=2,
                                    external_color=0,
                                    save_folder=save_to_tiff)
+
+
