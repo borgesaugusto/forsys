@@ -3,6 +3,8 @@ import json
 
 import forsys as fs
 import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 
 
 def create_folders(folder_to_create):
@@ -108,3 +110,55 @@ def create_plots(frame_number, forsys, res_folder, myo=False, pressure=True, com
                         grid=12, 
                         radius=5,
                         tensor_scale=1.5)
+
+
+def create_csvs(frame) -> tuple:
+    tensions = []
+    lengths = []
+    positions_x = []
+    positions_y = []
+    be_ids = []
+    curvatures = []
+
+    cell_ids = []
+    areas = []
+    perimeters = []
+    cell_posx = []
+    cell_posy = []
+    pressures = []
+
+    for cellid, cell in frame.cells.items():
+        cell_ids.append(cellid)
+        areas.append(abs(cell.get_area()))
+        perimeters.append(cell.get_perimeter())
+        cell_posx.append(cell.get_cm()[0])
+        cell_posy.append(cell.get_cm()[1])
+        pressures.append(cell.pressure)
+
+    cell_df = pd.DataFrame({
+           "id": cell_ids,
+           "area": areas,
+           "perimeter": perimeters,
+           "position_x": cell_posx,
+           "position_y": cell_posy,
+           "pressure": pressures,
+    })
+
+    for beid, big_edge in frame.big_edges.items():
+        tensions.append(big_edge.tension)
+        lengths.append(big_edge.get_length())
+        positions_x.append(np.mean(big_edge.xs))
+        positions_y.append(np.mean(big_edge.ys))
+        be_ids.append(big_edge.big_edge_id)
+        curvatures.append(big_edge.calculate_total_curvature())
+
+    force_df = pd.DataFrame({
+        "id": be_ids,
+        "tension": tensions,
+        "length": lengths,
+        "position_x": positions_x,
+        "position_y": positions_y,
+        "curvature": curvatures,
+    })
+
+    return cell_df, force_df
