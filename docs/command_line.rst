@@ -55,6 +55,8 @@ Current flags
     - Whether to use dynamic inference. Default is static.
   * - -m, -\-method <METHOD>
     - Method to use for inference. Options are: 'nnls', 'lsq' and 'lsq_linear. Default is 'nnls'.
+  * - -o, -\-output
+    - Generates the CSV outputs for cells and membranes.
   * - -vn, -\-velocity_normalization <NORMALIZATION>
     - Velocity normalization factor (only used in dynamic mode). Default is 0.1.
   * - -mt, -\-max_time <MAX_TIME>
@@ -63,6 +65,9 @@ Current flags
     - Path to the folder in which to save the output. Default is the same as the input folder.
   * - -cc, -\-composite
     - Whether to create composite image with the original microscopies.
+  * - -ms, -/-max_size <MAX_SIZE>
+    - Maximum multiplier for cellular size. Used to filter out cells that are 
+      too big. default is no limit",
   * - -p, -\-pngs
     - Whether to create forsys output of each frame.
   * - -pc, -\-plot_connections
