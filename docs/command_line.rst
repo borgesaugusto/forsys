@@ -72,6 +72,8 @@ Current flags
     - Whether to create forsys output of each frame.
   * - -pc, -\-plot_connections
     - Whether to plot the connections based on the connections file.
+  * - -o, -\-output_csv
+  - Output results to two CSV files, one for pressures and one for stresses.
   * - -c, -\-connections <CONNECTIONS_FILE>
     - Path to the connections file.
   * - -ar, -\-aspect_ratio <ASPECT_RATIO>

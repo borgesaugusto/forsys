@@ -147,6 +147,9 @@ if __name__ == '__main__':
                                       allow_pickle=True).item()
                 shaper = im_for_size["masks"].shape
                 image_sizes.append(shaper[::-1])
+            elif segmentation_file.endswith(".tif"):
+                im_segment_open = Image.open(segmentation_file)
+                image_sizes.append(im_segment_open.size)
 
         if segmentation_file.endswith(".npy"):
             options = {"mirror_y": False,
