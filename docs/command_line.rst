@@ -65,7 +65,7 @@ Current flags
     - Path to the folder in which to save the output. Default is the same as the input folder.
   * - -cc, -\-composite
     - Whether to create composite image with the original microscopies.
-  * - -ms, -/-max_size <MAX_SIZE>
+  * - -ms, -\-max_size <MAX_SIZE>
     - Maximum multiplier for cellular size. Used to filter out cells that are 
       too big. default is no limit",
   * - -p, -\-pngs
