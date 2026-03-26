@@ -30,6 +30,7 @@ The software is open-source.
    In silico time lapse inference <examples/dynamic_in_silico>
    In vivo static inference <examples/static_in_vivo>
    In vivo time lapse inference <examples/dynamic_in_vivo>
+   Connecting vertices in in vivo time lapse inference <examples/dynamic_in_vivo_with_connections>
 
 
 .. toctree::
