@@ -135,7 +135,7 @@ if __name__ == '__main__':
     for microscopy_name, segmentation_file in segmentations.items():
         microscopy_path = os.path.join(args.folder, f"{microscopy_name}.tif")
         if os.path.exists(microscopy_path):
-            im_ori_fp = Image.open(microscopy_path)
+            im_ori_fp = Image.open(microscopy_path).convert("L")
             image_sizes.append(im_ori_fp.size)
             if args.composite:
                 im_ori = np.array(im_ori_fp)
