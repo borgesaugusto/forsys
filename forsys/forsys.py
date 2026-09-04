@@ -234,3 +234,15 @@ class ForSys():
             velocities_per_frame.append(ave_velocity)
 
         return velocities_per_frame
+   
+    def get_maps(self,key) -> tuple:
+        """
+        Get the cell and big edge mappings stored in this frame.
+        These are set by TimeSeries after computing the mapping.
+
+        :return: Tuple of (cells_map, edge_map)
+        :rtype: tuple
+        """
+        cells_map = self.mesh.mapping_cells[key-1]
+        edge_map = self.mesh.mapping_bedges[key-1]
+        return cells_map, edge_map
