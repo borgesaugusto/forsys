@@ -111,7 +111,7 @@ def create_plots(frame_number, forsys, res_folder, myo=False, pressure=True, com
                         radius=5,
                         tensor_scale=1.5)
 
-def create_csvs(forsys: fs.ForSys, time=None, with_mapping:bool = False) -> tuple:
+def create_csvs(forsys: fs.ForSys, time: int | None = None, with_mapping:bool = False) -> tuple:
     """
     Create simple DFs for vertices, cells and big edges for a given frame or \
     long DFs for all frames if no time was given.
@@ -129,6 +129,9 @@ def create_csvs(forsys: fs.ForSys, time=None, with_mapping:bool = False) -> tupl
     else:
         cell_df_long, force_df_long, v_df_long =create_csvs_simple(forsys, time, is_mapping=with_mapping)
         return cell_df_long, force_df_long, v_df_long
+
+def get_map_row(mapped_dict, object_id):
+    return v if (v := mapped_dict.get(object_id, None)) is not None else np.nan
 
 def create_csvs_simple(forsys: fs.ForSys, time:int, is_mapping:bool = False):
     frame = forsys.frames[time]
@@ -162,10 +165,7 @@ def create_csvs_simple(forsys: fs.ForSys, time:int, is_mapping:bool = False):
 
     for cellid, cell in frame.cells.items():
             if (is_mapping and time>0):
-                if(cells_map[cellid]!=None):
-                    cell_mapped_ids.append(int(cells_map[cellid]))
-                else:
-                    cell_mapped_ids.append(pd.NA)
+                cell_mapped_ids.append(get_map_row(cells_map, cellid))
             cell_ids.append(cellid)
             areas.append(abs(cell.get_area()))
             perimeters.append(cell.get_perimeter())
@@ -198,10 +198,7 @@ def create_csvs_simple(forsys: fs.ForSys, time:int, is_mapping:bool = False):
     
     for _, big_edge in frame.big_edges.items():
             if (is_mapping and time>0):
-                if(edge_map[big_edge.big_edge_id]!=None):
-                    be_mapped_ids.append(int(edge_map[big_edge.big_edge_id]))
-                else:
-                    be_mapped_ids.append(pd.NA)
+                be_mapped_ids.append(get_map_row(edge_map, big_edge.big_edge_id))
             be_ids.append(big_edge.big_edge_id)
             tensions.append(big_edge.tension)
             lengths.append(big_edge.get_length())
@@ -272,8 +269,8 @@ def create_csvs_long(forsys: fs.ForSys, is_mapping:bool = False) -> tuple:
         if is_mapping:
             # id_prev
             if t == times[0]:
-                cell_df.insert(0, "id_prev", pd.Series(pd.NA, index=cell_df.index, dtype="Int64"))
-                force_df.insert(0,"id_prev", pd.Series(pd.NA, index=force_df.index, dtype="Int64"))
+                cell_df.insert(0, "id_prev", pd.Series(pd.nan, index=cell_df.index, dtype="Int64"))
+                force_df.insert(0,"id_prev", pd.Series(pd.nan, index=force_df.index, dtype="Int64"))
 
             else:
                 cell_df.rename(columns={"id_mapped": "id_prev"}, inplace=True)
@@ -289,8 +286,8 @@ def create_csvs_long(forsys: fs.ForSys, is_mapping:bool = False) -> tuple:
                 id_cell_next = cell_df["id"].map(cells_map).astype("Int64")
                 id_force_next = force_df["id"].map(edge_map).astype("Int64")
             else:
-                id_cell_next = pd.Series(pd.NA, index=cell_df.index, dtype="Int64")
-                id_force_next = pd.Series(pd.NA, index=force_df.index, dtype="Int64")
+                id_cell_next = pd.Series(pd.nan, index=cell_df.index, dtype="Int64")
+                id_force_next = pd.Series(pd.nan, index=force_df.index, dtype="Int64")
 
             cell_df.insert(2, "id_next", id_cell_next)
             force_df.insert(2, "id_next", id_force_next)
