@@ -111,7 +111,7 @@ def create_plots(frame_number, forsys, res_folder, myo=False, pressure=True, com
                         radius=5,
                         tensor_scale=1.5)
 
-def create_csvs(forsys: fs.ForSys, time: int | None = None, with_mapping:bool = False) -> tuple:
+def create_csvs(forsys: fs.ForSys, time = None, with_mapping:bool = False) -> tuple:
     """
     Create simple DFs for vertices, cells and big edges for a given frame or \
     long DFs for all frames if no time was given.
