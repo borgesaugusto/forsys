@@ -518,7 +518,135 @@ def plot_time_connections_two_times(mesh: ftimes.TimeSeries, t0: int, tf: int,
     plt.savefig(os.path.join(folder, str(fname)+".pdf"), dpi=500)
     plt.clf()
 
+def plot_cell_displacement(
+    time_series: ftimes.TimeSeries,
+    t0: int,
+    t1: int,
+    color_t0: str = "royalblue",
+    color_t1: str = "tomato",
+    line_color: str = "gray",
+    marker_size: float = 40,
+    line_alpha: float = 0.6,
+    line_width: float = 1.0,
+    mirror_y: bool = False,
+    show_cell_ids: bool = True,
+    **kwargs,
+) -> Tuple[mpl.figure.Figure, mpl.axes.Axes]:
+    """Plot the centers of each cell at two time points and connect them with a line.
+ 
+    Only cells that can be tracked from t0 to t1 (i.e. present in mapping_cells)
+    are drawn. Cells that appear or disappear between the two frames are ignored.
+ 
+    :param time_series: TimeSeries object that already contains the two frames.
+    :type time_series: ftimes.TimeSeries
+    :param t0: Index of the first (earlier) frame.
+    :type t0: int
+    :param t1: Index of the second (later) frame.
+    :type t1: int
+    :param ax: Existing Axes to draw on. A new figure is created when None.
+    :type ax: mpl.axes.Axes, optional
+    :param color_t0: Scatter colour for cell centres at t0, defaults to "royalblue".
+    :type color_t0: str, optional
+    :param color_t1: Scatter colour for cell centres at t1, defaults to "tomato".
+    :type color_t1: str, optional
+    :param line_color: Colour of the lines connecting paired centres, defaults to "gray".
+    :type line_color: str, optional
+    :param marker_size: Scatter marker size (``s`` argument), defaults to 40.
+    :type marker_size: float, optional
+    :param line_alpha: Alpha value for the connecting lines, defaults to 0.6.
+    :type line_alpha: float, optional
+    :param line_width: Line width for the connecting lines, defaults to 1.0.
+    :type line_width: float, optional
+    :param mirror_y: Invert the y-axis (useful when image coordinates are used), defaults to False.
+    :type mirror_y: bool, optional
+    :param show_cell_ids: Annotate each pair with the cell ID from t0, defaults to False.
+    :type show_cell_ids: bool, optional
+    :return: The figure and axes objects.
+    :rtype: Tuple[mpl.figure.Figure, mpl.axes.Axes]
+    """
+    frame0: fframes.Frame = time_series.time_series[t0]
+    frame1: fframes.Frame = time_series.time_series[t1]
+ 
 
+    cell_map: dict = {}
+    if abs(t1 - t0) == 1:
+        step = min(t0, t1)
+        cell_map = time_series.mapping_cells.get(step, {})
+    else:
+        step_range = range(t0, t1) if t0 < t1 else range(t1, t0)
+        composed = None
+        for step in reversed(step_range):
+            m = time_series.mapping_cells.get(step, {})
+            if composed is None:
+                composed = m
+            else:
+                composed = {k: m[v] for k, v in composed.items() if v in m}
+        cell_map = composed if composed is not None else {}
+ 
+    if not cell_map:
+        raise ValueError(
+            f"No cell mapping found between frames {t0} and {t1}. "
+            "Make sure TimeSeries was initialised with both frames."
+        )
+ 
+    fig, ax = plt.subplots(1, 1, figsize=kwargs.get("figsize", (6, 6)))
+ 
+    if kwargs.get("draw_mesh", False):
+        for edge in frame0.edges.values():
+            ax.plot(
+                (edge.v1.x, edge.v2.x),
+                (edge.v1.y, edge.v2.y),
+                color="black",
+                linewidth=0.4,
+                alpha=0.3,
+                zorder=1,
+            )
+ 
+    xs0, ys0 = [], []
+    xs1, ys1 = [], []
+ 
+    for cid1, cid0 in cell_map.items():
+        if cid0 not in frame0.cells or cid1 not in frame1.cells:
+            continue
+ 
+        cm0 = frame0.cells[cid0].get_cm()
+        cm1 = frame1.cells[cid1].get_cm()
+ 
+        xs0.append(cm0[0])
+        ys0.append(cm0[1])
+        xs1.append(cm1[0])
+        ys1.append(cm1[1])
+ 
+        ax.plot(
+            [cm0[0], cm1[0]],
+            [cm0[1], cm1[1]],
+            color=line_color,
+            linewidth=line_width,
+            alpha=line_alpha,
+            zorder=2,
+        )
+ 
+        if show_cell_ids:
+            mid_x = (cm0[0] + cm1[0]) / 2
+            mid_y = (cm0[1] + cm1[1]) / 2
+            ax.annotate(str(cid0), (mid_x, mid_y), fontsize=7, ha="center", zorder=5)
+ 
+    ax.scatter(xs0, ys0, s=marker_size, color=color_t0, zorder=3, label=f"t={t0}",marker="D")
+    ax.scatter(xs1, ys1, s=marker_size, color=color_t1, zorder=4, label=f"t={t1}",marker="o")
+ 
+    ax.legend(framealpha=0.7)
+    ax.set_title(kwargs.get("title", f"Cell displacement  t={t0} → t={t1}"))
+    ax.axis("off" if kwargs.get("axis_off", True) else "on")
+
+    if mirror_y:
+        ax.invert_yaxis()
+
+    save_path = kwargs.get("save_path", None)
+    if save_path:
+        fig.tight_layout()
+        fig.savefig(save_path, dpi=kwargs.get("dpi", 300))
+ 
+    return fig, ax
 
 def plot_acceleration_heatmap(mesh: ftimes.TimeSeries, initial_time: int,
                               final_time: int, folder: str='', name: str='heatmap') -> None:
@@ -808,7 +936,7 @@ def plot_skeleton(frame: fframes.Frame, save_folder: str, **kwargs) -> None:
     size_x = int(max_x - min_x)
     size_y = int(max_y - min_y)
 
-    image_array = np.zeros((size_y + 10, size_x + 10))
+    image_array = np.zeros((size_y + 10, size_x + 10), dtype=np.uint8)
 
     for vx, vy in list(all_vertices):
         vx = int((vx - min_x)) + 5

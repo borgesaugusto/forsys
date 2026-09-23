@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import json
 from typing import Union, Tuple
+from collections import Counter
 
 from  forsys.exceptions import DifferentTissueException
 
@@ -40,8 +41,9 @@ class TimeSeries():
 
 
         self.mapping = {}
+        self.mapping_cells = {}
+        self.mapping_bedges = {}
         for key in self.time_series.keys():
-            # print("meshing ", key)
             t0 = self.time_series[key]
             try:
                 t1 = self.time_series[key+1]
@@ -49,6 +51,11 @@ class TimeSeries():
                 break
             try:
                 self.mapping[key] = self.create_mapping(t0, t1, self.initial_guess[key])
+                self.mapping_cells[key] = self.map_cells(t0, t1, self.mapping[key])
+                self.mapping_bedges[key] = self.map_big_edges(t0, t1, self.mapping[key])
+
+                t0.cells_map = self.mapping_cells[key]
+                t0.edge_map = self.mapping_bedges[key]
             except DifferentTissueException:
                 print("Tissues between ", key, " and ", key+1, " too different, skipping...")
                 self.mapping[key] = None
@@ -213,8 +220,99 @@ class TimeSeries():
         else:
             distances = [self.distance(v0, vc) for vc in candidates]
             best = candidates[distances.index(min(distances))]
-        return best
+        return best    
+
+    def map_cells(self, t0: fframes.Frame, t1: fframes.Frame, mapping):
     
+        mapping_cells = {}
+        inverse_mapping = {}
+        for key, value in mapping.items():
+            if value in inverse_mapping.keys():
+                inverse_mapping[value] = [inverse_mapping[value], key]
+            else: 
+                inverse_mapping[value] = key
+
+        for c1_id, c1 in t1.cells.items():
+            c1_vertices = c1.get_cell_vertices()
+
+            vertices_t0 = []
+            for vertex in c1_vertices:
+                try:
+                    t0_vertex_id = inverse_mapping[vertex.id]
+                    if isinstance(t0_vertex_id, list):
+                        continue
+                    else:
+                        vertices_t0.append(t0.vertices[t0_vertex_id])
+                except KeyError:
+                    continue
+
+            if not vertices_t0:
+                mapping_cells[int(c1_id)] = None
+                continue
+            
+            candidate_cells = []
+
+            for vertex in vertices_t0:
+                candidate_cells.extend(vertex.ownCells)
+
+            if len(candidate_cells) == 0:
+                mapping_cells[int(c1_id)] = None
+            else:
+                counts = Counter(candidate_cells)
+
+                best_cell, votes = counts.most_common(1)[0]
+
+                if votes >= 2:
+                    mapping_cells[int(c1_id)] = best_cell
+                else:
+                    mapping_cells[int(c1_id)] = None
+
+        return mapping_cells
+
+    def map_big_edges(self, t0: fframes.Frame, t1: fframes.Frame, mapping: dict) -> dict:
+
+        mapping_bedges = {}
+        inverse_mapping = {}
+        for key, value in mapping.items():
+            inverse_mapping.setdefault(value, []).append(key)
+
+        for be1_id, be1 in t1.big_edges.items():
+            v1_t1_id = be1.vertices[0].id
+            v2_t1_id = be1.vertices[-1].id
+
+            v1_candidates = inverse_mapping.get(v1_t1_id)
+            v2_candidates = inverse_mapping.get(v2_t1_id)
+
+            if v1_candidates is None or v2_candidates is None:
+                mapping_bedges[be1_id] = None
+                continue
+
+            if len(v1_candidates) != 1 or len(v2_candidates) != 1:
+                mapping_bedges[be1_id] = None
+                continue
+
+            v1_t0_id = v1_candidates[0]
+            v2_t0_id = v2_candidates[0]
+
+            v1_t0 = t0.vertices.get(v1_t0_id)
+            v2_t0 = t0.vertices.get(v2_t0_id)
+
+            if v1_t0 is None or v2_t0 is None:
+                mapping_bedges[be1_id] = None
+                continue
+
+            be_v1 = set(v1_t0.own_big_edges)
+            be_v2 = set(v2_t0.own_big_edges)
+            candidate = be_v1 & be_v2
+
+            if len(candidate) == 1:
+                be0_id = next(iter(candidate))
+                mapping_bedges[be1_id] = be0_id
+            else:
+                mapping_bedges[be1_id] = None
+
+        return mapping_bedges
+
     @staticmethod
     def distance(v0: fvertex.Vertex, v1: fvertex.Vertex) -> float:
         """

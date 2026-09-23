@@ -110,12 +110,12 @@ def test_get_cell_properties_df(furrow):
 
     df = furrow.frames[0].get_cell_properties_df(center_method="centroid")
     assert isinstance(df, pd.DataFrame)
-    assert "cid" in df.columns and df["cid"].dtype == int
-    assert "centerx" in df.columns and df["centerx"].dtype == float
-    assert "centery" in df.columns  and df["centery"].dtype == float
-    assert "perimeter" in df.columns and df["perimeter"].dtype == float
-    assert "area" in df.columns and df["area"].dtype == float
-    assert "pressure" in df.columns and df["pressure"].dtype == float
+    assert "cid" in df.columns and df["cid"].dtype == np.int64
+    assert "centerx" in df.columns and df["centerx"].dtype == np.float64
+    assert "centery" in df.columns  and df["centery"].dtype == np.float64
+    assert "perimeter" in df.columns and df["perimeter"].dtype == np.float64
+    assert "area" in df.columns and df["area"].dtype == np.float64
+    assert "pressure" in df.columns and df["pressure"].dtype == np.float64
     assert len(df) == len(furrow.frames[0].cells)
 
 def test_get_edges_props_df(furrow):
@@ -124,9 +124,9 @@ def test_get_edges_props_df(furrow):
 
     df = furrow.frames[0].get_edges_props_df()
     assert isinstance(df, pd.DataFrame)
-    assert "eid" in df.columns and df["eid"].dtype == int
-    assert "posx" in df.columns and df["posx"].dtype == float
-    assert "posy" in df.columns  and df["posy"].dtype == float
-    assert "tension" in df.columns and df["tension"].dtype == float
-    assert "gt_tension" in df.columns and df["gt_tension"].dtype == float
+    assert "eid" in df.columns and df["eid"].dtype == np.int64
+    assert "posx" in df.columns and df["posx"].dtype == np.float64
+    assert "posy" in df.columns  and df["posy"].dtype == np.float64
+    assert "tension" in df.columns and df["tension"].dtype == np.float64
+    assert "gt_tension" in df.columns and df["gt_tension"].dtype == np.float64
     assert len(df) == len(furrow.frames[0].big_edges)

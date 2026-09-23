@@ -8,6 +8,28 @@ if __name__ == '__main__':
     import numpy as np
     from PIL import Image
 
+    def positive_int(value):
+        try:
+            value = int(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(
+                "TIME must be an integer."
+            )
+        if value <= 0:
+            raise argparse.ArgumentTypeError(
+                "TIME must be a positive integer."
+            )
+        return value
+
+    def str_to_bool(value):
+        if value.lower() == "true":
+            return True
+        if value.lower() == "false":
+            return False
+        raise argparse.ArgumentTypeError(
+            "MAPPINGS must be True or False."
+        )
+
     parser = argparse.ArgumentParser(description="Forsys interface command" +
                                      "line interface.")
     parser.add_argument("-f", "--folder", type=str,
@@ -56,10 +78,40 @@ if __name__ == '__main__':
                         used to filter out cells that are too big. Default is \
                         no limit",
                         default=np.inf)
-    parser.add_argument("-o", "--output_csv", action="store_true",
-                        help="Output the results to a CSV file.")
+    parser.add_argument("-o", "--output_csv",
+                        nargs="*",
+                        metavar=("TIME", "MAPPING"),
+                        help="Output the results to CSV files. \
+                        TIME is optional and specifies the maximum time to save. \
+                        MAPPING is optional and specifies whether mappings should "
+                        "be saved (True/False).")
 
     args = parser.parse_args()
+
+    output_csv = False
+    output_time = None
+    output_mappings = False
+    if args.output_csv is not None:
+        if len(args.output_csv) == 0: # with no parameters
+            output_csv = True
+            output_time = None
+            output_mappings = False
+        elif len(args.output_csv) == 1: # with time or mappings
+            output_csv = True
+            value = args.output_csv[0]
+            if value.lower() == "true":
+                output_time = None
+                output_mappings = True
+            elif value.lower() == "false":
+                output_time = None
+                output_mappings = False
+        elif len(args.output_csv) == 2: # with both time and mappings
+            output_csv = True
+            output_time = positive_int(args.output_csv[0])
+            output_mappings = str_to_bool(args.output_csv[1])
+        else:
+            parser.error("-o accepts at most two arguments: \
+                         TIME(integer) and MAPPING(boolean).")
 
     if args.save_folder is not None:
         if not os.path.exists(args.save_folder):
@@ -155,6 +207,10 @@ if __name__ == '__main__':
             options = {"mirror_y": False,
                        "minimum_distance": 5,
                        "expand": 50}
+            
+        elif segmentation_file.endswith(".tif"):
+            options = {"mirror_y": True}
+
         else:
             options = {"mirror_y": False}
         skeleton = fs.skeleton.Skeleton(segmentation_file, **options)
@@ -204,18 +260,17 @@ if __name__ == '__main__':
         forsys.build_pressure_matrix(when=time)
         forsys.solve_pressure(when=time, method="lagrange_pressure")
 
-        if args.output_csv:
-            print("Outputting results to CSV file.")
-            cell_df, force_df, v_df = fs.auxiliar.create_csvs(forsys.frames[time])
-            cell_df.to_csv(os.path.join(args.save_folder, "csvs",
-                                        f"cells_{time}.csv"),
-                           index=False)
-            force_df.to_csv(os.path.join(args.save_folder, "csvs",
-                                         f"stress_{time}.csv"),
-                            index=False)
-            v_df.to_csv(os.path.join(args.save_folder, "csvs",
-                                         f"vertex_{time}.csv"),
-                                         index=False)
+    if output_csv:
+        print("Outputting results to CSV file.")
+        cell_df, force_df, v_df = fs.auxiliar.create_csvs(forsys, time=output_time,with_mapping=output_mappings)
+        if output_time is None:
+            output_time = "long"
+        cell_df.to_csv(os.path.join(args.save_folder, "csvs",
+                                    f"cells_{output_time}.csv"),index=False)
+        force_df.to_csv(os.path.join(args.save_folder, "csvs",
+                                        f"stress_{output_time}.csv"),index=False)
+        v_df.to_csv(os.path.join(args.save_folder, "csvs",
+                                    f"vertex_{output_time}.csv"), index=False)
 
     print("Plotting...")
     if args.pngs:
