@@ -269,8 +269,8 @@ def create_csvs_long(forsys: fs.ForSys, is_mapping:bool = False) -> tuple:
         if is_mapping:
             # id_prev
             if t == times[0]:
-                cell_df.insert(0, "id_prev", pd.Series(pd.nan, index=cell_df.index, dtype="Int64"))
-                force_df.insert(0,"id_prev", pd.Series(pd.nan, index=force_df.index, dtype="Int64"))
+                cell_df.insert(0, "id_prev", pd.Series(np.nan, index=cell_df.index, dtype="Int64"))
+                force_df.insert(0,"id_prev", pd.Series(np.nan, index=force_df.index, dtype="Int64"))
 
             else:
                 cell_df.rename(columns={"id_mapped": "id_prev"}, inplace=True)
@@ -286,8 +286,8 @@ def create_csvs_long(forsys: fs.ForSys, is_mapping:bool = False) -> tuple:
                 id_cell_next = cell_df["id"].map(cells_map).astype("Int64")
                 id_force_next = force_df["id"].map(edge_map).astype("Int64")
             else:
-                id_cell_next = pd.Series(pd.nan, index=cell_df.index, dtype="Int64")
-                id_force_next = pd.Series(pd.nan, index=force_df.index, dtype="Int64")
+                id_cell_next = pd.Series(np.nan, index=cell_df.index, dtype="Int64")
+                id_force_next = pd.Series(np.nan, index=force_df.index, dtype="Int64")
 
             cell_df.insert(2, "id_next", id_cell_next)
             force_df.insert(2, "id_next", id_force_next)
